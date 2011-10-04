@@ -143,10 +143,10 @@ const char* Processor::commands_desc[C_MAX] =
 	"Management: execute next context buffer",
 	"Management: clear (invalidate) next context buffer",
 
-	"Management: load second context buffer [ASM]",
-	"Management: load second context buffer [BIN]",
-	"Management: write second context buffer [ASM]",
-	"Management: write second context buffer [BIN]",
+	"Management: load next context buffer [ASM]",
+	"Management: load next context buffer [BIN]",
+	"Management: write next context buffer [ASM]",
+	"Management: write next context buffer [BIN]",
 
 	"Management: stop execution/quit context"
 };
