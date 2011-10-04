@@ -38,3 +38,6 @@ Remote GDB Shell Script=
 Use External Terminal=true
 Working Directory=
 isExecutable=false
+
+[Project]
+VersionControlSupport=kdevgit

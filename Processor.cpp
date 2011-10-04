@@ -937,6 +937,11 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 	msg (E_INFO, E_VERBOSE, "Binary code dump of buffer %ld completed", which_buffer);
 }
 
+size_t Processor::GetCurrentBuffer()
+{
+	return state.buffer;
+}
+
 void Processor::ExecuteBuffer()
 {
 	AllocContext();

@@ -16,6 +16,8 @@ typedef double calc_t;
 static const int COMMAND_BUFFER = 100;
 static const int BUFFER_NUM = 4;
 
+static const unsigned line_length = 256;
+
 /*
  * Epigraph:
  *
@@ -142,8 +144,6 @@ class Processor : LogBase (Processor)
 	static const char* commands_desc[];
 	static CommandTraits commands_traits[];
 
-	static const unsigned line_length = 256;
-
 	static VersionSignature expect_sig;
 	static const unsigned long long symbols_section_sig;
 	static const unsigned long long command_section_sig;
@@ -206,6 +206,7 @@ public:
 	void Decode (FILE* stream);
 	void Load (FILE* stream);
 	void ExecuteBuffer();
+	size_t GetCurrentBuffer();
 	void DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer);
 	void DumpAsm (FILE* stream, size_t which_buffer);
 

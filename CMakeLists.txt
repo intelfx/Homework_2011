@@ -14,8 +14,8 @@ MAIN_ADD_GCH(stdafx.h STACK_SRC)
 add_executable(antided_stack ${STACK_SRC})
 target_link_libraries(antided_stack ${LIBRARIES})
 
-file (GLOB VM_SRC mi_vm_*.cpp)
-MAIN_ADD_GCH(stdafx.h VM_SRC)
+#file (GLOB VM_SRC mi_vm_*.cpp)
+#MAIN_ADD_GCH(stdafx.h VM_SRC)
 
 # add_executable(antided_vm ${VM_SRC})
 # target_link_libraries(antided_vm ${LIBRARIES})
