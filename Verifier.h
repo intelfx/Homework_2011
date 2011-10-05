@@ -12,6 +12,7 @@
 
 DeclareDescriptor(AllocBase);
 DeclareDescriptor(StaticAllocator);
+DeclareDescriptor(MallocAllocator);
 
 template <typename T>
 class AllocBase : LogBase(AllocBase)
@@ -78,6 +79,71 @@ bool AllocBase<T>::Verify_() const
 
 	return 1;
 }
+
+template <typename T>
+class MallocAllocator : LogBase(MallocAllocator), public AllocBase<T>
+{
+	static const size_t initial_cap = 10;
+	size_t capacity_;
+	T* array_;
+
+protected:
+	virtual bool Verify_() const
+	{
+		if (!capacity_)
+			return 0;
+
+		if (!array_)
+			return 0;
+
+		return AllocBase<T>::Verify_();
+	}
+
+	virtual void _Realloc (size_t cap)
+	{
+		msg (E_INFO, E_VERBOSELIB, "Reallocating dynamic allocator to %d", cap);
+
+		T* old_array = array_;
+		array_ = reinterpret_cast<T*> (realloc (old_array, cap));
+
+		if (!array_) free (old_array);
+		__assert (array_, "Failed to reallocate");
+
+		capacity_ = cap;
+	}
+
+	virtual T& _Access (size_t subscript)
+	{
+		return array_[subscript];
+	}
+
+	virtual const T& _Access (size_t subscript) const
+	{
+		return array_[subscript];
+	}
+
+public:
+	MallocAllocator() :
+	capacity_ (initial_cap),
+	array_ (reinterpret_cast<T*> (malloc (sizeof (T) * capacity_)))
+	{
+	}
+
+	virtual size_t Capacity() const
+	{
+		return capacity_;
+	}
+
+	T& operator[] (size_t subscript)
+	{
+		return AllocBase<T>::Access (subscript);
+	}
+
+	const T& operator[] (size_t subscript) const
+	{
+		return AllocBase<T>::Access (subscript);
+	}
+};
 
 template <typename T, size_t capacity>
 class StaticAllocator : LogBase(StaticAllocator), public AllocBase<T>

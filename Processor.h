@@ -183,11 +183,12 @@ class Processor : LogBase (Processor)
 	void BinaryReadSymbols (symbol_map* map, FILE* stream, bool use_sparse_code);
 	DecodedCommand BinaryReadCmd (FILE* stream, bool use_sparse_code);
 
-	void ClearContext();
-	void AuxPushContext(); // Save context without resetting it
+	void ClearContextBuffer(); // Reset current context buffer
+	void NextContextBuffer(); // Switch to next context buffer while preserving its state
+
+	void SaveContext(); // Save context without resetting it
 	void PushContext();
 	void RestoreContext();
-	void InitContexts();
 
 protected:
 	//virtual bool Verify_() const;
@@ -201,7 +202,8 @@ public:
 	// Default file name prefix used to load/dump buffer from code
 	void SetFilenamePrefix (const char* fn);
 
-	void AllocContext();
+	void InitContexts();
+	void AllocContextBuffer(); // Switch to next context buffer, resetting it
 
 	void Decode (FILE* stream);
 	void Load (FILE* stream);

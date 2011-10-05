@@ -10,3 +10,4 @@
 
 ImplementDescriptorNoid(AllocBase, "allocator", MOD_OBJECT);
 ImplementDescriptorNoid(StaticAllocator, "static allocator", MOD_OBJECT);
+ImplementDescriptorNoid(MallocAllocator, "malloc-powered", MOD_OBJECT);

@@ -9,10 +9,27 @@ void Interactive (Processor& proc)
 	smsg (E_INFO, E_USER, "Command set version is %d:%d", proc.GetMajorVersion(), proc.GetMinorVersion());
 	smsg (E_INFO, E_USER, "Dumping command set:");
 	proc.DumpCommandSet();
-	smsg (E_INFO, E_USER, "");
-	proc.AllocContext();
-	proc.SetExecuteInPlace (1);
-	proc.Decode (stdin);
+
+	while (true)
+	{
+		try
+		{
+			proc.InitContexts();
+			proc.AllocContextBuffer();
+			proc.SetExecuteInPlace (1);
+			proc.Decode (stdin);
+		}
+
+		catch (std::exception& e)
+		{
+			smsg (E_CRITICAL, E_USER, "Execution failed: \"%s\"", e.what());
+		}
+
+		smsg (E_INFO, E_USER, "Type q<Enter> to quit");
+		char response = getchar();
+		if (response == 'q' || response == 'Q')
+			break;
+	}
 }
 
 int main (int argc, char** argv)
@@ -64,7 +81,7 @@ int main (int argc, char** argv)
 	{
 		if (!strcasecmp (argv[1], "execute"))
 		{
-			proc.AllocContext();
+			proc.AllocContextBuffer();
 			proc.SetExecuteInPlace (0);
 
 			smsg (E_INFO, E_USER, "Executing bytecode from file \"%s\"", argv[2]);
@@ -77,7 +94,7 @@ int main (int argc, char** argv)
 
 		else if (!strcasecmp (argv[1], "compile"))
 		{
-			proc.AllocContext();
+			proc.AllocContextBuffer();
 			proc.SetExecuteInPlace (0);
 			size_t used_buffer = proc.GetCurrentBuffer();
 
@@ -103,7 +120,7 @@ int main (int argc, char** argv)
 
 		else if (!strcasecmp(argv[1], "decompile"))
 		{
-			proc.AllocContext();
+			proc.AllocContextBuffer();
 			proc.SetExecuteInPlace (0);
 			size_t used_buffer = proc.GetCurrentBuffer();
 
@@ -134,5 +151,5 @@ int main (int argc, char** argv)
 	else
 		__sasshole ("Wrong number of parameters: %d", argc - 1);
 
-	Debug::System::Instance.ForceDelete();
+	Debug::System::Instance().CloseTargets();
 }

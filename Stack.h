@@ -11,7 +11,7 @@ DeclareDescriptor(Stack);
 template <typename T>
 class Stack : LogBase(Stack)
 {
-	StaticAllocator<T, STACK_SIZE> storage;
+	MallocAllocator<T> storage;
 	size_t stack_top;
 
 protected:

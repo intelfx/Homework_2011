@@ -243,21 +243,26 @@ bool Processor::ReadSignature (FILE* stream)
 	smsg (E_INFO, E_VERBOSELIB, "File signature matched: READ %p", file_sig.magic);
 
 	__sassert (file_sig.is_sparse == expect_sig.is_sparse, "SPARSE MODE MISMATCH: READ %s EXPECT %s",
-	           file_sig.is_sparse ? "sparse" : "compact", expect_sig.is_sparse ? "sparse" : "compact");
+	           file_sig.is_sparse ? "sparse" : "compact",
+	           expect_sig.is_sparse ? "sparse" : "compact");
 
 	smsg (E_INFO, E_VERBOSELIB, "File sparse mode: %s", file_sig.is_sparse ? "sparse" : "compact");
 
 	__sassert (file_sig.version.major == expect_sig.version.major,
 	           "FILE MAJOR VERSION MISMATCH: READ [%d] EXPECT [%d]",
-	           file_sig.version.major, expect_sig.version.major);
+	           file_sig.version.major,
+	           expect_sig.version.major);
 
 	if (file_sig.version.minor == expect_sig.version.minor)
 		smsg (E_INFO, E_VERBOSELIB, "File version matched: READ %p [%d:%d]",
-		      file_sig.ver_raw, file_sig.version.major, file_sig.version.minor);
+		      file_sig.ver_raw,
+		      file_sig.version.major,
+		      file_sig.version.minor);
 
 	else
 		smsg (E_WARNING, E_VERBOSELIB, "FILE MINOR VERSION MISMATCH: READ [%d] EXPECT [%d]",
-		      file_sig.version.minor, expect_sig.version.minor);
+		      file_sig.version.minor,
+		      expect_sig.version.minor);
 
 	return file_sig.is_sparse;
 }
@@ -302,11 +307,9 @@ void Processor::InitContexts()
 
 	context_stack.Reset();
 
-	ProcessorState newc;
-	newc.ip = 0;
-	newc.flags = MASK (F_EXIT);
-	newc.buffer = -1;
-	state = newc;
+	state.ip = 0;
+	state.flags = MASK (F_EXIT);
+	state.buffer = -1; // debug placeholder
 }
 
 void Processor::DoJump (const Processor::Reference& ref)
@@ -343,7 +346,7 @@ void Processor::Analyze (calc_t arg)
 		state.flags |= MASK(F_ZERO);
 }
 
-void Processor::AuxPushContext()
+void Processor::SaveContext()
 {
 	msg (E_INFO, E_VERBOSE, "Saving context");
 	msg (E_INFO, E_DEBUGAPP, "Context: IP [%p], FL [%p], BUF [%ld]",
@@ -367,18 +370,28 @@ void Processor::PushContext()
 	context_stack.Push (oldc);
 }
 
-void Processor::ClearContext()
+void Processor::ClearContextBuffer()
 {
 	buffers[state.buffer].cmd_top = 0;
 	buffers[state.buffer].sym_table.clear();
 }
 
-void Processor::AllocContext()
+void Processor::NextContextBuffer()
 {
 	PushContext();
 	++state.buffer;
 	__assert (state.buffer < buffers.Capacity(), "Not enough execution buffers");
-	msg (E_INFO, E_DEBUGAPP, "New execution context allocated");
+	msg (E_INFO, E_DEBUGAPP, "Switched to next execution context buffer");
+}
+
+void Processor::AllocContextBuffer()
+{
+	PushContext();
+	++state.buffer;
+	__assert (state.buffer < buffers.Capacity(), "Not enough execution buffers");
+
+	ClearContextBuffer();
+	msg (E_INFO, E_DEBUGAPP, "New execution context buffer allocated");
 }
 
 void Processor::RestoreContext()
@@ -639,6 +652,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 			  section_id, symbols_section_sig);
 
 	char* temporary = reinterpret_cast<char*> (malloc (line_length));
+	__assert (temporary, "Unable to malloc label placeholder");
 
 	size_t decl_count = 0;
 	fread (&decl_count, sizeof (section_id), 1, stream);
@@ -672,6 +686,8 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 
 		BinaryInsertSymbol (map, temporary, sym);
 	}
+
+	free (temporary);
 }
 
 void Processor::Decode (FILE* stream)
@@ -679,7 +695,7 @@ void Processor::Decode (FILE* stream)
 	CheckStream (stream);
 	msg (E_INFO, E_VERBOSE, "Decoding and/or executing text commands");
 
-	if (! (state.flags & MASK (F_EIP))) ClearContext();
+	ClearContextBuffer();
 
 	// Store the initial context # because in EIP mode we must watch context # change
 	size_t initial_context_no = state.buffer;
@@ -739,7 +755,7 @@ void Processor::Load (FILE* stream)
 
 	if (!(state.flags & MASK (F_EIP)))
 	{
-		ClearContext();
+		ClearContextBuffer();
 		BinaryReadSymbols (&buffers[state.buffer].sym_table, stream, use_sparse_code);
 	}
 
@@ -944,7 +960,7 @@ size_t Processor::GetCurrentBuffer()
 
 void Processor::ExecuteBuffer()
 {
-	AllocContext();
+	NextContextBuffer();
 	msg (E_INFO, E_VERBOSE, "Executing context with existing commands (%ld)", buffers[state.buffer].cmd_top);
 
 	size_t initial_context = state.buffer;
@@ -985,7 +1001,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 	{
 		size_t ip = state.ip;
 		InitContexts();
-		AllocContext();
+		AllocContextBuffer();
 		state.ip = ip;
 		break;
 	}
@@ -1030,7 +1046,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		break;
 
 	case C_CMP:
-		Analyze (calc_stack.Top() - calc_stack.Introspect (1));
+		Analyze (calc_stack.Pop() - calc_stack.Top());
 		break;
 
 	case C_SWAP:
@@ -1089,7 +1105,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		break;
 
 	case C_CALL:
-		AuxPushContext();
+		SaveContext();
 		DoJump (cmd.ref);
 		break;
 
@@ -1110,7 +1126,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		break;
 
 	case C_CSWITCH:
-		AllocContext();
+		AllocContextBuffer();
 		break;
 
 	case C_EXEC:
@@ -1123,7 +1139,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 
 		if (f)
 		{
-			AllocContext();
+			AllocContextBuffer();
 			Decode (f);
 		}
 
@@ -1140,7 +1156,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 
 		if (f)
 		{
-			AllocContext();
+			AllocContextBuffer();
 			Load (f);
 		}
 
@@ -1182,7 +1198,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 	case C_INVD:
 		// RestoreContext();
 		++state.buffer;
-		ClearContext();
+		ClearContextBuffer();
 		--state.buffer; // RestoreContext();
 		break;
 
