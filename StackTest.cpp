@@ -45,7 +45,6 @@ int main (int argc, char** argv)
 	stack.Push (a2);
 
 	__sassert (stack.Top() == a2, "Top() test failed");
-	smsg (E_INFO, E_USER, "Top is %d", stack.Top());
 
 	stack.Push (stack.Pop() - stack.Pop());
 	__sassert (stack.Pop() == a2 - a1, "Pop() order test failed");

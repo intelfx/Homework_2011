@@ -209,12 +209,15 @@ const unsigned long long Processor::symbols_section_sig = 'MYS_CES';
 const unsigned long long Processor::command_section_sig = 'DMC_CES';
 
 Processor::Processor() :
-	state(),
-	bin_dump_file (0),
-	asm_dump_file (0)
+state(),
+bin_dump_file (0),
+asm_dump_file (0)
 {
 	for (unsigned i = 0; i < C_MAX; ++i)
+	{
+		__assert (commands_list[i] && commands_desc[i], "Invalid command entry for %d", i);
 		commands_index.insert (std::make_pair (commands_list[i], i));
+	}
 
 	SetFilenamePrefix ("default");
 	InitContexts();
@@ -233,7 +236,6 @@ void Processor::CheckStream (FILE* stream)
 
 bool Processor::ReadSignature (FILE* stream)
 {
-
 	VersionSignature file_sig;
 	fread (&file_sig, sizeof (file_sig), 1, stream);
 
@@ -303,9 +305,10 @@ void Processor::BinaryInsertSymbol (symbol_map* map, const char* label, Symbol s
 
 void Processor::InitContexts()
 {
-	msg (E_INFO, E_VERBOSE, "Initializing context stack");
+	msg (E_INFO, E_VERBOSE, "Initializing system");
 
 	context_stack.Reset();
+	calc_stack.Reset();
 
 	state.ip = 0;
 	state.flags = MASK (F_EXIT);
@@ -318,9 +321,9 @@ void Processor::DoJump (const Processor::Reference& ref)
 
 	if (ref.is_symbol)
 	{
-		const std::pair<std::string, Symbol>& pair = buffers[state.buffer].sym_table.find (ref.symbol_hash) ->second;
-		const std::string& name	= pair.first;
-		const Symbol& sym		= pair.second;
+		const std::pair<std::string, Symbol>& pair	= buffers[state.buffer].sym_table.find (ref.symbol_hash) ->second;
+		const std::string& name						= pair.first;
+		const Symbol& sym							= pair.second;
 
 		__assert (sym.is_resolved, "Unresolved symbol \"%s\"", name.c_str());
 		new_ip = sym.address;
@@ -457,19 +460,18 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 
 Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 {
-	char command[line_length] = {}, arg[line_length] = {};
-
+	char command[line_length], arg[line_length];
 	unsigned short label_count = 0;
-
 	DecodedSet set;
+
+	memset (command, '\0', line_length);
+	memset (arg, '\0', line_length);
+	memset (&set.cmd, 0xDEADBEEF, sizeof (set.cmd));
+
 	set.cmd.command = C_MAX;
- 	set.cmd.debug = reinterpret_cast<void*> (0xDEADBEEF);
 
-	// Drop commentary
-	if (char* cmt = strchr (buffer, ';')) *cmt = '\0';
-
-	// Drop newline (if no commentary)
-	else if (char* nl = strchr (buffer, '\n')) *nl = '\0';
+	if (char* cmt = strchr (buffer, ';')) *cmt = '\0'; // Drop commentary
+	else if (char* nl = strchr (buffer, '\n')) *nl = '\0'; // Drop newline (if no commentary)
 
 	msg (E_INFO, E_DEBUGAPP, "Decoding \"%s\"", buffer);
 
@@ -542,6 +544,8 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 			else
 			{
 				Symbol sym;
+				memset (&sym, 0xDEADBEEF, sizeof (sym));
+
 				sym.is_resolved = 0;
 				sym.type = S_NONE;
 				sym.address = -1;
@@ -581,6 +585,7 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_sparse_code)
 {
 	DecodedCommand cmd;
+	memset (&cmd, 0xDEADBEEF, sizeof (cmd));
 
 	if (use_sparse_code)
 	{
@@ -690,110 +695,147 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 	free (temporary);
 }
 
-void Processor::Decode (FILE* stream)
+void Processor::Decode (FILE* stream) throw()
 {
-	CheckStream (stream);
 	msg (E_INFO, E_VERBOSE, "Decoding and/or executing text commands");
-
-	ClearContextBuffer();
 
 	// Store the initial context # because in EIP mode we must watch context # change
 	size_t initial_context_no = state.buffer;
-	char* line = reinterpret_cast<char*> (malloc (line_length));
+	char* line = 0;
 	size_t line_num = 0;
 
-	// feof() is for decode-only usecase (does not touch the context).
-	while (!feof (stream))
+	try
 	{
-		++line_num;
-		fgets (line, line_length, stream);
-		DecodedSet set = DecodeCmd (line);
+		CheckStream (stream);
 
-		if (state.flags & MASK (F_EIP))
+		line = reinterpret_cast<char*> (malloc (line_length));
+		__assert (line, "Unable to malloc input buffer of %ld bytes", line_length);
+
+		msg (E_INFO, E_DEBUGAPP, "Initial context # is %ld", initial_context_no);
+
+		// Exit the parse/decode loop if we're off the initial (primary) context.
+		// This is for proper handling of "cswitch" statements.
+		while ( (state.buffer != static_cast<size_t> (-1)) &&
+		        (state.buffer >= initial_context_no))
 		{
-			if (set.cmd.command == C_NONE)
-				continue;
+			if (feof (stream))
+			{
+				msg (E_WARNING, E_VERBOSE, "Preliminary EOS - setting exit condition");
+				state.flags |= F_EXIT;
+			}
 
-			__verify (set.symbols.empty(), "Symbols are not allowed in EIP mode");
-			InternalHandler (set.cmd);
+			else
+			{
+				++line_num;
+				memset (line, '\0', line_length);
+				fgets (line, line_length, stream);
+				DecodedSet set = DecodeCmd (line);
+
+				if (state.flags & MASK (F_EIP))
+				{
+					if (set.cmd.command == C_NONE)
+						continue;
+
+					__verify (set.symbols.empty(), "Symbols are not allowed in EIP mode");
+					InternalHandler (set.cmd);
+				}
+
+				else
+				{
+					if (!set.symbols.empty())
+						DecodeLinkSymbols (set);
+
+					if (set.cmd.command == C_NONE)
+						continue;
+
+					buffers[state.buffer].commands.Access (buffers[state.buffer].cmd_top++) = set.cmd;
+
+					if (set.cmd.command == C_QUIT)
+						InternalHandler (set.cmd);
+				}
+			}
+
+			// Do graceful exit if we've reached quit command or condition (EOF).
+			if (state.flags & MASK (F_EXIT))
+				RestoreContext();
 		}
+	}
 
-		else
-		{
-			if (!set.symbols.empty())
-				DecodeLinkSymbols (set);
-
-			if (set.cmd.command == C_NONE)
-				continue;
-
-			buffers[state.buffer].commands.Access (buffers[state.buffer].cmd_top++) = set.cmd;
-
-			if (set.cmd.command == C_QUIT)
-				InternalHandler (set.cmd);
-		}
-
-		if (state.flags & MASK (F_EXIT))
-		{
-			size_t exited_context_no = state.buffer;
-			RestoreContext();
-
-			// Exit the loop if we've finished the initial (primary) context.
-			if (exited_context_no == initial_context_no)
-				break;
-		}
+	catch (std::exception& e)
+	{
+		msg (E_CRITICAL, E_USER, "Error decoding text: %s", e.what());
+		msg (E_CRITICAL, E_USER, "Exiting decode loop");
 	}
 
 	free (line);
 }
 
-void Processor::Load (FILE* stream)
+void Processor::Load (FILE* stream) throw()
 {
-	CheckStream (stream);
-	bool use_sparse_code = ReadSignature (stream);
-
 	msg (E_INFO, E_VERBOSE, "Loading and executing bytecode");
 
-	if (!(state.flags & MASK (F_EIP)))
+	try
 	{
-		ClearContextBuffer();
-		BinaryReadSymbols (&buffers[state.buffer].sym_table, stream, use_sparse_code);
+		CheckStream (stream);
+		bool use_sparse_code = ReadSignature (stream);
+
+		if (! (state.flags & MASK (F_EIP)))
+		{
+			msg (E_INFO, E_DEBUGAPP, "Reading symbol section");
+			BinaryReadSymbols (&buffers[state.buffer].sym_table, stream, use_sparse_code);
+		}
+
+		size_t initial_context_no = state.buffer;
+
+		// Files without command section are OK
+		if (feof (stream))
+			return;
+
+		msg (E_INFO, E_DEBUGAPP, "Reading command section");
+
+		unsigned long long section_id = 0;
+		fread (&section_id, sizeof (section_id), 1, stream);
+		__verify (section_id == command_section_sig, "Malformed command section: READ %p EXPECT %p",
+		          section_id, command_section_sig);
+
+		// Exit the parse/decode loop if we're off the initial (primary) context,
+		// not simply on EXIT flag.
+		// This is for proper handling of "cswitch" statements and context-switching.
+		while ( (state.buffer != static_cast<size_t> (-1)) &&
+		        (state.buffer >= initial_context_no))
+		{
+			if (feof (stream))
+			{
+				msg (E_CRITICAL, E_USER, "Preliminary EOS reading binary file");
+				state.flags |= MASK (F_EXIT);
+			}
+
+			else
+			{
+				DecodedCommand cmd = BinaryReadCmd (stream, use_sparse_code);
+
+				if (state.flags & MASK (F_EIP))
+					InternalHandler (cmd);
+
+				else
+				{
+					buffers[state.buffer].commands.Access (buffers[state.buffer].cmd_top++) = cmd;
+
+					if (cmd.command == C_QUIT)
+						InternalHandler (cmd);
+				}
+			}
+
+			// Do graceful exit if we've reached quit command or condition (EOF).
+			if (state.flags & MASK (F_EXIT))
+				RestoreContext();
+		}
 	}
 
-	size_t initial_context_no = state.buffer;
-
-	// Files without command section are OK
-	if (feof (stream))
-		return;
-
-	unsigned long long section_id = 0;
-	fread (&section_id, sizeof (section_id), 1, stream);
-	__verify (section_id == command_section_sig, "Malformed command section: READ %p EXPECT %p",
-			  section_id, command_section_sig);
-
-	while (!feof (stream))
+	catch (std::exception& e)
 	{
-		DecodedCommand cmd = BinaryReadCmd (stream, use_sparse_code);
-
-		if (state.flags & MASK (F_EIP))
-			InternalHandler (cmd);
-
-		else
-		{
-			buffers[state.buffer].commands.Access (buffers[state.buffer].cmd_top++) = cmd;
-
-			if (cmd.command == C_QUIT)
-				InternalHandler (cmd);
-		}
-
-		if (state.flags & MASK (F_EXIT))
-		{
-			size_t exited_context_no = state.buffer;
-			RestoreContext();
-
-			// Exit the loop if we've finished the initial (primary) context.
-			if (exited_context_no == initial_context_no)
-				break;
-		}
+		msg (E_CRITICAL, E_USER, "Error loading bytecode: \"%s\"", e.what());
+		msg (E_CRITICAL, E_USER, "Exiting loading loop");
 	}
 }
 
@@ -880,8 +922,8 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 	msg (E_INFO, E_VERBOSE, "Writing bytecode from buffer %ld to binary stream",
 	     which_buffer);
 
-	msg (E_INFO, E_DEBUGAPP, "Writing signature: MAGIC %p VERSION %p [%d:%d]",
-	     expect_sig.magic, expect_sig.ver_raw, expect_sig.version.major, expect_sig.version.minor);
+	msg (E_INFO, E_DEBUGAPP, "Writing signature: MAGIC %p VERSION [%d:%d]",
+	     expect_sig.magic, expect_sig.version.major, expect_sig.version.minor);
 
 	VersionSignature write_sig = expect_sig;
 	write_sig.is_sparse = use_sparse_code;
@@ -892,7 +934,6 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 	Buffer& buffer = buffers[which_buffer]; // It's not going to change
 
 	msg (E_INFO, E_DEBUGAPP, "Writing symbol section");
-
 	fwrite (&symbols_section_sig, sizeof (symbols_section_sig), 1, stream);
 	{
 		size_t sym_count = buffer.sym_table.size();
@@ -917,35 +958,44 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 	}
 
 
-	msg (E_INFO, E_DEBUGAPP, "Writing code section");
-
-	fwrite (&command_section_sig, sizeof (command_section_sig), 1, stream);
-	for (unsigned i = 0; i < buffer.cmd_top; ++i)
+	if (!buffer.cmd_top)
 	{
-		DecodedCommand& cmd = buffer.commands.Access (i);
+		msg (E_WARNING, E_DEBUGAPP, "Not writing empty code section");
+	}
 
-		if (use_sparse_code)
-			fwrite (&cmd, sizeof (cmd), 1, stream);
+	else
+	{
+		msg (E_INFO, E_DEBUGAPP, "Writing code section");
+		fwrite (&command_section_sig, sizeof (command_section_sig), 1, stream);
 
-		else
+		msg (E_INFO, E_DEBUGAPP, "Writing %ld instructions", buffer.cmd_top);
+		for (size_t i = 0; i < buffer.cmd_top; ++i)
 		{
-			fwrite (&cmd.command, sizeof (cmd.command), 1, stream);
+			DecodedCommand& cmd = buffer.commands.Access (i);
 
-			switch (commands_traits[cmd.command].arg_type)
+			if (use_sparse_code)
+				fwrite (&cmd, sizeof (cmd), 1, stream);
+
+			else
 			{
-			case A_REFERENCE:
-				fwrite (&cmd.ref, sizeof (cmd.ref), 1, stream);
-				break;
+				fwrite (&cmd.command, sizeof (cmd.command), 1, stream);
 
-			case A_VALUE:
-				fwrite (&cmd.value, sizeof (cmd.value), 1, stream);
-				break;
+				switch (commands_traits[cmd.command].arg_type)
+				{
+				case A_REFERENCE:
+					fwrite (&cmd.ref, sizeof (cmd.ref), 1, stream);
+					break;
 
-			case A_NONE:
-				break;
+				case A_VALUE:
+					fwrite (&cmd.value, sizeof (cmd.value), 1, stream);
+					break;
 
-			default:
-				__asshole ("Switch error");
+				case A_NONE:
+					break;
+
+				default:
+					__asshole ("Switch error");
+				}
 			}
 		}
 	}
@@ -953,42 +1003,50 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 	msg (E_INFO, E_VERBOSE, "Binary code dump of buffer %ld completed", which_buffer);
 }
 
-size_t Processor::GetCurrentBuffer()
+size_t Processor::GetCurrentBuffer() throw()
 {
 	return state.buffer;
 }
 
-void Processor::ExecuteBuffer()
+void Processor::ExecuteBuffer() throw()
 {
-	NextContextBuffer();
-	msg (E_INFO, E_VERBOSE, "Executing context with existing commands (%ld)", buffers[state.buffer].cmd_top);
-
-	size_t initial_context = state.buffer;
-
-	for (;;)
+	try
 	{
-		if (state.ip >= buffers[state.buffer].cmd_top)
+		NextContextBuffer();
+		msg (E_INFO, E_VERBOSE, "Executing context with existing commands (%ld)", buffers[state.buffer].cmd_top);
+
+		size_t initial_context = state.buffer;
+
+		for (;;)
 		{
-			msg (E_CRITICAL, E_USER, "IP overflow - exiting context");
-			RestoreContext();
-			continue;
+			if (state.ip >= buffers[state.buffer].cmd_top)
+			{
+				msg (E_CRITICAL, E_USER, "IP overflow - exiting context");
+				RestoreContext();
+				return;
+			}
+
+			InternalHandler (buffers[state.buffer].commands.Access (state.ip++));
+
+			if (state.flags & MASK (F_EXIT))
+			{
+				size_t final_context = state.buffer;
+				RestoreContext();
+
+				// Exit the loop if we've finished the initial (primary) context.
+				if (final_context == initial_context)
+					break;
+			}
 		}
 
-		InternalHandler (buffers[state.buffer].commands.Access (state.ip++));
-
-		if (state.flags & MASK (F_EXIT))
-		{
-			size_t final_context = state.buffer;
-			RestoreContext();
-
-			// Exit the loop if we've finished the initial (primary) context.
-			if (final_context == initial_context)
-				break;
-		}
+		msg (E_INFO, E_VERBOSE, "Execution of context completed: the result is %lg",
+		     calc_stack.Top());
 	}
 
-	msg (E_INFO, E_VERBOSE, "Execution of context completed: the result is %lg",
-	     calc_stack.Top());
+	catch (std::exception& e)
+	{
+		msg (E_CRITICAL, E_USER, "Execution failed: \"%s\"", e.what());
+	}
 }
 
 void Processor::InternalHandler (const DecodedCommand& cmd)
@@ -1126,7 +1184,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		break;
 
 	case C_CSWITCH:
-		AllocContextBuffer();
+		NextContextBuffer();
 		break;
 
 	case C_EXEC:
@@ -1137,16 +1195,20 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 	{
 		FILE* f = fopen (asm_dump_file, "rt");
 
+#ifndef NDEBUG
+		setbuf (f, 0);
+#endif
+
 		if (f)
 		{
 			AllocContextBuffer();
 			Decode (f);
+			fclose (f);
 		}
 
 		else
 			msg (E_WARNING, E_VERBOSE, "ASM dump file \"%s\" does not exist", asm_dump_file);
 
-		fclose (f);
 		break;
 	}
 
@@ -1154,16 +1216,20 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 	{
 		FILE* f = fopen (bin_dump_file, "rb");
 
+#ifndef NDEBUG
+		setbuf (f, 0);
+#endif
+
 		if (f)
 		{
 			AllocContextBuffer();
 			Load (f);
+			fclose (f);
 		}
 
 		else
 			msg (E_WARNING, E_VERBOSE, "BIN dump file \"%s\" does not exist", bin_dump_file);
 
-		fclose (f);
 		break;
 	}
 
@@ -1171,13 +1237,19 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 	{
 		FILE* f = fopen (asm_dump_file, "wt");
 
+#ifndef NDEBUG
+		setbuf (f, 0);
+#endif
+
 		if (f)
+		{
 			DumpAsm (f, state.buffer + 1);
+			fclose (f);
+		}
 
 		else
 			msg (E_WARNING, E_VERBOSE, "ASM dump file \"%s\" cannot be created", asm_dump_file);
 
-		fclose (f);
 		break;
 	}
 
@@ -1185,13 +1257,19 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 	{
 		FILE* f = fopen (bin_dump_file, "wb");
 
+#ifndef NDEBUG
+		setbuf (f, 0);
+#endif
+
 		if (f)
+		{
 			DumpBC (f, 0, state.buffer + 1);
+			fclose (f);
+		}
 
 		else
 			msg (E_WARNING, E_VERBOSE, "BIN dump file \"%s\" cannot be created", bin_dump_file);
 
-		fclose (f);
 		break;
 	}
 
@@ -1234,7 +1312,7 @@ unsigned char Processor::GetMinorVersion()
 
 void Processor::DumpCommandSet()
 {
-	for (unsigned i = 0; commands_list[i]; ++i)
+	for (unsigned i = 0; i < C_MAX; ++i)
 	{
 		msg (E_INFO, E_VERBOSE, "\"%s\" (%d args)\t:: %s",
 		     commands_list[i],
@@ -1252,6 +1330,9 @@ void Processor::SetFilenamePrefix (const char* fn)
 
 	bin_dump_file = reinterpret_cast<char*> (malloc (line_length));
 	asm_dump_file = reinterpret_cast<char*> (malloc (line_length));
+
+	__assert (bin_dump_file, "Unable to malloc file name buffer");
+	__assert (asm_dump_file, "Unable to malloc file name buffer");
 
 	sprintf (bin_dump_file, "%s.dbin", fn);
 	sprintf (asm_dump_file, "%s.dasm", fn);

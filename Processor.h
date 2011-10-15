@@ -205,10 +205,10 @@ public:
 	void InitContexts();
 	void AllocContextBuffer(); // Switch to next context buffer, resetting it
 
-	void Decode (FILE* stream);
-	void Load (FILE* stream);
-	void ExecuteBuffer();
-	size_t GetCurrentBuffer();
+	void Decode (FILE* stream) throw();
+	void Load (FILE* stream) throw();
+	void ExecuteBuffer() throw();
+	size_t GetCurrentBuffer() throw();
 	void DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer);
 	void DumpAsm (FILE* stream, size_t which_buffer);
 

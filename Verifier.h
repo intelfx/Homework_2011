@@ -129,6 +129,11 @@ public:
 	{
 	}
 
+	virtual ~MallocAllocator()
+	{
+		free (array_);
+	}
+
 	virtual size_t Capacity() const
 	{
 		return capacity_;
