@@ -283,19 +283,18 @@ void Processor::DumpFlags()
 		 !!(state.flags & MASK(F_NEGATIVE)));
 }
 
-void Processor::DecodeInsertSymbol (symbol_map* map, const char* label, Symbol symbol,
-									size_t* hash_ptr)
+size_t Processor::InsertSymbolPrepare (symbol_map* map, const char* label, Symbol symbol)
 {
 	std::string l (label);
 	size_t h = std::hash<std::string>() (l);
 
 	symbol.hash = h;
-	if (hash_ptr) *hash_ptr = h;
 
 	map ->insert (std::make_pair (h, std::make_pair (std::move (l), symbol)));
+	return h;
 }
 
-void Processor::BinaryInsertSymbol (symbol_map* map, const char* label, Symbol symbol)
+void Processor::InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol)
 {
 	std::string l (label);
 	size_t h = symbol.hash;
@@ -331,7 +330,7 @@ void Processor::DoJump (const Processor::Reference& ref)
 
 	else
 	{
-		new_ip = ref.address;
+		new_ip = ref.direct.address;
 	}
 
 	msg (E_INFO, E_DEBUGAPP, "Jumping to address %ld", new_ip);
@@ -423,17 +422,36 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 		// If symbol is defined here, check for multiple definitions and link.
 		if (linked_desc.is_resolved)
 		{
-			msg (E_INFO, E_DEBUGAPP, "Definition of symbol \"%s\" (type %d): assigning address %ld",
-			     name.c_str(), linked_desc.type, address);
+			__assert (linked_desc.ref.is_symbol, "Symbols referencing symbols are not supported");
 
-			linked_desc.address = address;
+			switch (linked_desc.ref.direct.type)
+			{
+				case S_CODE:
+					msg (E_INFO, E_DEBUGAPP, "Definition of label \"%s\": address %ld",
+						 name.c_str(), address);
+					linked_desc.ref.direct.address = buffers[state.buffer].cmd_top;
+					break;
+
+				case S_DATA:
+					__asshole ("DATA is unsupported");
+					break;
+
+				case S_REGISTER:
+					msg (E_INFO, E_DEBUGAPP, "Definition of register alias \"%s\": aliasing \"%s\"",
+						 name.c_str(), EncodeRegister (linked_desc.ref.direct.address));
+					break;
+
+				default:
+				case S_NONE:
+					__asshole ("Invalid symbol type");
+					break;
+			}
 
 			if (existing_record != sym_table.end())
 			{
 				// If we have forward-references, check them and resolve the symbol.
 				__verify (!existing_record ->second.second.is_resolved,
-				          "Symbol redefinition (previous at address %ld)",
-				          existing_record ->second.second.address);
+				          "Symbol redefinition");
 
 				// Resolve the symbol by assigning to existing record.
 				existing_record ->second.second = linked_desc;
@@ -443,10 +461,9 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 		// If symbol is used here, check for existing definitions and verify types (now absent).
 		else
 		{
-			msg (E_INFO, E_DEBUGAPP, "Usage of symbol \"%s\" (type %d)",
-				 name.c_str(), linked_desc.type);
+			msg (E_INFO, E_DEBUGAPP, "Usage of symbol \"%s\"", name.c_str());
 
-			linked_desc.address = -1;
+			linked_desc.ref.direct.address = -1;
 		}
 
 		// Post-actions
@@ -456,6 +473,53 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 
 	msg (E_INFO, E_DEBUGAPP, "Link completed");
 }
+
+Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* set)
+{
+	Reference& target_ref = set ->cmd.ref;
+	char reg[line_length], segment;
+
+	if (sscanf (ref, "%c:%ld", &segment, &target_ref.direct.address))
+	{
+		target_ref.is_symbol = 0;
+		target_ref.direct.address = 0;
+		switch (segment)
+		{
+			case 'c':
+				target_ref.direct.type = S_CODE;
+				break;
+
+			case 'd':
+				target_ref.direct.type = S_DATA;
+				break;
+
+			default:
+				__asshole ("Invalid reference segment specificator");
+		}
+	}
+
+	else if (sscanf (ref, "@%s", reg))
+	{
+		target_ref.is_symbol = 0;
+		target_ref.direct.type = S_REGISTER;
+		target_ref.direct.address = DecodeRegister (reg);
+	}
+
+	else
+	{
+		Symbol sym;
+		memset (&sym, 0xDEADBEEF, sizeof (sym));
+
+		sym.is_resolved = 0;
+
+		msg (E_INFO, E_DEBUGAPP, "Adding symbol \"%s\" as unresolved", ref);
+
+		// Add symbol and write its hash to the command
+		target_ref.is_symbol = 1;
+		target_ref.symbol_hash = InsertSymbolPrepare (&set ->symbols, ref, sym);
+	}
+}
+
 
 
 Processor::DecodedSet Processor::DecodeCmd (char* buffer)
@@ -469,6 +533,10 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 	memset (&set.cmd, 0xDEADBEEF, sizeof (set.cmd));
 
 	set.cmd.command = C_MAX;
+	set.cmd.ref.is_symbol = 0;
+	set.cmd.ref.direct.address = 0;
+	set.cmd.ref.direct.type = S_NONE;
+
 
 	if (char* cmt = strchr (buffer, ';')) *cmt = '\0'; // Drop commentary
 	else if (char* nl = strchr (buffer, '\n')) *nl = '\0'; // Drop newline (if no commentary)
@@ -481,14 +549,14 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 		++label_count;
 
 		Symbol label_sym;
-		label_sym.type = S_LABEL;
+		label_sym.type = S_CODE;
 		label_sym.address = -1;
 		label_sym.is_resolved = 1;
 
 		*colon++ = '\0';
 
 		msg (E_INFO, E_DEBUGAPP, "Adding label \"%s\" as resolved", buffer);
-		DecodeInsertSymbol (&set.symbols, buffer, label_sym, 0);
+		InsertSymbolPrepare (&set.symbols, buffer, label_sym);
 
 		buffer = colon; // Shift buffer
 		while (isspace (*buffer)) ++buffer;
@@ -504,9 +572,6 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 	{
 		msg (E_INFO, E_DEBUGAPP, "Command: No command");
 		set.cmd.command = C_NONE;
-
-		set.cmd.ref.is_symbol = 0;
-		set.cmd.ref.address = 0;
 	}
 
 	else
@@ -523,9 +588,6 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 		case A_NONE:
 			__assert (arg_count == 0, "Invalid argument count: %d", arg_count);
 
-			set.cmd.ref.is_symbol = 0;
-			set.cmd.ref.address = 0;
-
 			msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\"",
 			     set.cmd.command, commands_list[set.cmd.command]);
 			break;
@@ -533,35 +595,8 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 		case A_REFERENCE:
 			__assert (arg_count == 1, "Invalid argument count: %d", arg_count);
 
-			if (sscanf (arg, "%ld", &set.cmd.ref.address))
-			{
-				set.cmd.ref.is_symbol = 0;
+			set.cmd.ref = DecodeReference (arg);
 
-				msg (E_INFO, E_DEBUGAPP, "Command: [%d %p] -> \"%s\" %ld",
-				     set.cmd.command, set.cmd.debug, commands_list[set.cmd.command], set.cmd.ref.address);
-			}
-
-			else
-			{
-				Symbol sym;
-				memset (&sym, 0xDEADBEEF, sizeof (sym));
-
-				sym.is_resolved = 0;
-				sym.type = S_NONE;
-				sym.address = -1;
-
-				msg (E_INFO, E_DEBUGAPP, "Adding symbol \"%s\" as unresolved", arg);
-
-				// Add symbol and write its hash to the command
-				DecodeInsertSymbol (&set.symbols, arg, sym, &set.cmd.ref.symbol_hash);
-				set.cmd.ref.is_symbol = 1;
-
-				msg (E_INFO, E_DEBUGAPP, "Command: [%d %p] -> \"%s\" \"%s\"",
-					 set.cmd.command,
-				     set.cmd.debug,
-				     commands_list[set.cmd.command],
-				     set.symbols.find (set.cmd.ref.symbol_hash) ->second.first.c_str());
-			}
 
 			break;
 
@@ -689,7 +724,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 			msg (E_INFO, E_DEBUGAPP, "Symbol: [address %ld] \"%s\"", sym.address, temporary);
 		}
 
-		BinaryInsertSymbol (map, temporary, sym);
+		InsertSymbolRaw (map, temporary, sym);
 	}
 
 	free (temporary);
@@ -867,7 +902,7 @@ void Processor::DumpAsm (FILE* stream, size_t which_buffer)
 			const Symbol& sym = s_iter ->second.second;
 			switch (sym.type)
 			{
-				case S_LABEL:
+				case S_CODE:
 					fprintf (stream, "%s: ", s_iter ->second.first.c_str());
 					break;
 

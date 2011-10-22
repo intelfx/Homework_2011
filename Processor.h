@@ -45,32 +45,43 @@ class Processor : LogBase (Processor)
 		A_REFERENCE
 	};
 
-	enum SymbolType
+	enum AddrType
 	{
 		S_NONE = 0,
-		S_LABEL,
-		S_VAR
+		S_CODE,
+		S_DATA,
+		S_REGISTER
 	};
 
-	struct Symbol
+	struct DirectRef
 	{
-		size_t hash; // Yes, redundant - but failsafe
 		size_t address;
-
-		SymbolType type;
-
-		bool is_resolved; // When returning from decode, this means "is defined"
+		AddrType type;
 	};
 
 	struct Reference
 	{
 		union
 		{
-			size_t address;
+			struct
+			{
+				size_t address;
+				AddrType type;
+			} direct;
+
 			size_t symbol_hash;
 		};
 
 		bool is_symbol;
+	};
+
+	struct Symbol
+	{
+		size_t hash; // Yes, redundant - but failsafe
+
+		Reference ref;
+
+		bool is_resolved; // When returning from decode, this means "is defined"
 	};
 
 	struct DecodedCommand
@@ -85,6 +96,8 @@ class Processor : LogBase (Processor)
 		unsigned char command;
 	};
 
+	// This is something like TR1's std::unordered_map with manual hashing,
+	// since we need to have direct access to hashes themselves.
 	typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
 	typedef symbol_map::value_type hashed_symbol;
 
@@ -92,8 +105,6 @@ class Processor : LogBase (Processor)
 	{
 		DecodedCommand cmd;
 
-		// This is something like TR1's std::unordered_map with manual hashing,
-		// since we need to have direct access to hashes themselves.
 		symbol_map symbols;
 	};
 
@@ -113,7 +124,7 @@ class Processor : LogBase (Processor)
 		};
 
 		bool is_sparse;
-	}; __attribute__((packed))
+	} PACKED;
 
 	struct Buffer
 	{
@@ -174,12 +185,20 @@ class Processor : LogBase (Processor)
 	static void CheckStream (FILE* stream);
 	bool ReadSignature (FILE* stream); // returns is_sparse_code
 
-	void DecodeInsertSymbol (symbol_map* map, const char* label, Symbol symbol,
-							 size_t* write_hash_ptr); // Writes symbol hash as side-effect
+	// Register names
+	size_t DecodeRegister (const char* str);
+	const char* EncodeRegister (size_t reg);
+
+	// New symbol handling
+	size_t InsertSymbolPrepare (symbol_map* map, const char* label, Symbol symbol); // Returns symbol hash
+	void InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol);
+
+	// Format-specific functions : ASM decoding
 	void DecodeLinkSymbols (DecodedSet& set);
+	Reference DecodeReference (const char* ref);
 	DecodedSet DecodeCmd (char* buffer);
 
-	void BinaryInsertSymbol (symbol_map* map, const char* label, Symbol symbol);
+	// Format-specific functions : BIN loading
 	void BinaryReadSymbols (symbol_map* map, FILE* stream, bool use_sparse_code);
 	DecodedCommand BinaryReadCmd (FILE* stream, bool use_sparse_code);
 
