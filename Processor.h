@@ -12,6 +12,17 @@
 
 DeclareDescriptor (Processor);
 
+#define SYMCONST(str)																	\
+	((static_cast <unsigned long long> ( str[0])) |										\
+	(static_cast <unsigned long long> ( str[1]) << 8) |									\
+	(static_cast <unsigned long long> ( str[2]) << 16) |								\
+	(static_cast <unsigned long long> ( str[3]) << 24) |								\
+	(static_cast <unsigned long long> ( str[4]) << 32) |								\
+	(static_cast <unsigned long long> ( str[5]) << 40) |								\
+	(static_cast <unsigned long long> ( str[6]) << 48) |								\
+	(static_cast <unsigned long long> ( str[7]) << 56))
+
+
 typedef double calc_t;
 static const int COMMAND_BUFFER = 100;
 static const int BUFFER_NUM = 4;
@@ -243,8 +254,8 @@ public:
 	void AllocContextBuffer(); // Switch to next context buffer, resetting it
 	void NextContextBuffer(); // Switch to next context buffer while preserving its state
 
-	void Decode (FILE* stream) throw();
-	void Load (FILE* stream) throw();
+	bool Decode (FILE* stream) throw();
+	bool Load (FILE* stream) throw();
 	void ExecuteBuffer() throw();
 	size_t GetCurrentBuffer() throw();
 	void DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer);

@@ -12,20 +12,12 @@ void Interactive (Processor& proc)
 
 	while (true)
 	{
-		try
-		{
-			proc.InitContexts();
-			proc.AllocContextBuffer();
-			proc.SetExecuteInPlace (1);
-			proc.Decode (stdin);
-		}
+		proc.InitContexts();
+		proc.AllocContextBuffer();
+		proc.SetExecuteInPlace (1);
+		bool result = proc.Decode (stdin);
 
-		catch (std::exception& e)
-		{
-			smsg (E_CRITICAL, E_USER, "Execution failed: \"%s\"", e.what());
-		}
-
-		smsg (E_INFO, E_USER, "Type q<Enter> to quit");
+		smsg (E_INFO, E_USER, "%s. Type q<Enter> to quit", result ? "Succeeded." : "Failed.");
 		char response = getchar();
 		if (response == 'q' || response == 'Q')
 			break;
@@ -59,34 +51,21 @@ int main (int argc, char** argv)
 
 	else if (argc == 2)
 	{
-		if (!strcasecmp (argv[1], "help"))
-		{
-			fprintf (stderr, "Usage: %s compile|execute|decompile|help <filename>\n", argv[0]);
-			fprintf (stderr, "\tprefix: Used in interactive mode for buffer management commands\n");
-			fprintf (stderr, "\tcompile: Compiles given <filename> into bytecode\n");
-			fprintf (stderr, "\texecute: Executes given <filename> as bytecode\n");
-			fprintf (stderr, "\tdecompile: Disassembles given <filename>\n");
-			fprintf (stderr, "\tnothing: Enter interactive mode, <filename> is prefix for inline buffer management\n");
-		}
-
-		else
-		{
-			proc.SetFilenamePrefix (argv[1]);
-			Interactive (proc);
-		}
-	}
-
-	else if (argc == 3)
-	{
-		if (!strcasecmp (argv[1], "execute"))
+		if (strstr (argv[0], "processor"))
 		{
 			proc.AllocContextBuffer();
 			proc.SetExecuteInPlace (0);
 
 			smsg (E_INFO, E_USER, "Executing bytecode from file \"%s\"", argv[2]);
-			FILE* rfile = fopen (argv[2], "rb");
-			proc.Load (rfile);
+			FILE* rfile = fopen (argv[1], "rb");
+			bool result = proc.Load (rfile);
 			fclose (rfile);
+
+			if (!result)
+			{
+				Debug::System::Instance().CloseTargets();
+				return 1;
+			}
 
 			proc.NextContextBuffer();
 
@@ -101,21 +80,27 @@ int main (int argc, char** argv)
 			proc.ExecuteBuffer();
 		}
 
-		else if (!strcasecmp (argv[1], "compile"))
+		else if (strstr (argv[0], "compiler"))
 		{
 			proc.AllocContextBuffer();
 			proc.SetExecuteInPlace (0);
 			size_t used_buffer = proc.GetCurrentBuffer();
 
 			smsg (E_INFO, E_USER, "Loading ASM from file \"%s\"", argv[2]);
-			FILE* rfile = fopen (argv[2], "r");
-			proc.Decode (rfile);
+			FILE* rfile = fopen (argv[1], "r");
+			bool result = proc.Decode (rfile);
 			fclose (rfile);
+
+			if (!result)
+			{
+				Debug::System::Instance().CloseTargets();
+				return 1;
+			}
 
 			char* prefix = reinterpret_cast<char*> (malloc (line_length));
 			char* output = reinterpret_cast<char*> (malloc (line_length));
 
-			sscanf (argv[2], "%s.%*s", prefix);
+			sscanf (argv[1], "%s.%*s", prefix);
 			snprintf (output, line_length, "%s.dbin", prefix);
 			free (prefix);
 
@@ -127,21 +112,21 @@ int main (int argc, char** argv)
 			fclose (wfile);
 		}
 
-		else if (!strcasecmp(argv[1], "decompile"))
+		else if (strstr (argv[0], "decompiler"))
 		{
 			proc.AllocContextBuffer();
 			proc.SetExecuteInPlace (0);
 			size_t used_buffer = proc.GetCurrentBuffer();
 
 			smsg (E_INFO, E_USER, "Loading bytecode from file \"%s\"", argv[2]);
-			FILE* rfile = fopen (argv[2], "rb");
+			FILE* rfile = fopen (argv[1], "rb");
 			proc.Load (rfile);
 			fclose (rfile);
 
 			char* prefix = reinterpret_cast<char*> (malloc (line_length));
 			char* output = reinterpret_cast<char*> (malloc (line_length));
 
-			sscanf (argv[2], "%s.%*s", prefix);
+			sscanf (argv[1], "%s.%*s", prefix);
 			snprintf (output, line_length, "%s.dasm", prefix);
 			free (prefix);
 
@@ -154,7 +139,10 @@ int main (int argc, char** argv)
 		}
 
 		else
-			__sasshole ("Unknown command: %s", argv[1]);
+		{
+			proc.SetFilenamePrefix (argv[1]);
+			Interactive (proc);
+		}
 	}
 
 	else

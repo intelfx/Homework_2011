@@ -234,13 +234,13 @@ Processor::CommandTraits Processor::commands_traits[C_MAX] =
 };
 
 // BIN_IFX
-Processor::VersionSignature Processor::expect_sig = {'XFI_NIB', {{0x01, 0x02}}, 0};
+Processor::VersionSignature Processor::expect_sig = {SYMCONST ("_BIN_IFX"), {{'2', '2'}}, 0};
 
 // !SEC_SYM
-const unsigned long long Processor::symbols_section_sig = 'MYS_CES';
+const unsigned long long Processor::symbols_section_sig = SYMCONST ("_SYM_SEC");
 
 // !SEC_CMD
-const unsigned long long Processor::command_section_sig = 'DMC_CES';
+const unsigned long long Processor::command_section_sig = SYMCONST ("_CMD_SEC");
 
 Processor::Processor() :
 state(),
@@ -274,19 +274,19 @@ bool Processor::ReadSignature (FILE* stream)
 	VersionSignature file_sig;
 	fread (&file_sig, sizeof (file_sig), 1, stream);
 
-	__sassert (file_sig.magic == expect_sig.magic, "FILE SIGNATURE MISMATCH: READ %p EXPECT %p",
+	__sverify (file_sig.magic == expect_sig.magic, "FILE SIGNATURE MISMATCH: READ %p EXPECT %p",
 	           file_sig.magic, expect_sig.magic);
 
 	smsg (E_INFO, E_VERBOSELIB, "File signature matched: READ %p", file_sig.magic);
 
-	__sassert (file_sig.is_sparse == expect_sig.is_sparse, "SPARSE MODE MISMATCH: READ %s EXPECT %s",
+	__sverify (file_sig.is_sparse == expect_sig.is_sparse, "SPARSE MODE MISMATCH: READ %s EXPECT %s",
 	           file_sig.is_sparse ? "sparse" : "compact",
 	           expect_sig.is_sparse ? "sparse" : "compact");
 
 	smsg (E_INFO, E_VERBOSELIB, "File sparse mode: %s", file_sig.is_sparse ? "sparse" : "compact");
 
-	__sassert (file_sig.version.major == expect_sig.version.major,
-	           "FILE MAJOR VERSION MISMATCH: READ [%d] EXPECT [%d]",
+	__sverify (file_sig.version.major == expect_sig.version.major,
+	           "FILE MAJOR VERSION MISMATCH: READ [%c] EXPECT [%c]",
 	           file_sig.version.major,
 	           expect_sig.version.major);
 
@@ -297,7 +297,7 @@ bool Processor::ReadSignature (FILE* stream)
 		      file_sig.version.minor);
 
 	else
-		smsg (E_WARNING, E_VERBOSELIB, "FILE MINOR VERSION MISMATCH: READ [%d] EXPECT [%d]",
+		smsg (E_WARNING, E_VERBOSELIB, "FILE MINOR VERSION MISMATCH: READ [%c] EXPECT [%c]",
 		      file_sig.version.minor,
 		      expect_sig.version.minor);
 
@@ -689,7 +689,7 @@ Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* se
 				__asshole ("Invalid reference segment specificator: %c", segment);
 		}
 
-		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded direct reference to %s:%ld",
+		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded direct reference to \"%s:%ld\"",
 		     ref, _reftype, target_ref.direct.address);
 	}
 
@@ -699,7 +699,7 @@ Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* se
 		target_ref.direct.type = S_REGISTER;
 		target_ref.direct.address = DecodeRegister (reg);
 
-		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded access to register %s", ref, reg);
+		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded access to register \"%s\"", ref, reg);
 	}
 
 	else
@@ -859,7 +859,7 @@ Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_spars
 	case A_REFERENCE:
 
 		msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" <reference>",
-			 cmd.command, commands_list[cmd.command]);
+		     cmd.command, commands_list[cmd.command]);
 
 		if (cmd.ref.is_symbol)
 		{
@@ -873,13 +873,16 @@ Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_spars
 			if (cmd.ref.direct.type == S_REGISTER)
 			{
 				msg (E_INFO, E_DEBUGAPP, "Reference: access of register %s",
-					 EncodeRegister (cmd.ref.direct.address));
+				     EncodeRegister (cmd.ref.direct.address));
 			}
 
-			msg (E_INFO, E_DEBUGAPP, "Reference: direct reference to %s:%ld",
-				 cmd.ref.direct.type == S_CODE ? "CODE" :
-				 cmd.ref.direct.type == S_DATA ? "DATA" : 0,
-				 cmd.ref.direct.address);
+			else
+			{
+				msg (E_INFO, E_DEBUGAPP, "Reference: direct reference to %s:%ld",
+				     cmd.ref.direct.type == S_CODE ? "CODE" :
+				     cmd.ref.direct.type == S_DATA ? "DATA" : 0,
+				     cmd.ref.direct.address);
+			}
 
 		}
 
@@ -902,7 +905,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 	unsigned long long section_id = 0;
 	fread (&section_id, sizeof (section_id), 1, stream);
 	__verify (section_id == symbols_section_sig, "Malformed symbol section: READ %p EXPECT %p",
-			  section_id, symbols_section_sig);
+	          section_id, symbols_section_sig);
 
 	char* temporary = reinterpret_cast<char*> (malloc (line_length));
 	__assert (temporary, "Unable to malloc label placeholder");
@@ -943,9 +946,10 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 	free (temporary);
 }
 
-void Processor::Decode (FILE* stream) throw()
+bool Processor::Decode (FILE* stream) throw()
 {
 	msg (E_INFO, E_VERBOSE, "Decoding and/or executing text commands");
+	bool result = 1;
 
 	// Store the initial context # because in EIP mode we must watch context # change
 	size_t initial_context_no = state.buffer;
@@ -1013,14 +1017,18 @@ void Processor::Decode (FILE* stream) throw()
 	{
 		msg (E_CRITICAL, E_USER, "Error decoding text: %s", e.what());
 		msg (E_CRITICAL, E_USER, "Exiting decode loop");
+		ClearContextBuffer();
+		result = 0;
 	}
 
 	free (line);
+	return result;
 }
 
-void Processor::Load (FILE* stream) throw()
+bool Processor::Load (FILE* stream) throw()
 {
 	msg (E_INFO, E_VERBOSE, "Loading and executing bytecode");
+	bool result = 1;
 
 	try
 	{
@@ -1037,7 +1045,7 @@ void Processor::Load (FILE* stream) throw()
 
 		// Files without command section are OK
 		if (feof (stream))
-			return;
+			return result;
 
 		msg (E_INFO, E_DEBUGAPP, "Reading command section");
 
@@ -1091,7 +1099,12 @@ void Processor::Load (FILE* stream) throw()
 	{
 		msg (E_CRITICAL, E_USER, "Error loading bytecode: \"%s\"", e.what());
 		msg (E_CRITICAL, E_USER, "Exiting loading loop");
+		ClearContextBuffer();
+
+		result = 0;
 	}
+
+	return result;
 }
 
 void Processor::DumpAsm (FILE* stream, size_t which_buffer)
