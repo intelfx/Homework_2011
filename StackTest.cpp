@@ -88,6 +88,16 @@ int main (int argc, char** argv)
 			proc.Load (rfile);
 			fclose (rfile);
 
+			proc.NextContextBuffer();
+
+			for (unsigned i = 0; i < proc.GetRegistersNum(); ++i)
+			{
+				smsg (E_INFO, E_USER, "Enter register #%d", i);
+				calc_t value;
+				scanf ("%lg", &value);
+				proc.AccessRegister (i, value);
+			}
+
 			proc.ExecuteBuffer();
 		}
 

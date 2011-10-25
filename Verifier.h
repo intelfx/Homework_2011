@@ -104,7 +104,8 @@ protected:
 		msg (E_INFO, E_VERBOSELIB, "Reallocating dynamic allocator to %d", cap);
 
 		T* old_array = array_;
-		array_ = reinterpret_cast<T*> (realloc (old_array, cap));
+		array_ = reinterpret_cast<T*> (realloc (old_array, cap * sizeof (T)));
+//		array_ = reinterpret_cast<T*> (realloc (old_array, cap)); // FUCK MY BRAIN!!!
 
 		if (!array_) free (old_array);
 		__assert (array_, "Failed to reallocate");

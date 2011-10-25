@@ -22,6 +22,9 @@ enum COMMANDS
 	C_INC,
 	C_DEC,
 
+	C_NEG,
+	C_SQRT,
+
 	C_ANAL,
 	C_CMP,
 	C_SWAP,
@@ -79,6 +82,9 @@ const char* Processor::commands_list[C_MAX] =
 	"inc",
 	"dec",
 
+	"neg",
+	"sqrt",
+
 	"anal", // Fuck yeah
 	"cmp",
 	"swap",
@@ -132,6 +138,8 @@ const char* Processor::commands_desc[C_MAX] =
 
 	"Arithmetic: increment by one",
 	"Arithmetic: decrement by one",
+	"Arithmetic: negation",
+	"Arithmetic: square root extraction",
 
 	"Accumulator: analyze top of the stack",
 	"Accumulator: compare two values on the stack (R/O subtraction)",
@@ -184,6 +192,8 @@ Processor::CommandTraits Processor::commands_traits[C_MAX] =
 	{A_NONE},
 	{A_NONE},
 
+	{A_NONE},
+	{A_NONE},
 	{A_NONE},
 	{A_NONE},
 
@@ -531,6 +541,7 @@ void Processor::NextContextBuffer()
 	++state.buffer;
 
 	msg (E_INFO, E_DEBUGAPP, "Switched to next execution context buffer");
+	DumpContext (state);
 }
 
 void Processor::AllocContextBuffer()
@@ -540,6 +551,7 @@ void Processor::AllocContextBuffer()
 
 	ClearContextBuffer();
 	msg (E_INFO, E_DEBUGAPP, "New execution context buffer allocated");
+	DumpContext (state);
 }
 
 void Processor::RestoreContext()
@@ -1086,7 +1098,7 @@ void Processor::DumpAsm (FILE* stream, size_t which_buffer)
 {
 	msg (E_INFO, E_VERBOSE, "Writing assembler code from buffer %ld (mnemonics)", which_buffer);
 
-	Buffer& buffer = GetBuffer(); // It's not going to change
+	Buffer& buffer = buffers[which_buffer]; // It's not going to change
 
 	// Build index of the symbols by address (CODE section)
 	std::multimap<size_t, const std::pair<std::string, Symbol>& > code_symbol_index;
@@ -1273,7 +1285,6 @@ void Processor::ExecuteBuffer() throw()
 {
 	try
 	{
-		NextContextBuffer();
 		msg (E_INFO, E_VERBOSE, "Executing context with existing commands (%ld)", buffers[state.buffer].cmd_top);
 
 		size_t initial_context = state.buffer;
@@ -1343,7 +1354,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		break;
 
 	case C_WRITE:
-		Write (cmd.ref) = calc_stack.Top();
+		Write (cmd.ref) = calc_stack.Pop();
 		break;
 
 	case C_ADD:
@@ -1382,6 +1393,14 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 
 	case C_DEC:
 		--calc_stack.Top();
+		break;
+
+	case C_NEG:
+		calc_stack.Top() = -(calc_stack.Top());
+		break;
+
+	case C_SQRT:
+		calc_stack.Top() = sqrt (calc_stack.Top());
 		break;
 
 	case C_ANAL:
@@ -1473,6 +1492,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		break;
 
 	case C_EXEC:
+		NextContextBuffer();
 		ExecuteBuffer();
 		break;
 

@@ -250,6 +250,26 @@ public:
 	void DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer);
 	void DumpAsm (FILE* stream, size_t which_buffer);
 
+	size_t GetRegistersNum()
+	{
+		return R_MAX;
+	}
+
+	void AccessRegister (size_t reg, calc_t value)
+	{
+		__assert (reg < R_MAX, "Invalid register ID");
+		msg (E_INFO, E_DEBUGAPP, "Userland sets register %s to %lg", EncodeRegister (reg), value);
+
+		state.registers[reg] = value;
+	}
+
+	calc_t AccessRegister (size_t reg)
+	{
+		__assert (reg < R_MAX, "Invalid register ID");
+
+		return state.registers[reg];
+	}
+
 	unsigned char GetMajorVersion();
 	unsigned char GetMinorVersion();
 	void DumpCommandSet();
