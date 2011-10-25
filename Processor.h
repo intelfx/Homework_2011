@@ -38,6 +38,17 @@ class Processor : LogBase (Processor)
 		F_NEGATIVE, // Negative Flag - set if last result was negative (or below)
 	};
 
+	enum Registers
+	{
+		R_A = 0,
+		R_B,
+		R_C,
+		R_D,
+		R_E,
+		R_F,
+		R_MAX
+	};
+
 	enum ArgumentType
 	{
 		A_NONE = 0,
@@ -53,22 +64,18 @@ class Processor : LogBase (Processor)
 		S_REGISTER
 	};
 
-	struct DirectRef
-	{
-		size_t address;
-		AddrType type;
-	};
-
 	struct Reference
 	{
+		struct Direct
+		{
+			size_t address;
+			AddrType type;
+		};
+
+
 		union
 		{
-			struct
-			{
-				size_t address;
-				AddrType type;
-			} direct;
-
+			Direct direct;
 			size_t symbol_hash;
 		};
 
@@ -78,9 +85,7 @@ class Processor : LogBase (Processor)
 	struct Symbol
 	{
 		size_t hash; // Yes, redundant - but failsafe
-
 		Reference ref;
-
 		bool is_resolved; // When returning from decode, this means "is defined"
 	};
 
@@ -104,7 +109,6 @@ class Processor : LogBase (Processor)
 	struct DecodedSet
 	{
 		DecodedCommand cmd;
-
 		symbol_map symbols;
 	};
 
@@ -139,7 +143,12 @@ class Processor : LogBase (Processor)
 		mask_t flags;
 		size_t ip;
 		size_t buffer;
+		size_t depth;
+
+		calc_t registers[R_MAX];
 	} state;
+
+	bool is_initialized;
 
 	struct CommandTraits
 	{
@@ -176,14 +185,18 @@ class Processor : LogBase (Processor)
 	// Methods
 	// ---------------------------------------
 
-	void DoJump (const Processor::Reference& ref);
-	void Analyze (calc_t arg);
-
-	void InternalHandler (const DecodedCommand& cmd);
+	Buffer& GetBuffer();
 	void DumpFlags();
 
+	void InternalHandler (const DecodedCommand& cmd);
+	void Jump (const Processor::Reference& ref);
+	calc_t Read (const Processor::Reference& ref);
+	calc_t& Write (const Processor::Reference& ref);
+
+	void Analyze (calc_t arg);
+
 	static void CheckStream (FILE* stream);
-	bool ReadSignature (FILE* stream); // returns is_sparse_code
+	bool ReadSignature (FILE* stream); // returns is_sparse_code flag of read signature
 
 	// Register names
 	size_t DecodeRegister (const char* str);
@@ -193,9 +206,13 @@ class Processor : LogBase (Processor)
 	size_t InsertSymbolPrepare (symbol_map* map, const char* label, Symbol symbol); // Returns symbol hash
 	void InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol);
 
+	// Symbol resolvers
+	const Reference::Direct& Resolve (const Processor::Reference& ref);
+	Reference::Direct& Resolve (const char* name);
+
 	// Format-specific functions : ASM decoding
 	void DecodeLinkSymbols (DecodedSet& set);
-	Reference DecodeReference (const char* ref);
+	Reference DecodeReference (const char* ref, Processor::DecodedSet* set);
 	DecodedSet DecodeCmd (char* buffer);
 
 	// Format-specific functions : BIN loading
@@ -203,10 +220,11 @@ class Processor : LogBase (Processor)
 	DecodedCommand BinaryReadCmd (FILE* stream, bool use_sparse_code);
 
 	void ClearContextBuffer(); // Reset current context buffer
-	void NextContextBuffer(); // Switch to next context buffer while preserving its state
+
+	void DumpContext(const Processor::ProcessorState& g_state);
 
 	void SaveContext(); // Save context without resetting it
-	void PushContext();
+	void NewContext();
 	void RestoreContext();
 
 protected:
@@ -223,6 +241,7 @@ public:
 
 	void InitContexts();
 	void AllocContextBuffer(); // Switch to next context buffer, resetting it
+	void NextContextBuffer(); // Switch to next context buffer while preserving its state
 
 	void Decode (FILE* stream) throw();
 	void Load (FILE* stream) throw();

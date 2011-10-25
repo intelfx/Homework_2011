@@ -11,10 +11,16 @@ enum COMMANDS
 	C_POP,
 	C_TOP,
 
+	C_LOAD,
+	C_WRITE,
+
 	C_ADD,
 	C_SUB,
 	C_MUL,
 	C_DIV,
+
+	C_INC,
+	C_DEC,
 
 	C_ANAL,
 	C_CMP,
@@ -62,10 +68,16 @@ const char* Processor::commands_list[C_MAX] =
 	"pop",
 	"top",
 
+	"ld",
+	"wr",
+
 	"add",
 	"sub",
 	"mul",
 	"div",
+
+	"inc",
+	"dec",
 
 	"anal", // Fuck yeah
 	"cmp",
@@ -110,10 +122,16 @@ const char* Processor::commands_desc[C_MAX] =
 	"Stack: remove a value from the stack",
 	"Stack: peek a value from the stack",
 
+	"Data: load data memory/register",
+	"Data: write data memory/register",
+
 	"Arithmetic: addition",
 	"Arithmetic: subtraction (minuend on top)",
 	"Arithmetic: multiplication",
 	"Arithmetic: division (dividend on top)",
+
+	"Arithmetic: increment by one",
+	"Arithmetic: decrement by one",
 
 	"Accumulator: analyze top of the stack",
 	"Accumulator: compare two values on the stack (R/O subtraction)",
@@ -158,8 +176,14 @@ Processor::CommandTraits Processor::commands_traits[C_MAX] =
 	{A_NONE},
 	{A_NONE},
 
+	{A_REFERENCE},
+	{A_REFERENCE},
+
 	{A_NONE},
 	{A_NONE},
+	{A_NONE},
+	{A_NONE},
+
 	{A_NONE},
 	{A_NONE},
 
@@ -200,7 +224,7 @@ Processor::CommandTraits Processor::commands_traits[C_MAX] =
 };
 
 // BIN_IFX
-Processor::VersionSignature Processor::expect_sig = {'XFI_NIB', {{0x00, 0x01}}, 0};
+Processor::VersionSignature Processor::expect_sig = {'XFI_NIB', {{0x01, 0x02}}, 0};
 
 // !SEC_SYM
 const unsigned long long Processor::symbols_section_sig = 'MYS_CES';
@@ -210,6 +234,7 @@ const unsigned long long Processor::command_section_sig = 'DMC_CES';
 
 Processor::Processor() :
 state(),
+is_initialized (0),
 bin_dump_file (0),
 asm_dump_file (0)
 {
@@ -283,58 +308,145 @@ void Processor::DumpFlags()
 		 !!(state.flags & MASK(F_NEGATIVE)));
 }
 
-size_t Processor::InsertSymbolPrepare (symbol_map* map, const char* label, Symbol symbol)
+size_t Processor::DecodeRegister (const char* str)
 {
-	std::string l (label);
-	size_t h = std::hash<std::string>() (l);
+	if (!strcmp (str, "ra"))
+		return R_A;
 
-	symbol.hash = h;
+	if (!strcmp (str, "rb"))
+		return R_B;
 
-	map ->insert (std::make_pair (h, std::make_pair (std::move (l), symbol)));
-	return h;
+	if (!strcmp (str, "rc"))
+		return R_C;
+
+	if (!strcmp (str, "rd"))
+		return R_D;
+
+	if (!strcmp (str, "re"))
+		return R_E;
+
+	if (!strcmp (str, "rf"))
+		return R_F;
+
+	return R_MAX;
 }
 
-void Processor::InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol)
+const char* Processor::EncodeRegister (size_t reg)
 {
-	std::string l (label);
-	size_t h = symbol.hash;
-
-	map ->insert (std::make_pair (h, std::make_pair (std::move (l), symbol)));
-}
-
-void Processor::InitContexts()
-{
-	msg (E_INFO, E_VERBOSE, "Initializing system");
-
-	context_stack.Reset();
-	calc_stack.Reset();
-
-	state.ip = 0;
-	state.flags = MASK (F_EXIT);
-	state.buffer = -1; // debug placeholder
-}
-
-void Processor::DoJump (const Processor::Reference& ref)
-{
-	size_t new_ip = -1;
-
-	if (ref.is_symbol)
+	switch (reg)
 	{
-		const std::pair<std::string, Symbol>& pair	= buffers[state.buffer].sym_table.find (ref.symbol_hash) ->second;
-		const std::string& name						= pair.first;
-		const Symbol& sym							= pair.second;
+		case R_A:
+			return "ra";
 
-		__assert (sym.is_resolved, "Unresolved symbol \"%s\"", name.c_str());
-		new_ip = sym.address;
+		case R_B:
+			return "rb";
+
+		case R_C:
+			return "rc";
+
+		case R_D:
+			return "rd";
+
+		case R_E:
+			return "re";
+
+		case R_F:
+			return "rf";
+
+		default:
+			__asshole ("Switch error");
 	}
 
-	else
+	return 0;
+}
+
+
+
+Processor::Buffer& Processor::GetBuffer()
+{
+	__verify (state.buffer != static_cast<size_t> (-1),
+			  "Invalid buffer index, possible call stack underflow");
+
+	return buffers.Access (state.buffer);
+}
+
+
+void Processor::Jump (const Processor::Reference& ref)
+{
+	const Reference::Direct& dref = Resolve (ref);
+
+	__verify (dref.type == S_CODE, "Cannot jump to non-CODE reference");
+
+	msg (E_INFO, E_DEBUGAPP, "Jumping to address %ld", dref.address);
+	state.ip = dref.address;
+}
+
+calc_t Processor::Read (const Processor::Reference& ref)
+{
+	const Reference::Direct& dref = Resolve (ref);
+
+	switch (dref.type)
 	{
-		new_ip = ref.direct.address;
+		case S_DATA:
+			__asshole ("DATA is unsupported");
+			break;
+
+		case S_REGISTER:
+			return state.registers[ref.direct.address];
+
+		case S_CODE:
+			__asshole ("Cannot read CODE segment");
+			break;
+
+		case S_NONE:
+		default:
+			__asshole ("Switch error");
+			break;
 	}
 
-	msg (E_INFO, E_DEBUGAPP, "Jumping to address %ld", new_ip);
-	state.ip = new_ip;
+	return -1;
+}
+
+calc_t& Processor::Write (const Processor::Reference& ref)
+{
+	const Reference::Direct& dref = Resolve (ref);
+
+	switch (dref.type)
+	{
+		case S_DATA:
+			__asshole ("DATA is unsupported");
+			break;
+
+		case S_REGISTER:
+			return state.registers[ref.direct.address];
+
+		case S_CODE:
+			__asshole ("Cannot read CODE segment");
+			break;
+
+		case S_NONE:
+		default:
+			__asshole ("Switch error");
+			break;
+	}
+}
+
+
+const Processor::Reference::Direct& Processor::Resolve (const Processor::Reference& ref)
+{
+	const Processor::Reference* temp_ref = &ref;
+
+	while (temp_ref ->is_symbol)
+	{
+		auto sym_iter = GetBuffer().sym_table.find (ref.symbol_hash);
+		__assert (sym_iter != GetBuffer().sym_table.end(), "Invalid symbol");
+
+		const Symbol& sym = sym_iter ->second.second;
+		__assert (sym.is_resolved, "Unresolved symbol \"%s\"", sym_iter ->second.first.c_str());
+		temp_ref = &sym.ref;
+	}
+
+	return temp_ref ->direct;
 }
 
 void Processor::Analyze (calc_t arg)
@@ -348,49 +460,83 @@ void Processor::Analyze (calc_t arg)
 		state.flags |= MASK(F_ZERO);
 }
 
-void Processor::SaveContext()
+void Processor::DumpContext (const Processor::ProcessorState& g_state)
 {
-	msg (E_INFO, E_VERBOSE, "Saving context");
-	msg (E_INFO, E_DEBUGAPP, "Context: IP [%p], FL [%p], BUF [%ld]",
-		 state.ip, state.flags, state.buffer);
+	msg (E_INFO, E_DEBUGAPP, "Context: IP [%d], FL [0x%08p], BUF [%ld], DEPTH [%ld]",
+		 g_state.ip, g_state.flags, g_state.buffer, g_state.depth);
 
-	context_stack.Push (state);
+	msg (E_INFO, E_DEBUGAPP,
+		 "Registers: A [%lg], B [%lg], C [%lg], D [%lg], E [%lg], F [%lg]",
+	     g_state.registers[R_A],
+	     g_state.registers[R_B],
+	     g_state.registers[R_C],
+	     g_state.registers[R_D],
+	     g_state.registers[R_E],
+	     g_state.registers[R_F]);
 }
 
-void Processor::PushContext()
-{
-	msg (E_INFO, E_VERBOSE, "Changing context");
-	msg (E_INFO, E_DEBUGAPP, "Old context: IP [%p], FL [%p], BUF [%ld]",
-	     state.ip, state.flags, state.buffer);
+// -----------------------------------------------------------------------------
+// ---- Contexts
+// -----------------------------------------------------------------------------
 
-	ProcessorState oldc = state, newc;
+void Processor::InitContexts()
+{
+	is_initialized = 0;
+	msg (E_INFO, E_VERBOSE, "Initializing system");
+
+	context_stack.Reset();
+	calc_stack.Reset();
+
+	state.ip = 0;
+	state.depth = 0;
+	state.flags = MASK (F_EXIT);
+	state.buffer = -1; // debug placeholder
+
+	is_initialized = 1;
+}
+
+void Processor::SaveContext()
+{
+	msg (E_INFO, E_VERBOSE, "Saving execution context");
+	DumpContext (state);
+
+	context_stack.Push (state);
+	++state.depth;
+}
+
+void Processor::NewContext()
+{
+	ProcessorState newc;
 	newc.ip = 0;
 	newc.flags = 0;
-	newc.buffer = oldc.buffer;
+	newc.buffer = state.buffer;
+	newc.depth = state.depth;
 
+	for (size_t reg = 0; reg < R_MAX; ++reg)
+		newc.registers[reg] = 0;
+
+	context_stack.Push (state);
 	state = newc;
-	context_stack.Push (oldc);
 }
 
 void Processor::ClearContextBuffer()
 {
-	buffers[state.buffer].cmd_top = 0;
-	buffers[state.buffer].sym_table.clear();
+	GetBuffer().cmd_top = 0;
+	GetBuffer().sym_table.clear();
 }
 
 void Processor::NextContextBuffer()
 {
-	PushContext();
+	NewContext();
 	++state.buffer;
-	__assert (state.buffer < buffers.Capacity(), "Not enough execution buffers");
+
 	msg (E_INFO, E_DEBUGAPP, "Switched to next execution context buffer");
 }
 
 void Processor::AllocContextBuffer()
 {
-	PushContext();
+	NewContext();
 	++state.buffer;
-	__assert (state.buffer < buffers.Capacity(), "Not enough execution buffers");
 
 	ClearContextBuffer();
 	msg (E_INFO, E_DEBUGAPP, "New execution context buffer allocated");
@@ -400,15 +546,37 @@ void Processor::RestoreContext()
 {
 	msg (E_INFO, E_VERBOSE, "Restoring context");
 
+	DumpContext (context_stack.Top());
 	state = context_stack.Pop();
+}
 
-	msg (E_INFO, E_VERBOSE, "Restored context: IP [%p], FL [%p], BUF [%ld]",
-	     state.ip, state.flags, state.buffer);
+
+// -----------------------------------------------------------------------------
+// ---- Linker
+// -----------------------------------------------------------------------------
+
+size_t Processor::InsertSymbolPrepare (symbol_map* map, const char* label, Symbol symbol)
+{
+	std::string prep_label (label);
+	size_t prep_hash = std::hash<std::string>() (prep_label); // Hashes the whole string
+
+	symbol.hash = prep_hash;
+
+	map ->insert (std::make_pair (prep_hash, std::make_pair (std::move (prep_label), symbol)));
+	return prep_hash;
+}
+
+void Processor::InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol)
+{
+	std::string prep_label (label);
+	size_t prep_hash = symbol.hash;
+
+	map ->insert (std::make_pair (prep_hash, std::make_pair (std::move (prep_label), symbol)));
 }
 
 void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 {
-	msg (E_INFO, E_DEBUGAPP, "Linking mentioned symbols: %d", set.symbols.size());
+	msg (E_INFO, E_DEBUGAPP, "Linking decoded symbols: %d", set.symbols.size());
 
 	for (hashed_symbol& symbol: set.symbols)
 	{
@@ -422,12 +590,16 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 		// If symbol is defined here, check for multiple definitions and link.
 		if (linked_desc.is_resolved)
 		{
-			__assert (linked_desc.ref.is_symbol, "Symbols referencing symbols are not supported");
+			if (linked_desc.ref.is_symbol)
+			{
+				msg (E_INFO, E_DEBUGAPP, "Definition of alias \"%s\": aliasing %p",
+					 name.c_str(), linked_desc.ref.symbol_hash);
+			}
 
-			switch (linked_desc.ref.direct.type)
+			else switch (linked_desc.ref.direct.type)
 			{
 				case S_CODE:
-					msg (E_INFO, E_DEBUGAPP, "Definition of label \"%s\": address %ld",
+					msg (E_INFO, E_DEBUGAPP, "Definition of label \"%s\": assigning address %ld",
 						 name.c_str(), address);
 					linked_desc.ref.direct.address = buffers[state.buffer].cmd_top;
 					break;
@@ -447,13 +619,12 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 					break;
 			}
 
+			// Attach to any existing record (checking it is reference, not definition).
 			if (existing_record != sym_table.end())
 			{
-				// If we have forward-references, check them and resolve the symbol.
 				__verify (!existing_record ->second.second.is_resolved,
 				          "Symbol redefinition");
 
-				// Resolve the symbol by assigning to existing record.
 				existing_record ->second.second = linked_desc;
 			}
 		}
@@ -474,53 +645,67 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 	msg (E_INFO, E_DEBUGAPP, "Link completed");
 }
 
+// -----------------------------------------------------------------------------
+// ---- Reference
+// -----------------------------------------------------------------------------
+
 Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* set)
 {
-	Reference& target_ref = set ->cmd.ref;
+	Reference target_ref;
+	symbol_map& target_syms = set ->symbols;
+
 	char reg[line_length], segment;
 
-	if (sscanf (ref, "%c:%ld", &segment, &target_ref.direct.address))
+	if (sscanf (ref, "%c:%ld", &segment, &target_ref.direct.address) == 2)
 	{
+		const char* _reftype = 0;
+
 		target_ref.is_symbol = 0;
-		target_ref.direct.address = 0;
 		switch (segment)
 		{
 			case 'c':
 				target_ref.direct.type = S_CODE;
+				_reftype = "CODE";
 				break;
 
 			case 'd':
 				target_ref.direct.type = S_DATA;
+				_reftype = "DATA";
 				break;
 
 			default:
-				__asshole ("Invalid reference segment specificator");
+				__asshole ("Invalid reference segment specificator: %c", segment);
 		}
+
+		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded direct reference to %s:%ld",
+		     ref, _reftype, target_ref.direct.address);
 	}
 
-	else if (sscanf (ref, "@%s", reg))
+	else if (sscanf (ref, "@%s", reg) == 1)
 	{
 		target_ref.is_symbol = 0;
 		target_ref.direct.type = S_REGISTER;
 		target_ref.direct.address = DecodeRegister (reg);
+
+		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded access to register %s", ref, reg);
 	}
 
 	else
 	{
-		Symbol sym;
-		memset (&sym, 0xDEADBEEF, sizeof (sym));
+		Symbol reference_sym;
+		memset (&reference_sym, 0xDEADBEEF, sizeof (reference_sym));
 
-		sym.is_resolved = 0;
+		reference_sym.is_resolved = 0;
 
-		msg (E_INFO, E_DEBUGAPP, "Adding symbol \"%s\" as unresolved", ref);
+		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded access of symbol", ref);
 
 		// Add symbol and write its hash to the command
 		target_ref.is_symbol = 1;
-		target_ref.symbol_hash = InsertSymbolPrepare (&set ->symbols, ref, sym);
+		target_ref.symbol_hash = InsertSymbolPrepare (&target_syms, ref, reference_sym);
 	}
+
+	return target_ref;
 }
-
-
 
 Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 {
@@ -533,10 +718,6 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 	memset (&set.cmd, 0xDEADBEEF, sizeof (set.cmd));
 
 	set.cmd.command = C_MAX;
-	set.cmd.ref.is_symbol = 0;
-	set.cmd.ref.direct.address = 0;
-	set.cmd.ref.direct.type = S_NONE;
-
 
 	if (char* cmt = strchr (buffer, ';')) *cmt = '\0'; // Drop commentary
 	else if (char* nl = strchr (buffer, '\n')) *nl = '\0'; // Drop newline (if no commentary)
@@ -549,17 +730,19 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 		++label_count;
 
 		Symbol label_sym;
-		label_sym.type = S_CODE;
-		label_sym.address = -1;
+		memset (&label_sym, 0xDEADBEEF, sizeof (label_sym));
+
+		label_sym.ref.is_symbol = 0;
+		label_sym.ref.direct.type = S_CODE;
 		label_sym.is_resolved = 1;
 
 		*colon++ = '\0';
 
-		msg (E_INFO, E_DEBUGAPP, "Adding label \"%s\" as resolved", buffer);
+		msg (E_INFO, E_DEBUGAPP, "Label \"%s\": adding resolved symbol", buffer);
 		InsertSymbolPrepare (&set.symbols, buffer, label_sym);
 
-		buffer = colon; // Shift buffer
-		while (isspace (*buffer)) ++buffer;
+		buffer = colon;
+		while (isspace (*buffer)) ++buffer; // Shift buffer
 	}
 
 	msg (E_INFO, E_DEBUGAPP, "Parsed labels: %d", label_count);
@@ -568,7 +751,7 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 	// Parse command
 	short arg_count = sscanf (buffer, "%s %s", command, arg);
 
-	if (arg_count == EOF)
+	if ((arg_count == EOF) || !arg_count)
 	{
 		msg (E_INFO, E_DEBUGAPP, "Command: No command");
 		set.cmd.command = C_NONE;
@@ -595,9 +778,10 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 		case A_REFERENCE:
 			__assert (arg_count == 1, "Invalid argument count: %d", arg_count);
 
-			set.cmd.ref = DecodeReference (arg);
+			msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" <reference>",
+				 set.cmd.command, commands_list[set.cmd.command]);
 
-
+			set.cmd.ref = DecodeReference (arg, &set);
 			break;
 
 		case A_VALUE:
@@ -605,8 +789,8 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 
 			sscanf (arg, "%lg", &set.cmd.value);
 
-			msg (E_INFO, E_DEBUGAPP, "Command: [%d %p] -> \"%s\" %lg",
-			     set.cmd.command, set.cmd.debug, commands_list[set.cmd.command], set.cmd.value);
+			msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" %lg",
+			     set.cmd.command, commands_list[set.cmd.command], set.cmd.value);
 			break;
 
 		default:
@@ -662,19 +846,36 @@ Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_spars
 
 	case A_REFERENCE:
 
+		msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" <reference>",
+			 cmd.command, commands_list[cmd.command]);
+
 		if (cmd.ref.is_symbol)
-			msg (E_INFO, E_DEBUGAPP, "Command: [%d %p] -> \"%s\" <symbol>",
-			     cmd.command, cmd.debug, commands_list[cmd.command]);
+		{
+			msg (E_INFO, E_DEBUGAPP, "Reference: reference of symbol %p", cmd.ref.symbol_hash);
+		}
 
 		else
-			msg (E_INFO, E_DEBUGAPP, "Command: [%d %p] -> \"%s\" %ld",
-			     cmd.command, cmd.ref.address, commands_list[cmd.command], cmd.ref.address);
+		{
+			__assert (cmd.ref.direct.type != S_NONE, "Invalid direct reference type");
+
+			if (cmd.ref.direct.type == S_REGISTER)
+			{
+				msg (E_INFO, E_DEBUGAPP, "Reference: access of register %s",
+					 EncodeRegister (cmd.ref.direct.address));
+			}
+
+			msg (E_INFO, E_DEBUGAPP, "Reference: direct reference to %s:%ld",
+				 cmd.ref.direct.type == S_CODE ? "CODE" :
+				 cmd.ref.direct.type == S_DATA ? "DATA" : 0,
+				 cmd.ref.direct.address);
+
+		}
 
 		break;
 
 	case A_VALUE:
-		msg (E_INFO, E_DEBUGAPP, "Command: [%d %p] -> \"%s\" %lg",
-		     cmd.command, cmd.debug, commands_list[cmd.command], cmd.value);
+		msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" %lg",
+		     cmd.command, commands_list[cmd.command], cmd.value);
 		break;
 
 	default:
@@ -709,7 +910,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 		{
 			snprintf (temporary, line_length, "__l_%p", reinterpret_cast<void*> (sym.hash));
 
-			msg (E_INFO, E_DEBUGAPP, "Symbol: [address %ld] <hash %p>", sym.address, sym.hash);
+			msg (E_INFO, E_DEBUGAPP, "Read symbol: <hash %p>", sym.hash);
 		}
 
 		else
@@ -721,7 +922,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 			fread (temporary, 1, label_size, stream);
 			temporary[label_size] = '\0';
 
-			msg (E_INFO, E_DEBUGAPP, "Symbol: [address %ld] \"%s\"", sym.address, temporary);
+			msg (E_INFO, E_DEBUGAPP, "Read symbol: \"%s\"", temporary);
 		}
 
 		InsertSymbolRaw (map, temporary, sym);
@@ -783,7 +984,7 @@ void Processor::Decode (FILE* stream) throw()
 					if (set.cmd.command == C_NONE)
 						continue;
 
-					buffers[state.buffer].commands.Access (buffers[state.buffer].cmd_top++) = set.cmd;
+					GetBuffer().commands.Access (GetBuffer().cmd_top++) = set.cmd;
 
 					if (set.cmd.command == C_QUIT)
 						InternalHandler (set.cmd);
@@ -817,7 +1018,7 @@ void Processor::Load (FILE* stream) throw()
 		if (! (state.flags & MASK (F_EIP)))
 		{
 			msg (E_INFO, E_DEBUGAPP, "Reading symbol section");
-			BinaryReadSymbols (&buffers[state.buffer].sym_table, stream, use_sparse_code);
+			BinaryReadSymbols (&GetBuffer().sym_table, stream, use_sparse_code);
 		}
 
 		size_t initial_context_no = state.buffer;
@@ -833,20 +1034,27 @@ void Processor::Load (FILE* stream) throw()
 		__verify (section_id == command_section_sig, "Malformed command section: READ %p EXPECT %p",
 		          section_id, command_section_sig);
 
+		size_t cmd_count;
+		fread (&cmd_count, sizeof (cmd_count), 1, stream);
+
 		// Exit the parse/decode loop if we're off the initial (primary) context,
 		// not simply on EXIT flag.
 		// This is for proper handling of "cswitch" statements and context-switching.
 		while ( (state.buffer != static_cast<size_t> (-1)) &&
 		        (state.buffer >= initial_context_no))
 		{
-			if (feof (stream))
+			__verify (!feof (stream), "Preliminary EOS reading binary file");
+
+			if (!cmd_count)
 			{
-				msg (E_CRITICAL, E_USER, "Preliminary EOS reading binary file");
+				msg (E_WARNING, E_USER, "Reached end of the command section");
 				state.flags |= MASK (F_EXIT);
 			}
 
 			else
 			{
+				--cmd_count;
+
 				DecodedCommand cmd = BinaryReadCmd (stream, use_sparse_code);
 
 				if (state.flags & MASK (F_EIP))
@@ -854,7 +1062,7 @@ void Processor::Load (FILE* stream) throw()
 
 				else
 				{
-					buffers[state.buffer].commands.Access (buffers[state.buffer].cmd_top++) = cmd;
+					GetBuffer().commands.Access (GetBuffer().cmd_top++) = cmd;
 
 					if (cmd.command == C_QUIT)
 						InternalHandler (cmd);
@@ -878,15 +1086,27 @@ void Processor::DumpAsm (FILE* stream, size_t which_buffer)
 {
 	msg (E_INFO, E_VERBOSE, "Writing assembler code from buffer %ld (mnemonics)", which_buffer);
 
-	Buffer& buffer = buffers[which_buffer]; // It's not going to change
+	Buffer& buffer = GetBuffer(); // It's not going to change
 
-	// Build index of the symbols by address
-	std::multimap<size_t, const std::pair<std::string, Symbol>& > symbol_addr_index;
+	// Build index of the symbols by address (CODE section)
+	std::multimap<size_t, const std::pair<std::string, Symbol>& > code_symbol_index;
 	for (const hashed_symbol& sym: buffer.sym_table)
 	{
-		// We add only resolved symbols to the index
-		if (sym.second.second.is_resolved)
-			symbol_addr_index.insert (std::make_pair (sym.second.second.address, sym.second));
+		try
+		{
+			const Reference::Direct& dref = Resolve (sym.second.second.ref);
+
+			if (dref.type == S_CODE)
+				code_symbol_index.insert (std::make_pair (dref.address, sym.second));
+
+			else
+				msg (E_WARNING, E_USER, "Unsupported symbol type %d in symbol \"%s\", not dumping",
+					 dref.type,
+					 sym.second.first.c_str());
+		}
+
+		catch (const Debug::SilentException& e)
+		{ /* No handler, we just skip unresolved symbols */ }
 	}
 
 
@@ -895,58 +1115,63 @@ void Processor::DumpAsm (FILE* stream, size_t which_buffer)
 		DecodedCommand& cmd = buffer.commands.Access (addr);
 		__assert (cmd.command < C_MAX, "Invalid command code: %d", cmd.command);
 
-		// Write symbols
-		auto symbols_range = symbol_addr_index.equal_range (addr);
-		for (auto s_iter = symbols_range.first; s_iter != symbols_range.second; ++s_iter)
+		// Write labels
+		auto labels_range = code_symbol_index.equal_range (addr);
+		for (auto l_iter = labels_range.first; l_iter != labels_range.second; ++l_iter)
 		{
-			const Symbol& sym = s_iter ->second.second;
-			switch (sym.type)
-			{
-				case S_CODE:
-					fprintf (stream, "%s: ", s_iter ->second.first.c_str());
-					break;
+			const Symbol& sym = l_iter ->second.second;
+			__assert (sym.is_resolved && !sym.ref.is_symbol && sym.ref.direct.type == S_CODE,
+					  "Unsupported label format");
 
-				case S_VAR:
-					__asshole ("Variables are not implemented: \"%s\" at address %ld",
-							   s_iter ->second.first.c_str(),
-							   addr);
-					break;
-
-				case S_NONE:
-					__asshole ("Invalid symbol type");
-					break;
-
-				default:
-					__asshole ("Switch error");
-					break;
-			}
+			fprintf (stream, "%s: ", l_iter ->second.first.c_str());
 		}
+
+
+		const char* cmd_str = commands_list[cmd.command];
 
 		switch (commands_traits[cmd.command].arg_type)
 		{
 		case A_REFERENCE:
 
 			if (cmd.ref.is_symbol)
-				fprintf (stream, "%s %s\n",
-						 commands_list[cmd.command],
+				fprintf (stream, "%s %s",
+						 cmd_str,
 						 buffer.sym_table.find (cmd.ref.symbol_hash) ->second.first.c_str());
 
-			else
-				fprintf (stream, "%s %ld\n", commands_list[cmd.command], cmd.ref.address);
+			else switch (cmd.ref.direct.type)
+				{
+				case S_CODE:
+					fprintf (stream, "%s c:%ld", cmd_str, cmd.ref.direct.address);
+					break;
+
+				case S_DATA:
+					fprintf (stream, "%s d:%ld", cmd_str, cmd.ref.direct.address);
+					break;
+
+				case S_REGISTER:
+					fprintf (stream, "%s @%s", cmd_str, EncodeRegister (cmd.ref.direct.address));
+					break;
+
+				case S_NONE:
+				default:
+					__asshole ("Switch error");
+					break;
+				}
 
 			break;
 
 		case A_VALUE:
-			fprintf (stream, "%s %lg\n", commands_list[cmd.command], cmd.value);
+			fprintf (stream, "%s %lg", cmd_str, cmd.value);
 			break;
 
 		case A_NONE:
-			fprintf (stream, "%s\n", commands_list[cmd.command]);
 			break;
 
 		default:
 			__asshole ("Switch error");
 		}
+
+		putc ('\n', stream);
 	}
 
 	msg (E_INFO, E_VERBOSE, "Assembler write of buffer %ld completed", which_buffer);
@@ -1004,6 +1229,7 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 		fwrite (&command_section_sig, sizeof (command_section_sig), 1, stream);
 
 		msg (E_INFO, E_DEBUGAPP, "Writing %ld instructions", buffer.cmd_top);
+		fwrite (&buffer.cmd_top, sizeof (buffer.cmd_top), 1, stream);
 		for (size_t i = 0; i < buffer.cmd_top; ++i)
 		{
 			DecodedCommand& cmd = buffer.commands.Access (i);
@@ -1054,14 +1280,14 @@ void Processor::ExecuteBuffer() throw()
 
 		for (;;)
 		{
-			if (state.ip >= buffers[state.buffer].cmd_top)
+			if (state.ip >= GetBuffer().cmd_top)
 			{
 				msg (E_CRITICAL, E_USER, "IP overflow - exiting context");
 				RestoreContext();
 				return;
 			}
 
-			InternalHandler (buffers[state.buffer].commands.Access (state.ip++));
+			InternalHandler (GetBuffer().commands.Access (state.ip++));
 
 			if (state.flags & MASK (F_EXIT))
 			{
@@ -1074,7 +1300,7 @@ void Processor::ExecuteBuffer() throw()
 			}
 		}
 
-		msg (E_INFO, E_VERBOSE, "Execution of context completed: the result is %lg",
+		msg (E_INFO, E_USER, "Execution of context completed: the result is %lg",
 		     calc_stack.Top());
 	}
 
@@ -1092,10 +1318,8 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 	{
 	case C_INIT:
 	{
-		size_t ip = state.ip;
 		InitContexts();
 		AllocContextBuffer();
-		state.ip = ip;
 		break;
 	}
 
@@ -1114,15 +1338,28 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		if (!(state.flags & MASK(F_NFC))) Analyze (calc_stack.Top());
 		break;
 
+	case C_LOAD:
+		calc_stack.Push (Read (cmd.ref));
+		break;
+
+	case C_WRITE:
+		Write (cmd.ref) = calc_stack.Top();
+		break;
+
 	case C_ADD:
 		calc_stack.Push (calc_stack.Pop() + calc_stack.Pop());
 		if (!(state.flags & MASK(F_NFC))) Analyze (calc_stack.Top());
 		break;
 
 	case C_SUB:
-		calc_stack.Push (calc_stack.Pop() - calc_stack.Pop());
+	{
+		calc_t arg1 = calc_stack.Pop();
+		calc_t arg2 = calc_stack.Pop();
+
+		calc_stack.Push (arg2 - arg1);
 		if (!(state.flags & MASK(F_NFC))) Analyze (calc_stack.Top());
 		break;
+	}
 
 	case C_MUL:
 		calc_stack.Push (calc_stack.Pop() * calc_stack.Pop());
@@ -1130,8 +1367,21 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		break;
 
 	case C_DIV:
-		calc_stack.Push (calc_stack.Pop() / calc_stack.Pop());
+	{
+		calc_t arg1 = calc_stack.Pop();
+		calc_t arg2 = calc_stack.Pop();
+
+		calc_stack.Push (arg2 / arg1);
 		if (!(state.flags & MASK(F_NFC))) Analyze (calc_stack.Top());
+		break;
+	}
+
+	case C_INC:
+		++calc_stack.Top();
+		break;
+
+	case C_DEC:
+		--calc_stack.Top();
 		break;
 
 	case C_ANAL:
@@ -1139,7 +1389,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 		break;
 
 	case C_CMP:
-		Analyze (calc_stack.Pop() - calc_stack.Top());
+		Analyze (-(calc_stack.Pop() - calc_stack.Top()));
 		break;
 
 	case C_SWAP:
@@ -1161,45 +1411,45 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 
 	case C_JE:
 		if (state.flags & MASK(F_ZERO))
-			DoJump (cmd.ref);
+			Jump (cmd.ref);
 		break;
 
 	case C_JNE:
 		if (!(state.flags & MASK(F_ZERO)))
-			DoJump (cmd.ref);
+			Jump (cmd.ref);
 		break;
 
 	case C_JA:
 	case C_JNBE:
 		if (!(state.flags & (MASK(F_NEGATIVE) | MASK(F_ZERO))))
-			DoJump (cmd.ref);
+			Jump (cmd.ref);
 		break;
 
 	case C_JNA:
 	case C_JBE:
 		if (state.flags & (MASK(F_NEGATIVE) | MASK(F_ZERO)))
-			DoJump (cmd.ref);
+			Jump (cmd.ref);
 		break;
 
 	case C_JAE:
 	case C_JNB:
 		if ((state.flags & MASK(F_ZERO)) || !(state.flags & MASK(F_NEGATIVE)))
-			DoJump (cmd.ref);
+			Jump (cmd.ref);
 		break;
 
 	case C_JNAE:
 	case C_JB:
 		if ((state.flags & MASK(F_NEGATIVE)) && !(state.flags & (MASK(F_ZERO))))
-			DoJump (cmd.ref);
+			Jump (cmd.ref);
 		break;
 
 	case C_JMP:
-		DoJump (cmd.ref);
+		Jump (cmd.ref);
 		break;
 
 	case C_CALL:
 		SaveContext();
-		DoJump (cmd.ref);
+		Jump (cmd.ref);
 		break;
 
 	case C_RET:

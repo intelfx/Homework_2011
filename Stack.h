@@ -31,6 +31,11 @@ public:
 
 	virtual ~Stack();
 
+	bool Empty()
+	{
+		return (stack_top == 0);
+	}
+
 	void Push (const T& object)
 	{
 		msg (E_INFO, E_DEBUGLIB, "Pushing object on [%ld] (capacity %ld)", stack_top, storage.Capacity());
