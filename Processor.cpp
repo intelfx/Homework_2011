@@ -592,8 +592,10 @@ size_t OLD_Processor::InsertSymbolPrepare (symbol_map* map, const char* label, S
 
 void OLD_Processor::InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol)
 {
+	std::string prep_label (label);
 	size_t prep_hash = symbol.hash;
-	map ->insert (std::make_pair (prep_hash, std::make_pair (label, symbol)));
+
+	map ->insert (std::make_pair (prep_hash, std::make_pair (std::move (prep_label), symbol)));
 }
 
 void OLD_Processor::DecodeLinkSymbols (OLD_Processor::DecodedSet& set)

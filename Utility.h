@@ -22,7 +22,7 @@
 	 (static_cast <unsigned long long> ( str[7]) << 56))
 
 
-namespace Processor
+namespace OLD_Processor
 {
 
 typedef double calc_t;
@@ -106,7 +106,7 @@ struct DecodedCommand
 // This is something like TR1's std::unordered_map with manual hashing,
 // since we need to have direct access to hashes themselves.
 typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
-typedef symbol_map::value_type hashed_symbol;
+typedef symbol_map::value_type symbol_type;
 
 struct DecodedSet
 {
@@ -138,6 +138,8 @@ struct Buffer
 	size_t cmd_top;
 
 	symbol_map sym_table;
+
+	calc_t registers[R_MAX];
 };
 
 struct ProcessorState
@@ -146,8 +148,6 @@ struct ProcessorState
 	size_t ip;
 	size_t buffer;
 	size_t depth;
-
-	calc_t registers[R_MAX];
 };
 
 struct CommandTraits

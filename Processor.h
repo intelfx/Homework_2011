@@ -23,6 +23,11 @@ DeclareDescriptor (Processor);
 	(static_cast <unsigned long long> ( str[7]) << 56))
 
 
+typedef double calc_t;
+static const int COMMAND_BUFFER = 100;
+static const int BUFFER_NUM = 4;
+
+static const unsigned line_length = 256;
 
 /*
  * Epigraph:
@@ -214,6 +219,7 @@ class OLD_Processor : LogBase (Processor)
 
 	// Symbol resolvers
 	const Reference::Direct& Resolve (const OLD_Processor::Reference& ref);
+	Reference::Direct& Resolve (const char* name);
 
 	// Format-specific functions : ASM decoding
 	void DecodeLinkSymbols (DecodedSet& set);
