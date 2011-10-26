@@ -64,7 +64,7 @@ enum COMMANDS
 	C_NONE
 };
 
-const char* Processor::commands_list[C_MAX] =
+const char* OLD_Processor::commands_list[C_MAX] =
 {
 	"init",
 	"push",
@@ -121,7 +121,7 @@ const char* Processor::commands_list[C_MAX] =
 	"quit"
 };
 
-const char* Processor::commands_desc[C_MAX] =
+const char* OLD_Processor::commands_desc[C_MAX] =
 {
 	"Stack: initialize stack and execution environment",
 	"Stack: push a value onto the stack",
@@ -177,7 +177,7 @@ const char* Processor::commands_desc[C_MAX] =
 	"Management: stop execution/quit context"
 };
 
-Processor::CommandTraits Processor::commands_traits[C_MAX] =
+OLD_Processor::CommandTraits OLD_Processor::commands_traits[C_MAX] =
 {
 	{A_NONE},
 	{A_VALUE},
@@ -234,15 +234,15 @@ Processor::CommandTraits Processor::commands_traits[C_MAX] =
 };
 
 // BIN_IFX
-Processor::VersionSignature Processor::expect_sig = {SYMCONST ("_BIN_IFX"), {{'2', '2'}}, 0};
+OLD_Processor::VersionSignature OLD_Processor::expect_sig = {SYMCONST ("_BIN_IFX"), {{'2', '2'}}, 0};
 
 // !SEC_SYM
-const unsigned long long Processor::symbols_section_sig = SYMCONST ("_SYM_SEC");
+const unsigned long long OLD_Processor::symbols_section_sig = SYMCONST ("_SYM_SEC");
 
 // !SEC_CMD
-const unsigned long long Processor::command_section_sig = SYMCONST ("_CMD_SEC");
+const unsigned long long OLD_Processor::command_section_sig = SYMCONST ("_CMD_SEC");
 
-Processor::Processor() :
+OLD_Processor::OLD_Processor() :
 state(),
 is_initialized (0),
 bin_dump_file (0),
@@ -258,18 +258,18 @@ asm_dump_file (0)
 	InitContexts();
 }
 
-Processor::~Processor()
+OLD_Processor::~OLD_Processor()
 {
 	free (bin_dump_file);
 	free (asm_dump_file);
 }
 
-void Processor::CheckStream (FILE* stream)
+void OLD_Processor::CheckStream (FILE* stream)
 {
 	__sassert (stream && !ferror (stream), "Invalid stream");
 }
 
-bool Processor::ReadSignature (FILE* stream)
+bool OLD_Processor::ReadSignature (FILE* stream)
 {
 	VersionSignature file_sig;
 	fread (&file_sig, sizeof (file_sig), 1, stream);
@@ -304,7 +304,7 @@ bool Processor::ReadSignature (FILE* stream)
 	return file_sig.is_sparse;
 }
 
-void Processor::DumpFlags()
+void OLD_Processor::DumpFlags()
 {
 	msg (E_INFO, E_DEBUGAPP, "Dumping processor flags");
 
@@ -318,7 +318,7 @@ void Processor::DumpFlags()
 		 !!(state.flags & MASK(F_NEGATIVE)));
 }
 
-size_t Processor::DecodeRegister (const char* str)
+size_t OLD_Processor::DecodeRegister (const char* str)
 {
 	if (!strcmp (str, "ra"))
 		return R_A;
@@ -341,7 +341,7 @@ size_t Processor::DecodeRegister (const char* str)
 	return R_MAX;
 }
 
-const char* Processor::EncodeRegister (size_t reg)
+const char* OLD_Processor::EncodeRegister (size_t reg)
 {
 	switch (reg)
 	{
@@ -372,7 +372,7 @@ const char* Processor::EncodeRegister (size_t reg)
 
 
 
-Processor::Buffer& Processor::GetBuffer()
+OLD_Processor::Buffer& OLD_Processor::GetBuffer()
 {
 	__verify (state.buffer != static_cast<size_t> (-1),
 			  "Invalid buffer index, possible call stack underflow");
@@ -381,7 +381,7 @@ Processor::Buffer& Processor::GetBuffer()
 }
 
 
-void Processor::Jump (const Processor::Reference& ref)
+void OLD_Processor::Jump (const OLD_Processor::Reference& ref)
 {
 	const Reference::Direct& dref = Resolve (ref);
 
@@ -391,7 +391,7 @@ void Processor::Jump (const Processor::Reference& ref)
 	state.ip = dref.address;
 }
 
-calc_t Processor::Read (const Processor::Reference& ref)
+calc_t OLD_Processor::Read (const OLD_Processor::Reference& ref)
 {
 	const Reference::Direct& dref = Resolve (ref);
 
@@ -417,7 +417,7 @@ calc_t Processor::Read (const Processor::Reference& ref)
 	return -1;
 }
 
-calc_t& Processor::Write (const Processor::Reference& ref)
+calc_t& OLD_Processor::Write (const OLD_Processor::Reference& ref)
 {
 	const Reference::Direct& dref = Resolve (ref);
 
@@ -442,9 +442,9 @@ calc_t& Processor::Write (const Processor::Reference& ref)
 }
 
 
-const Processor::Reference::Direct& Processor::Resolve (const Processor::Reference& ref)
+const OLD_Processor::Reference::Direct& OLD_Processor::Resolve (const OLD_Processor::Reference& ref)
 {
-	const Processor::Reference* temp_ref = &ref;
+	const OLD_Processor::Reference* temp_ref = &ref;
 
 	while (temp_ref ->is_symbol)
 	{
@@ -459,7 +459,7 @@ const Processor::Reference::Direct& Processor::Resolve (const Processor::Referen
 	return temp_ref ->direct;
 }
 
-void Processor::Analyze (calc_t arg)
+void OLD_Processor::Analyze (calc_t arg)
 {
 	state.flags &= ~(MASK(F_NEGATIVE) | MASK(F_ZERO));
 
@@ -470,7 +470,7 @@ void Processor::Analyze (calc_t arg)
 		state.flags |= MASK(F_ZERO);
 }
 
-void Processor::DumpContext (const Processor::ProcessorState& g_state)
+void OLD_Processor::DumpContext (const OLD_Processor::ProcessorState& g_state)
 {
 	msg (E_INFO, E_DEBUGAPP, "Context: IP [%d], FL [0x%08p], BUF [%ld], DEPTH [%ld]",
 		 g_state.ip, g_state.flags, g_state.buffer, g_state.depth);
@@ -489,7 +489,7 @@ void Processor::DumpContext (const Processor::ProcessorState& g_state)
 // ---- Contexts
 // -----------------------------------------------------------------------------
 
-void Processor::InitContexts()
+void OLD_Processor::InitContexts()
 {
 	is_initialized = 0;
 	msg (E_INFO, E_VERBOSE, "Initializing system");
@@ -505,7 +505,7 @@ void Processor::InitContexts()
 	is_initialized = 1;
 }
 
-void Processor::SaveContext()
+void OLD_Processor::SaveContext()
 {
 	msg (E_INFO, E_VERBOSE, "Saving execution context");
 	DumpContext (state);
@@ -514,7 +514,7 @@ void Processor::SaveContext()
 	++state.depth;
 }
 
-void Processor::NewContext()
+void OLD_Processor::NewContext()
 {
 	ProcessorState newc;
 	newc.ip = 0;
@@ -529,13 +529,13 @@ void Processor::NewContext()
 	state = newc;
 }
 
-void Processor::ClearContextBuffer()
+void OLD_Processor::ClearContextBuffer()
 {
 	GetBuffer().cmd_top = 0;
 	GetBuffer().sym_table.clear();
 }
 
-void Processor::NextContextBuffer()
+void OLD_Processor::NextContextBuffer()
 {
 	NewContext();
 	++state.buffer;
@@ -544,7 +544,7 @@ void Processor::NextContextBuffer()
 	DumpContext (state);
 }
 
-void Processor::AllocContextBuffer()
+void OLD_Processor::AllocContextBuffer()
 {
 	NewContext();
 	++state.buffer;
@@ -554,7 +554,7 @@ void Processor::AllocContextBuffer()
 	DumpContext (state);
 }
 
-void Processor::RestoreContext()
+void OLD_Processor::RestoreContext()
 {
 	msg (E_INFO, E_VERBOSE, "Restoring context");
 
@@ -567,7 +567,7 @@ void Processor::RestoreContext()
 // ---- Linker
 // -----------------------------------------------------------------------------
 
-size_t Processor::InsertSymbolPrepare (symbol_map* map, const char* label, Symbol symbol)
+size_t OLD_Processor::InsertSymbolPrepare (symbol_map* map, const char* label, Symbol symbol)
 {
 	std::string prep_label (label);
 	size_t prep_hash = std::hash<std::string>() (prep_label); // Hashes the whole string
@@ -578,15 +578,13 @@ size_t Processor::InsertSymbolPrepare (symbol_map* map, const char* label, Symbo
 	return prep_hash;
 }
 
-void Processor::InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol)
+void OLD_Processor::InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol)
 {
-	std::string prep_label (label);
 	size_t prep_hash = symbol.hash;
-
-	map ->insert (std::make_pair (prep_hash, std::make_pair (std::move (prep_label), symbol)));
+	map ->insert (std::make_pair (prep_hash, std::make_pair (label, symbol)));
 }
 
-void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
+void OLD_Processor::DecodeLinkSymbols (OLD_Processor::DecodedSet& set)
 {
 	msg (E_INFO, E_DEBUGAPP, "Linking decoded symbols: %d", set.symbols.size());
 
@@ -661,7 +659,7 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 // ---- Reference
 // -----------------------------------------------------------------------------
 
-Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* set)
+OLD_Processor::Reference OLD_Processor::DecodeReference (const char* ref, DecodedSet* set)
 {
 	Reference target_ref;
 	symbol_map& target_syms = set ->symbols;
@@ -719,7 +717,7 @@ Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* se
 	return target_ref;
 }
 
-Processor::DecodedSet Processor::DecodeCmd (char* buffer)
+OLD_Processor::DecodedSet OLD_Processor::DecodeCmd (char* buffer)
 {
 	char command[line_length], arg[line_length];
 	unsigned short label_count = 0;
@@ -813,7 +811,7 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 	return set;
 }
 
-Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_sparse_code)
+OLD_Processor::DecodedCommand OLD_Processor::BinaryReadCmd (FILE* stream, bool use_sparse_code)
 {
 	DecodedCommand cmd;
 	memset (&cmd, 0xDEADBEEF, sizeof (cmd));
@@ -900,7 +898,7 @@ Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_spars
 	return cmd;
 }
 
-void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, bool use_sparse_code)
+void OLD_Processor::BinaryReadSymbols (OLD_Processor::symbol_map* map, FILE* stream, bool use_sparse_code)
 {
 	unsigned long long section_id = 0;
 	fread (&section_id, sizeof (section_id), 1, stream);
@@ -946,7 +944,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 	free (temporary);
 }
 
-bool Processor::Decode (FILE* stream) throw()
+bool OLD_Processor::Decode (FILE* stream) throw()
 {
 	msg (E_INFO, E_VERBOSE, "Decoding and/or executing text commands");
 	bool result = 1;
@@ -1025,7 +1023,7 @@ bool Processor::Decode (FILE* stream) throw()
 	return result;
 }
 
-bool Processor::Load (FILE* stream) throw()
+bool OLD_Processor::Load (FILE* stream) throw()
 {
 	msg (E_INFO, E_VERBOSE, "Loading and executing bytecode");
 	bool result = 1;
@@ -1107,7 +1105,7 @@ bool Processor::Load (FILE* stream) throw()
 	return result;
 }
 
-void Processor::DumpAsm (FILE* stream, size_t which_buffer)
+void OLD_Processor::DumpAsm (FILE* stream, size_t which_buffer)
 {
 	msg (E_INFO, E_VERBOSE, "Writing assembler code from buffer %ld (mnemonics)", which_buffer);
 
@@ -1202,7 +1200,7 @@ void Processor::DumpAsm (FILE* stream, size_t which_buffer)
 	msg (E_INFO, E_VERBOSE, "Assembler write of buffer %ld completed", which_buffer);
 }
 
-void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
+void OLD_Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 {
 	msg (E_INFO, E_VERBOSE, "Writing bytecode from buffer %ld to binary stream",
 	     which_buffer);
@@ -1289,12 +1287,12 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 	msg (E_INFO, E_VERBOSE, "Binary code dump of buffer %ld completed", which_buffer);
 }
 
-size_t Processor::GetCurrentBuffer() throw()
+size_t OLD_Processor::GetCurrentBuffer() throw()
 {
 	return state.buffer;
 }
 
-void Processor::ExecuteBuffer() throw()
+void OLD_Processor::ExecuteBuffer() throw()
 {
 	try
 	{
@@ -1334,7 +1332,7 @@ void Processor::ExecuteBuffer() throw()
 	}
 }
 
-void Processor::InternalHandler (const DecodedCommand& cmd)
+void OLD_Processor::InternalHandler (const DecodedCommand& cmd)
 {
 	__assert (cmd.command < C_MAX, "Invalid command code: %d", cmd.command);
 
@@ -1609,7 +1607,7 @@ void Processor::InternalHandler (const DecodedCommand& cmd)
 	}
 }
 
-void Processor::SetExecuteInPlace (bool eip)
+void OLD_Processor::SetExecuteInPlace (bool eip)
 {
 	if (eip)
 		state.flags |= MASK (F_EIP);
@@ -1618,17 +1616,17 @@ void Processor::SetExecuteInPlace (bool eip)
 		state.flags &= ~MASK (F_EIP);
 }
 
-unsigned char Processor::GetMajorVersion()
+unsigned char OLD_Processor::GetMajorVersion()
 {
 	return expect_sig.version.major;
 }
 
-unsigned char Processor::GetMinorVersion()
+unsigned char OLD_Processor::GetMinorVersion()
 {
 	return expect_sig.version.minor;
 }
 
-void Processor::DumpCommandSet()
+void OLD_Processor::DumpCommandSet()
 {
 	for (unsigned i = 0; i < C_MAX; ++i)
 	{
@@ -1639,7 +1637,7 @@ void Processor::DumpCommandSet()
 	}
 }
 
-void Processor::SetFilenamePrefix (const char* fn)
+void OLD_Processor::SetFilenamePrefix (const char* fn)
 {
 	msg (E_INFO, E_VERBOSE, "Setting dump file prefix to \"%s\"", fn);
 

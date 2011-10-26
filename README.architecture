@@ -1,0 +1,48 @@
+Task: divide into logical sections, maintain better code readability,
+prepare for code expansion.
+Get ready for JIT.
+
+Plan:
+Classes:	IReader (implementors: AsmReader, BytecodeReader)
+			IWriter (implementors: AsmWriter, BytecodeWriter)
+			IExecutor (implementors: VMExecutor, JITExecutor)
+			IMMU (implementors: MMU)
+			ILinker (implementors: UATLinker)
+			Processor (finalised)
+
+Class logic:
+	* Class IReader receives a stream and provides a function to read next command.
+	* Class IWriter receives a stream and provides a function to write next command.
+	* Class IExecutor receives a command and executes it, altering the current context.
+	* Class IMMU handles all memory requests (stack/context/sections).
+	* Class ILinker handles symbol -> address -> symbol resolving and verification.
+	* Class Processor has all the logic and interconnection, keeping an interface set.
+
+Interconnections:
+	IReader - IMMU, ILinker
+	IWriter - IMMU, ILinker
+	IExecutor - IMMU
+	IMMU - nothing
+	ILinker - nothing
+	Processor - everything
+
+Mappings to functions:
+	* IReader
+		DecodeCmd, ReadCmd
+	* IWriter
+		Dump*
+	* IExecutor
+		InternalHandler
+	* IMMU
+		*Context, the context/buffers/stacks themselves
+	* ILinker
+		*LinkSymbols, *InsertSymbol, *GetSymbol, symbol tables
+
+Language setting:
+	Command descriptor - CommandTraits array indexed by mnemonic (mnemonic hash) using std::map<size_t, CommandTraits>
+	Decode - search of a mnemonic in map
+	DecodedCommand holds either pointer to CommandTraits or mnemonic hash
+	Encode - search of a hash in map, then get const char* mnemonic from CommandTraits
+	Execution - calling executor-defined handle in CommandTraits (std::map<size_t, void*>)
+		where size_t is executor identification (may be type_info::hash_code()),
+		void* - executor-defined handle (may be pointer-to-function)

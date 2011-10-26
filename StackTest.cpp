@@ -3,7 +3,7 @@
 #include "Processor.h"
 #include <uXray/fxlog_console.h>
 
-void Interactive (Processor& proc)
+void Interactive (OLD_Processor& proc)
 {
 	smsg (E_INFO, E_USER, "Running in interactive mode");
 	smsg (E_INFO, E_USER, "Command set version is %d:%d", proc.GetMajorVersion(), proc.GetMinorVersion());
@@ -42,7 +42,7 @@ int main (int argc, char** argv)
 	__sassert (stack.Pop() == a2 - a1, "Pop() order test failed");
 
 	smsg (E_INFO, E_USER, "Starting processor");
-	Processor proc;
+	OLD_Processor proc;
 
 	if (argc == 1)
 	{

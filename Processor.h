@@ -23,11 +23,6 @@ DeclareDescriptor (Processor);
 	(static_cast <unsigned long long> ( str[7]) << 56))
 
 
-typedef double calc_t;
-static const int COMMAND_BUFFER = 100;
-static const int BUFFER_NUM = 4;
-
-static const unsigned line_length = 256;
 
 /*
  * Epigraph:
@@ -38,7 +33,7 @@ static const unsigned line_length = 256;
  * Steckt jetzt tief in meiner Brust
  */
 
-class Processor : LogBase (Processor)
+class OLD_Processor : LogBase (Processor)
 {
 	enum ProcessorFlags
 	{
@@ -200,9 +195,9 @@ class Processor : LogBase (Processor)
 	void DumpFlags();
 
 	void InternalHandler (const DecodedCommand& cmd);
-	void Jump (const Processor::Reference& ref);
-	calc_t Read (const Processor::Reference& ref);
-	calc_t& Write (const Processor::Reference& ref);
+	void Jump (const OLD_Processor::Reference& ref);
+	calc_t Read (const OLD_Processor::Reference& ref);
+	calc_t& Write (const OLD_Processor::Reference& ref);
 
 	void Analyze (calc_t arg);
 
@@ -218,12 +213,11 @@ class Processor : LogBase (Processor)
 	void InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol);
 
 	// Symbol resolvers
-	const Reference::Direct& Resolve (const Processor::Reference& ref);
-	Reference::Direct& Resolve (const char* name);
+	const Reference::Direct& Resolve (const OLD_Processor::Reference& ref);
 
 	// Format-specific functions : ASM decoding
 	void DecodeLinkSymbols (DecodedSet& set);
-	Reference DecodeReference (const char* ref, Processor::DecodedSet* set);
+	Reference DecodeReference (const char* ref, OLD_Processor::DecodedSet* set);
 	DecodedSet DecodeCmd (char* buffer);
 
 	// Format-specific functions : BIN loading
@@ -232,7 +226,7 @@ class Processor : LogBase (Processor)
 
 	void ClearContextBuffer(); // Reset current context buffer
 
-	void DumpContext(const Processor::ProcessorState& g_state);
+	void DumpContext(const OLD_Processor::ProcessorState& g_state);
 
 	void SaveContext(); // Save context without resetting it
 	void NewContext();
@@ -242,8 +236,8 @@ protected:
 	//virtual bool Verify_() const;
 
 public:
-	Processor();
-	virtual ~Processor();
+	OLD_Processor();
+	virtual ~OLD_Processor();
 
 	void SetExecuteInPlace (bool eip);
 
