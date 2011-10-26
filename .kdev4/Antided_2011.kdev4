@@ -7,7 +7,7 @@ CMakeDir=/usr/share/cmake-2.8/Modules
 Current CMake Binary=file:///usr/bin/cmake
 CurrentBuildDir=file:///home/intelfx/devel/__auxiliary/cpp/SideProjects/__temp/Antided_2011
 CurrentBuildType=Debug
-CurrentInstallDir=
+CurrentInstallDir=file:///usr/local
 Extra Arguments=
 ProjectRootRelative=./
 
@@ -38,6 +38,10 @@ Remote GDB Shell Script=
 Use External Terminal=true
 Working Directory=
 isExecutable=false
+
+[MakeBuilder]
+Default Make Environment Profile=0
+Number Of Jobs=1
 
 [Project]
 VersionControlSupport=kdevgit

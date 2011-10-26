@@ -11,6 +11,8 @@ enum COMMANDS
 	C_POP,
 	C_TOP,
 
+	C_SLEEP,
+
 	C_LOAD,
 	C_WRITE,
 
@@ -71,6 +73,8 @@ const char* OLD_Processor::commands_list[C_MAX] =
 	"pop",
 	"top",
 
+	"sleep",
+
 	"ld",
 	"wr",
 
@@ -128,6 +132,8 @@ const char* OLD_Processor::commands_desc[C_MAX] =
 	"Stack: remove a value from the stack",
 	"Stack: peek a value from the stack",
 
+	"System: hand off control to the OS",
+
 	"Data: load data memory/register",
 	"Data: write data memory/register",
 
@@ -182,6 +188,8 @@ OLD_Processor::CommandTraits OLD_Processor::commands_traits[C_MAX] =
 	{A_NONE},
 	{A_VALUE},
 	{A_NONE},
+	{A_NONE},
+
 	{A_NONE},
 
 	{A_REFERENCE},
@@ -420,6 +428,7 @@ calc_t OLD_Processor::Read (const OLD_Processor::Reference& ref)
 calc_t& OLD_Processor::Write (const OLD_Processor::Reference& ref)
 {
 	const Reference::Direct& dref = Resolve (ref);
+	calc_t* ptr = 0;
 
 	switch (dref.type)
 	{
@@ -428,7 +437,8 @@ calc_t& OLD_Processor::Write (const OLD_Processor::Reference& ref)
 			break;
 
 		case S_REGISTER:
-			return state.registers[ref.direct.address];
+			ptr = &state.registers[ref.direct.address];
+			break;
 
 		case S_CODE:
 			__asshole ("Cannot read CODE segment");
@@ -439,6 +449,8 @@ calc_t& OLD_Processor::Write (const OLD_Processor::Reference& ref)
 			__asshole ("Switch error");
 			break;
 	}
+
+	return *ptr;
 }
 
 
@@ -663,6 +675,8 @@ OLD_Processor::Reference OLD_Processor::DecodeReference (const char* ref, Decode
 {
 	Reference target_ref;
 	symbol_map& target_syms = set ->symbols;
+
+	memset (&target_ref, 0xDEADBEEF, sizeof (target_ref));
 
 	char reg[line_length], segment;
 
@@ -1016,6 +1030,11 @@ bool OLD_Processor::Decode (FILE* stream) throw()
 		msg (E_CRITICAL, E_USER, "Error decoding text: %s", e.what());
 		msg (E_CRITICAL, E_USER, "Exiting decode loop");
 		ClearContextBuffer();
+
+		while ( (state.buffer >= initial_context_no) &&
+		        (state.buffer != static_cast<size_t> (-1)))
+			RestoreContext();
+
 		result = 0;
 	}
 
@@ -1028,6 +1047,8 @@ bool OLD_Processor::Load (FILE* stream) throw()
 	msg (E_INFO, E_VERBOSE, "Loading and executing bytecode");
 	bool result = 1;
 
+	size_t initial_context_no = state.buffer;
+
 	try
 	{
 		CheckStream (stream);
@@ -1038,8 +1059,6 @@ bool OLD_Processor::Load (FILE* stream) throw()
 			msg (E_INFO, E_DEBUGAPP, "Reading symbol section");
 			BinaryReadSymbols (&GetBuffer().sym_table, stream, use_sparse_code);
 		}
-
-		size_t initial_context_no = state.buffer;
 
 		// Files without command section are OK
 		if (feof (stream))
@@ -1098,6 +1117,10 @@ bool OLD_Processor::Load (FILE* stream) throw()
 		msg (E_CRITICAL, E_USER, "Error loading bytecode: \"%s\"", e.what());
 		msg (E_CRITICAL, E_USER, "Exiting loading loop");
 		ClearContextBuffer();
+
+		while ( (state.buffer >= initial_context_no) &&
+		        (state.buffer != static_cast<size_t> (-1)))
+			RestoreContext();
 
 		result = 0;
 	}
@@ -1360,6 +1383,10 @@ void OLD_Processor::InternalHandler (const DecodedCommand& cmd)
 		if (!(state.flags & MASK(F_NFC))) Analyze (calc_stack.Top());
 		break;
 
+	case C_SLEEP:
+		sleep (0);
+		break;
+
 	case C_LOAD:
 		calc_stack.Push (Read (cmd.ref));
 		break;
@@ -1511,10 +1538,6 @@ void OLD_Processor::InternalHandler (const DecodedCommand& cmd)
 	{
 		FILE* f = fopen (asm_dump_file, "rt");
 
-#ifndef NDEBUG
-		setbuf (f, 0);
-#endif
-
 		if (f)
 		{
 			AllocContextBuffer();
@@ -1531,10 +1554,6 @@ void OLD_Processor::InternalHandler (const DecodedCommand& cmd)
 	case C_LBIN:
 	{
 		FILE* f = fopen (bin_dump_file, "rb");
-
-#ifndef NDEBUG
-		setbuf (f, 0);
-#endif
 
 		if (f)
 		{
