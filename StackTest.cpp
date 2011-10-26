@@ -100,12 +100,15 @@ int main (int argc, char** argv)
 			char* prefix = reinterpret_cast<char*> (malloc (line_length));
 			char* output = reinterpret_cast<char*> (malloc (line_length));
 
-			sscanf (argv[1], "%s.%*s", prefix);
+			sscanf (argv[1], "%s . %*s", prefix);
 			snprintf (output, line_length, "%s.dbin", prefix);
 			free (prefix);
 
 			smsg (E_INFO, E_USER, "Using file \"%s\" to write bytecode", output);
 			FILE* wfile = fopen (output, "wb");
+#ifndef NDEBUG
+			setbuf (wfile, 0);
+#endif
 			free (output);
 
 			proc.DumpBC (wfile, 0, used_buffer);
@@ -132,6 +135,9 @@ int main (int argc, char** argv)
 
 			smsg (E_INFO, E_USER, "Using file \"%s\" to write ASM", output);
 			FILE* wfile = fopen (output, "w");
+#ifndef NDEBUG
+			setbuf (wfile, 0);
+#endif
 			free (output);
 
 			proc.DumpAsm (wfile, used_buffer);
