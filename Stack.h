@@ -92,6 +92,27 @@ public:
 		return storage.Access (stack_top - offset - 1);
 	}
 
+	T& Absolute (size_t offset)
+	{
+		__assert (offset <= stack_top, "Absolute offset too big at %ld", offset);
+		msg (E_INFO, E_DEBUGLIB, "Absolute accessing stack at [%ld] (R/W)", offset);
+
+		return storage.Access (offset);
+	}
+
+	const T& Absolute (size_t offset) const
+	{
+		__assert (offset <= stack_top, "Absolute offset too big at %ld", offset);
+		msg (E_INFO, E_DEBUGLIB, "Absolute accessing stack at [%ld] (R/O)", offset);
+
+		return storage.Access (offset);
+	}
+
+	size_t CurrentTopIndex() const
+	{
+		return stack_top - 1;
+	}
+
 	void Reset()
 	{
 		msg (E_INFO, E_DEBUGLIB, "Resetting stack");

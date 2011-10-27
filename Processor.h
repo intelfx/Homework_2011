@@ -72,7 +72,9 @@ class OLD_Processor : LogBase (OLD_Processor)
 		S_NONE = 0,
 		S_CODE,
 		S_DATA,
-		S_REGISTER
+		S_REGISTER,
+		S_FRAME,
+		S_FRAME_BACK // Parameters
 	};
 
 	struct Reference
@@ -155,6 +157,7 @@ class OLD_Processor : LogBase (OLD_Processor)
 		size_t ip;
 		size_t buffer;
 		size_t depth;
+		size_t frame;
 
 		calc_t registers[R_MAX];
 	} state;
