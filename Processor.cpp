@@ -410,7 +410,13 @@ calc_t Processor::Read (const Processor::Reference& ref)
 			break;
 
 		case S_REGISTER:
-			return state.registers[ref.direct.address];
+			return state.registers[dref.address];
+
+		case S_FRAME:
+			return calc_stack.Absolute (state.frame + dref.address);
+
+		case S_FRAME_BACK:
+			return calc_stack.Absolute (state.frame - dref.address);
 
 		case S_CODE:
 			__asshole ("Cannot read CODE segment");
@@ -437,7 +443,15 @@ calc_t& Processor::Write (const Processor::Reference& ref)
 			break;
 
 		case S_REGISTER:
-			ptr = &state.registers[ref.direct.address];
+			ptr = &state.registers[dref.address];
+			break;
+
+		case S_FRAME:
+			ptr = &calc_stack.Absolute (state.frame + dref.address);
+			break;
+
+		case S_FRAME_BACK:
+			ptr = &calc_stack.Absolute (state.frame - dref.address);
 			break;
 
 		case S_CODE:
@@ -484,8 +498,8 @@ void Processor::Analyze (calc_t arg)
 
 void Processor::DumpContext (const Processor::ProcessorState& g_state)
 {
-	msg (E_INFO, E_DEBUGAPP, "Context: IP [%d], FL [0x%08p], BUF [%ld], DEPTH [%ld]",
-		 g_state.ip, g_state.flags, g_state.buffer, g_state.depth);
+	msg (E_INFO, E_DEBUGAPP, "Context: IP [%d], FL [0x%08p], BUF [%ld], DEPTH [%ld], FRAME [%ld]",
+		 g_state.ip, g_state.flags, g_state.buffer, g_state.depth, g_state.frame);
 
 	msg (E_INFO, E_DEBUGAPP,
 		 "Registers: A [%lg], B [%lg], C [%lg], D [%lg], E [%lg], F [%lg]",
@@ -513,6 +527,8 @@ void Processor::InitContexts()
 	state.depth = 0;
 	state.flags = MASK (F_EXIT);
 	state.buffer = -1; // debug placeholder
+	state.frame = 0;
+	state.depth = 0;
 
 	is_initialized = 1;
 }
@@ -524,6 +540,7 @@ void Processor::SaveContext()
 
 	context_stack.Push (state);
 	++state.depth;
+	state.frame = calc_stack.CurrentTopIndex();
 }
 
 void Processor::NewContext()
@@ -532,7 +549,8 @@ void Processor::NewContext()
 	newc.ip = 0;
 	newc.flags = 0;
 	newc.buffer = state.buffer;
-	newc.depth = state.depth;
+	newc.depth = 0;
+	newc.frame = 0;
 
 	for (size_t reg = 0; reg < R_MAX; ++reg)
 		newc.registers[reg] = 0;
@@ -551,6 +569,7 @@ void Processor::NextContextBuffer()
 {
 	NewContext();
 	++state.buffer;
+	state.frame = calc_stack.CurrentTopIndex();
 
 	msg (E_INFO, E_DEBUGAPP, "Switched to next execution context buffer");
 	DumpContext (state);
@@ -560,8 +579,10 @@ void Processor::AllocContextBuffer()
 {
 	NewContext();
 	++state.buffer;
+	state.frame = calc_stack.CurrentTopIndex();
 
 	ClearContextBuffer();
+
 	msg (E_INFO, E_DEBUGAPP, "New execution context buffer allocated");
 	DumpContext (state);
 }
@@ -637,6 +658,16 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 						 name.c_str(), EncodeRegister (linked_desc.ref.direct.address));
 					break;
 
+				case S_FRAME:
+					msg (E_INFO, E_DEBUGAPP, "Definition of stack frame alias \"%s\": aliasing relative address %ld",
+						 name.c_str(), linked_desc.ref.direct.address);
+					break;
+
+				case S_FRAME_BACK:
+					msg (E_INFO, E_DEBUGAPP, "Definition of parameter alias \"%s\": aliasing parameter %ld",
+						 name.c_str(), linked_desc.ref.direct.address);
+					break;
+
 				default:
 				case S_NONE:
 					__asshole ("Invalid symbol type");
@@ -697,6 +728,16 @@ Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* se
 			case 'd':
 				target_ref.direct.type = S_DATA;
 				_reftype = "DATA";
+				break;
+
+			case 's':
+				target_ref.direct.type = S_FRAME;
+				_reftype = "FRAME";
+				break;
+
+			case 'p':
+				target_ref.direct.type = S_FRAME_BACK;
+				_reftype = "PARAM";
 				break;
 
 			default:
@@ -1194,6 +1235,14 @@ void Processor::DumpAsm (FILE* stream, size_t which_buffer)
 
 				case S_DATA:
 					fprintf (stream, "%s d:%ld", cmd_str, cmd.ref.direct.address);
+					break;
+
+				case S_FRAME:
+					fprintf (stream, "%s s:%ld", cmd_str, cmd.ref.direct.address);
+					break;
+
+				case S_FRAME_BACK:
+					fprintf (stream, "%s p:%ld", cmd_str, cmd.ref.direct.address);
 					break;
 
 				case S_REGISTER:
