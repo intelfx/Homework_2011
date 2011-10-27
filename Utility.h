@@ -22,7 +22,7 @@
 	 (static_cast <unsigned long long> ( str[7]) << 56))
 
 
-namespace OLD_Processor
+namespace Processor
 {
 
 typedef double calc_t;
@@ -160,7 +160,7 @@ struct CommandTraits
 	std::map<size_t, void*> execution_handles;
 };
 
-size_t InsertSymbol (symbol_map* map, Symbol& symbol, const char* label, bool set_hash);
+size_t InsertSymbol (symbol_map* map, Symbol& symbol, const char* label, bool update_hash);
 
 class IReader;
 class IWriter;
@@ -170,6 +170,6 @@ class IExecutor;
 
 } // namespace Processor
 
-#endif _UTILITY_H
+#endif // _UTILITY_H
 
 // kate: indent-mode cstyle; replace-tabs off; tab-width 4;

@@ -11,9 +11,6 @@
 #include "build.h"
 #include "Utility.h"
 
-namespace OLD_Processor
-{
-
 DeclareDescriptor (IReader);
 DeclareDescriptor (IWriter);
 DeclareDescriptor (IMMU);
@@ -21,13 +18,19 @@ DeclareDescriptor (IExecutor);
 DeclareDescriptor (ILinker);
 DeclareDescriptor (IProcessor);
 
-class IProcessor
+namespace Processor
+{
+
+class IProcessor : LogBase (IProcessor)
 {
 	IReader* reader_;
 	IWriter* writer_;
 	IMMU* mmu_;
-	IExecutor executor_;
+	IExecutor* executor_;
 	ILinker* linker_;
+
+protected:
+	virtual ~IProcessor();
 
 public:
 	virtual void AttachReader (IReader* reader) = 0;
@@ -35,27 +38,38 @@ public:
 	virtual void AttachMMU (IMMU* mmu) = 0;
 	virtual void AttachExecutor (IExecutor* executor) = 0;
 	virtual void AttachLinker (ILinker* linker) = 0;
-
-	virtual void Jump (size_t ip) = 0;
-	virtual void Analyze (calc_t value) = 0;
-
 	virtual void DumpContext (size_t ctx) = 0;
+
+	virtual Register DecodeRegister (const char* reg) = 0;
+	virtual const char* EncodeRegister (Register reg) = 0;
+
+	virtual void	Jump (size_t ip) = 0; // Use CODE reference to jump
+	virtual void	Analyze (calc_t value) = 0; // Analyze an arbitrary value
+
+	virtual calc_t	Read (Reference& ref) = 0; // Use DATA reference to read
+	virtual void	Write (Reference& ref, calc_t value) = 0; // Use DATA reference to write
+
+	virtual calc_t	StackTop() = 0; // Calculation stack "top" operation
+	virtual calc_t	StackPop() = 0; // Calculation stack "pop" operation
+	virtual void	StackPush (calc_t value) = 0; // Calculation stack "push" operation
+
+	virtual void	Syscall (size_t index) = 0; // Execute the processor syscall
 };
 
 class IModuleBase
 {
+protected:
 	IProcessor* proc_;
 
 public:
 	virtual void AttachProcessor (IProcessor* proc);
 	virtual void DetachProcessor();
-
-	virtual Register DecodeRegister (const char* reg) = 0;
-	virtual const char* EncodeRegister (Register reg) = 0;
 };
 
 class IReader : LogBase (IReader), public IModuleBase
 {
+protected:
+	virtual ~IReader();
 
 public:
 	virtual void AttachProcessor (IProcessor* proc);
@@ -68,6 +82,8 @@ public:
 
 class IWriter : LogBase (IWriter), public IModuleBase
 {
+protected:
+	virtual ~IWriter();
 
 public:
 	virtual void AttachProcessor (IProcessor* proc);
@@ -80,6 +96,8 @@ public:
 
 class IMMU : LogBase (IMMU), public IModuleBase
 {
+protected:
+	virtual ~IMMU();
 
 public:
 	virtual void AttachProcessor (IProcessor* proc);
@@ -89,19 +107,16 @@ public:
 	virtual calc_t&			AStackTop	(int offset) = 0; // Access calculation stack relative to its top
 	virtual calc_t&			ARegister	(Register reg_id) = 0; // Access register
 	virtual DecodedCommand&	ACommand	(size_t ip) = 0; // Access CODE section
-	virtual calc_t&			AData		(size_t addr) = 0; // Access DATA section
-	virtual symbol_type&	ASymbol		(size_t hash) = 0; // Access symbol buffer
+	virtual calc_t&			AData	(size_t addr) = 0;  // Access DATA section
+	virtual symbol_type&	ASymbol	(size_t hash) = 0;  // Access symbol buffer
 
-	virtual void			StackPush (calc_t value) = 0; // Calculation stack "push" operation
-	virtual calc_t			StackPop() = 0; // Calculation stack "pop" operation
+	virtual void			ReadStack	(calc_t* image, size_t size) = 0; // Read stack data (image end is top)
+	virtual void			ReadData	(calc_t* image, size_t size) = 0; // Read data buffer
+	virtual void			ReadText	(DecodedCommand* image, size_t size) = 0; // Read code buffer
+	virtual void			ReadSyms	(symbol_map* image) = 0; // Read symbol buffer
 
-	virtual void			ReadStack	(calc_t* image, size_t size); // Read stack data (image end is top)
-	virtual void			ReadData	(calc_t* image, size_t size); // Read data buffer
-	virtual void			ReadText	(DecodedCommand* image, size_t size); // Read code buffer
-	virtual void			ReadSyms	(symbol_map* image); // Read symbol buffer
-
-	virtual size_t			GetTextTop	();
-	virtual size_t			GetDataTop	();
+	virtual size_t			GetTextTop	() = 0;
+	virtual size_t			GetDataTop	() = 0;
 
 	virtual ProcessorState& Context() = 0; // Get current context data
 
@@ -118,6 +133,8 @@ public:
 
 class IExecutor : LogBase (IExecutor), public IModuleBase
 {
+protected:
+	virtual ~IExecutor();
 
 public:
 	virtual void AttachProcessor (IProcessor* proc);
@@ -128,6 +145,8 @@ public:
 
 class ILinker : LogBase (ILinker), public IModuleBase
 {
+protected:
+	virtual ~ILinker();
 
 public:
 	virtual void AttachProcessor (IProcessor* proc);

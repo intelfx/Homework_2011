@@ -5,12 +5,12 @@
 
 // -----------------------------------------------------------------------------
 // Library		Antided
-// File			Processor.h
+// File			OLD_Processor.h
 // Author		intelfx
 // Description	Dumb processor implementation for Ded's pleasure
 // -----------------------------------------------------------------------------
 
-DeclareDescriptor (Processor);
+DeclareDescriptor (OLD_Processor);
 
 #define SYMCONST(str)																	\
 	((static_cast <unsigned long long> ( str[0])) |										\
@@ -38,9 +38,9 @@ static const unsigned line_length = 256;
  * Steckt jetzt tief in meiner Brust
  */
 
-class OLD_Processor : LogBase (Processor)
+class OLD_Processor : LogBase (OLD_Processor)
 {
-	enum ProcessorFlags
+	enum OLD_ProcessorFlags
 	{
 		F_EIP = 1, // Execute In Place
 		F_EXIT, // Context exit condition
@@ -149,7 +149,7 @@ class OLD_Processor : LogBase (Processor)
 		symbol_map sym_table;
 	};
 
-	struct ProcessorState
+	struct OLD_ProcessorState
 	{
 		mask_t flags;
 		size_t ip;
@@ -185,7 +185,7 @@ class OLD_Processor : LogBase (Processor)
 	// ---------------------------------------
 
 	Stack<calc_t> calc_stack;
-	Stack<ProcessorState> context_stack;
+	Stack<OLD_ProcessorState> context_stack;
 	StaticAllocator<Buffer, BUFFER_NUM> buffers;
 
 	char* bin_dump_file;
@@ -232,7 +232,7 @@ class OLD_Processor : LogBase (Processor)
 
 	void ClearContextBuffer(); // Reset current context buffer
 
-	void DumpContext(const OLD_Processor::ProcessorState& g_state);
+	void DumpContext(const OLD_Processor::OLD_ProcessorState& g_state);
 
 	void SaveContext(); // Save context without resetting it
 	void NewContext();

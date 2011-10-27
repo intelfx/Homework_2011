@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "Processor.h"
 
-ImplementDescriptor (Processor, "dumb processor", MOD_APPMODULE, Processor);
+ImplementDescriptor (OLD_Processor, "dumb processor", MOD_APPMODULE, OLD_Processor);
 
 
 enum COMMANDS
@@ -316,7 +316,7 @@ void OLD_Processor::DumpFlags()
 {
 	msg (E_INFO, E_DEBUGAPP, "Dumping processor flags");
 
-	msg (E_INFO, E_DEBUGAPP, "Processor flags: EIP [%d] EXIT [%d] NFC [%d]",
+	msg (E_INFO, E_DEBUGAPP, "OLD_Processor flags: EIP [%d] EXIT [%d] NFC [%d]",
 		 !!(state.flags & MASK(F_EIP)),
 		 !!(state.flags & MASK(F_EXIT)),
 		 !!(state.flags & MASK(F_NFC)));
@@ -482,7 +482,7 @@ void OLD_Processor::Analyze (calc_t arg)
 		state.flags |= MASK(F_ZERO);
 }
 
-void OLD_Processor::DumpContext (const OLD_Processor::ProcessorState& g_state)
+void OLD_Processor::DumpContext (const OLD_Processor::OLD_ProcessorState& g_state)
 {
 	msg (E_INFO, E_DEBUGAPP, "Context: IP [%d], FL [0x%08p], BUF [%ld], DEPTH [%ld]",
 		 g_state.ip, g_state.flags, g_state.buffer, g_state.depth);
@@ -528,7 +528,7 @@ void OLD_Processor::SaveContext()
 
 void OLD_Processor::NewContext()
 {
-	ProcessorState newc;
+	OLD_ProcessorState newc;
 	newc.ip = 0;
 	newc.flags = 0;
 	newc.buffer = state.buffer;
