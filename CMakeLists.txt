@@ -8,7 +8,7 @@ find_assert_library ("uXray" LIBRARIES)
 
 # Target specification
 # ----
-set (STACK_SRC Verifier.h Verifier.cpp Stack.h Stack.cpp StackTest.cpp Processor.cpp)
+set (STACK_SRC Verifier.h Verifier.cpp Stack.h Stack.cpp ProcessorTest.cpp Processor.cpp)
 MAIN_ADD_GCH(stdafx.h STACK_SRC)
 
 add_executable(antided_stack ${STACK_SRC})
