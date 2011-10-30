@@ -80,6 +80,35 @@ int main (int argc, char** argv)
 			proc.ExecuteBuffer();
 		}
 
+		else if (strstr (argv[0], "decompiler"))
+		{
+			proc.AllocContextBuffer();
+			proc.SetExecuteInPlace (0);
+			size_t used_buffer = proc.GetCurrentBuffer();
+
+			smsg (E_INFO, E_USER, "Loading bytecode from file \"%s\"", argv[2]);
+			FILE* rfile = fopen (argv[1], "rb");
+			proc.Load (rfile);
+			fclose (rfile);
+
+			char* prefix = reinterpret_cast<char*> (malloc (line_length));
+			char* output = reinterpret_cast<char*> (malloc (line_length));
+
+			sscanf (argv[1], "%s.%*s", prefix);
+			snprintf (output, line_length, "%s.dasm", prefix);
+			free (prefix);
+
+			smsg (E_INFO, E_USER, "Using file \"%s\" to write ASM", output);
+			FILE* wfile = fopen (output, "w");
+			#ifndef NDEBUG
+			setbuf (wfile, 0);
+			#endif
+			free (output);
+
+			proc.DumpAsm (wfile, used_buffer);
+			fclose (wfile);
+		}
+
 		else if (strstr (argv[0], "compiler"))
 		{
 			proc.AllocContextBuffer();
@@ -112,35 +141,6 @@ int main (int argc, char** argv)
 			free (output);
 
 			proc.DumpBC (wfile, 0, used_buffer);
-			fclose (wfile);
-		}
-
-		else if (strstr (argv[0], "decompiler"))
-		{
-			proc.AllocContextBuffer();
-			proc.SetExecuteInPlace (0);
-			size_t used_buffer = proc.GetCurrentBuffer();
-
-			smsg (E_INFO, E_USER, "Loading bytecode from file \"%s\"", argv[2]);
-			FILE* rfile = fopen (argv[1], "rb");
-			proc.Load (rfile);
-			fclose (rfile);
-
-			char* prefix = reinterpret_cast<char*> (malloc (line_length));
-			char* output = reinterpret_cast<char*> (malloc (line_length));
-
-			sscanf (argv[1], "%s.%*s", prefix);
-			snprintf (output, line_length, "%s.dasm", prefix);
-			free (prefix);
-
-			smsg (E_INFO, E_USER, "Using file \"%s\" to write ASM", output);
-			FILE* wfile = fopen (output, "w");
-#ifndef NDEBUG
-			setbuf (wfile, 0);
-#endif
-			free (output);
-
-			proc.DumpAsm (wfile, used_buffer);
 			fclose (wfile);
 		}
 
