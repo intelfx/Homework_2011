@@ -1181,21 +1181,20 @@ void OLD_Processor::DumpAsm (FILE* stream, size_t which_buffer)
 	std::multimap<size_t, const std::pair<std::string, Symbol>& > code_symbol_index;
 	for (const hashed_symbol& sym: buffer.sym_table)
 	{
-		try
-		{
-			const Reference::Direct& dref = Resolve (sym.second.second.ref);
+		// Skip unresolved and indirect-pointing
+		if (!sym.second.second.is_resolved || sym.second.second.ref.is_symbol)
+			continue;
 
-			if (dref.type == S_CODE)
-				code_symbol_index.insert (std::make_pair (dref.address, sym.second));
+		const Reference::Direct& dref = sym.second.second.ref.direct;
 
-			else
-				msg (E_WARNING, E_USER, "Unsupported symbol type %d in symbol \"%s\", not dumping",
-					 dref.type,
-					 sym.second.first.c_str());
-		}
+		if (dref.type == S_CODE)
+			code_symbol_index.insert (std::make_pair (dref.address, sym.second));
 
-		catch (const Debug::SilentException& e)
-		{ /* No handler, we just skip unresolved symbols */ }
+		else
+			msg (E_WARNING, E_USER, "Unsupported symbol type %d in symbol \"%s\", not dumping",
+			     dref.type,
+			     sym.second.first.c_str());
+
 	}
 
 
@@ -1211,6 +1210,9 @@ void OLD_Processor::DumpAsm (FILE* stream, size_t which_buffer)
 			const Symbol& sym = l_iter ->second.second;
 			__assert (sym.is_resolved && !sym.ref.is_symbol && sym.ref.direct.type == S_CODE,
 					  "Unsupported label format");
+
+			msg (E_INFO, E_DEBUGAPP, "Address %ld: writing label \"%s\" [address %ld]",
+				 addr, l_iter ->second.first.c_str(), sym.ref.direct.address);
 
 			fprintf (stream, "%s: ", l_iter ->second.first.c_str());
 		}
