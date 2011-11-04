@@ -154,5 +154,4 @@ int main (int argc, char** argv)
 	else
 		__sasshole ("Wrong number of parameters: %d", argc - 1);
 
-	Debug::System::Instance().CloseTargets();
 }

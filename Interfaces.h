@@ -38,6 +38,13 @@ public:
 	virtual void AttachMMU (IMMU* mmu) = 0;
 	virtual void AttachExecutor (IExecutor* executor) = 0;
 	virtual void AttachLinker (ILinker* linker) = 0;
+
+	IReader* Reader() { return reader_; }
+	IWriter* Writer() { return writer_; }
+	IMMU* MMU() { return mmu_; }
+	IExecutor* Executor() { return executor_; }
+	ILinker* Linker() { return linker_; }
+
 	virtual void DumpContext (size_t ctx) = 0;
 
 	virtual Register DecodeRegister (const char* reg) = 0;
@@ -103,32 +110,35 @@ public:
 	virtual void AttachProcessor (IProcessor* proc);
 	virtual void DetachProcessor();
 
+	virtual Context&		GetContext	() = 0; // Get current context data
+
 	virtual calc_t&			AStackFrame	(int offset) = 0; // Access calculation stack relative to context's stack frame pointer
-	virtual calc_t&			AStackTop	(int offset) = 0; // Access calculation stack relative to its top
+	virtual calc_t&			AStackTop	(size_t offset) = 0; // Access calculation stack relative to its top
 	virtual calc_t&			ARegister	(Register reg_id) = 0; // Access register
 	virtual DecodedCommand&	ACommand	(size_t ip) = 0; // Access CODE section
-	virtual calc_t&			AData	(size_t addr) = 0;  // Access DATA section
-	virtual symbol_type&	ASymbol	(size_t hash) = 0;  // Access symbol buffer
+	DecodedCommand&			ACommand	() { return ACommand (GetContext().ip); }
+	virtual calc_t&			AData		(size_t addr) = 0;  // Access DATA section
+	virtual symbol_type&	ASymbol		(size_t hash) = 0;  // Access symbol buffer
 
 	virtual void			ReadStack	(calc_t* image, size_t size) = 0; // Read stack data (image end is top)
 	virtual void			ReadData	(calc_t* image, size_t size) = 0; // Read data buffer
 	virtual void			ReadText	(DecodedCommand* image, size_t size) = 0; // Read code buffer
 	virtual void			ReadSyms	(symbol_map* image) = 0; // Read symbol buffer
 
-	virtual size_t			GetTextTop	() = 0;
-	virtual size_t			GetDataTop	() = 0;
-
-	virtual ProcessorState& Context() = 0; // Get current context data
+	virtual size_t			GetTextSize	() = 0;
+	virtual size_t			GetDataSize	() = 0;
+	virtual size_t			GetStackTop () = 0;
 
 	virtual void ResetBuffers (size_t ctx_id) = 0; // Reset specified context buffer
 	virtual void ResetEverything() = 0; // Reset MMU to its initial state, clearing all stacks.
 
 	virtual void SaveContext() = 0; // Push context on call stack
-	virtual void NewContext() = 0; // Clear all context data but context ID
+	virtual void ClearContext() = 0; // Clear all context data but context ID
 	virtual void RestoreContext() = 0; // Load context from call stack
 
 	virtual void NextContextBuffer() = 0; // Push context on call stack; clear all and increment context ID
 	virtual void AllocContextBuffer() = 0; // Switch to next context buffer; reset the buffer
+
 };
 
 class IExecutor : LogBase (IExecutor), public IModuleBase
@@ -149,14 +159,25 @@ protected:
 	virtual ~ILinker();
 
 public:
+	static const size_t symbol_auto_placement_addr = static_cast<size_t> (-1);
+
 	virtual void AttachProcessor (IProcessor* proc);
 	virtual void DetachProcessor();
 
-	virtual void InitLinkSession() = 0; // Clear internal buffer symbol tables
-	virtual void Finalize() = 0; // Commit internal buffers to the MMU
+	// Clear internal buffer symbol tables.
+	virtual void InitLinkSession() = 0;
+
+	// Commit internal buffers to the MMU.
+	// Function expects MMU to be set up to desired context and everything else except symbols
+	// already committed and interpreted by MMU.
+	virtual void Finalize() = 0;
 
 	// Link symbols created by partial decoding.
-	// If there is a full symbol image (read from binary file), call MMU directly.
+	// Function expects MMU to be set up to desired context
+	// and last instruction not yet stored onto the TEXT top.
+	// Function expects symbols to be auto-addressed (labels) to have address equal to
+	// "symbol_auto_placement_addr".
+	// If there is a full symbol image (read from binary file), push it to MMU directly.
 	virtual void LinkSymbols (DecodedSet& input) = 0;
 
 	// Retrieve a direct reference for given arbitary reference.

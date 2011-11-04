@@ -26,9 +26,9 @@ namespace Processor
 {
 
 typedef double calc_t;
-static const int BUFFER_NUM = 4;
 
-static const unsigned line_length = 256;
+static const size_t BUFFER_NUM = 4;
+static const size_t line_length = 256;
 
 
 enum ProcessorFlags
@@ -63,7 +63,9 @@ enum AddrType
 	S_NONE = 0,
 	S_CODE,
 	S_DATA,
-	S_REGISTER
+	S_REGISTER,
+	S_FRAME,
+	S_FRAME_BACK // Parameters to function
 };
 
 struct Reference
@@ -97,8 +99,7 @@ struct DecodedCommand
 	{
 		calc_t value;
 		Reference ref;
-		void* debug;
-	};
+	} arg;
 
 	unsigned char command;
 };
@@ -106,7 +107,7 @@ struct DecodedCommand
 // This is something like TR1's std::unordered_map with manual hashing,
 // since we need to have direct access to hashes themselves.
 typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
-typedef symbol_map::value_type symbol_type;
+typedef symbol_map::value_type::second_type symbol_type;
 
 struct DecodedSet
 {
@@ -132,22 +133,13 @@ struct VersionSignature
 	bool is_sparse;
 } PACKED;
 
-struct Buffer
-{
-	MallocAllocator<DecodedCommand> commands;
-	size_t cmd_top;
-
-	symbol_map sym_table;
-
-	calc_t registers[R_MAX];
-};
-
-struct ProcessorState
+struct Context
 {
 	mask_t flags;
 	size_t ip;
 	size_t buffer;
 	size_t depth;
+	size_t frame;
 };
 
 struct CommandTraits
