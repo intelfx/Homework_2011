@@ -124,6 +124,33 @@ protected:
 	}
 
 public:
+	MallocAllocator (const MallocAllocator&) = delete;
+	MallocAllocator& operator= (const MallocAllocator&) = delete;
+
+	MallocAllocator (MallocAllocator&& that) : move_ctor,
+	capacity_ (that.capacity_),
+	array_ (that.array_)
+	{
+		that.capacity_ = 0;
+		that.array_ = 0;
+	}
+
+	MallocAllocator& operator= (MallocAllocator&& that)
+	{
+		if (this == &that)
+			return *this;
+
+		capacity_ = that.capacity_;
+		array_ = that.array_;
+
+		move_op;
+
+		that.capacity_ = 0;
+		that.array_ = 0;
+
+		return *this;
+	}
+
 	MallocAllocator() :
 	capacity_ (initial_cap),
 	array_ (reinterpret_cast<T*> (malloc (sizeof (T) * capacity_)))

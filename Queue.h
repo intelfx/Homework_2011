@@ -4,6 +4,13 @@
 #include "build.h"
 #include "Verifier.h"
 
+// -----------------------------------------------------------------------------
+// Library		Antided
+// File			Queue.h
+// Author		intelfx
+// Description	Queue, as per hometask assignment #2.
+// -----------------------------------------------------------------------------
+
 DeclareDescriptor(Queue);
 
 static const size_t QUEUE_SIZE = 100;
@@ -17,18 +24,74 @@ class Queue : LogBase(Queue)
 protected:
 	virtual bool Verify_() const
 	{
-		verify_statement (count_ < storage_.Capacity(), "Queue overflow");
+		verify_statement (count_ < storage_.Capacity(), "Queue overflow: [cap %zu] %zu:%zu (%zu)",
+						  storage_.Capacity(), tail_, head_, count_);
 
-		verify_statement (head_ < storage_.Capacity(), "HEAD pointer overflow");
-		verify_statement (tail_ < storage_.Capacity(), "TAIL pointer overflow");
+		verify_statement (head_ < storage_.Capacity(), "HEAD pointer overflow: [cap %zu] %zu:%zu (%zu)",
+						  storage_.Capacity(), tail_, head_, count_);
 
-		verify_statement (((head_ - tail_) % (storage_.Capacity())) == count_,
-						  "Internal storage inconsistency");
+		verify_statement (tail_ < storage_.Capacity(), "TAIL pointer overflow: [cap %zu] %zu:%zu (%zu)",
+						  storage_.Capacity(), tail_, head_, count_);
+
+		verify_statement (((head_ - tail_ + storage_.Capacity()) % (storage_.Capacity())) == count_,
+						  "Internal storage inconsistency : [cap %zu] %zu:%zu != %zu",
+						  storage_.Capacity(), tail_, head_, count_);
 
 		return 1;
 	}
 
 public:
+	Queue() :
+	head_ (0),
+	tail_ (0),
+	count_ (0),
+	storage_()
+	{
+	}
+
+	Queue (Queue&& that) : move_ctor,
+	head_ (that.head_),
+	tail_ (that.tail_),
+	count_ (that.count_),
+	storage_ (std::move (that.storage_))
+	{
+		that.count_ = 0;
+		that.head_ = 0;
+		that.tail_ = 0;
+	}
+
+	Queue& operator= (Queue&& that)
+	{
+		if (this == &that)
+			return *this;
+
+		move_op;
+
+		head_ = that.head_;
+		tail_ = that.tail_;
+		count_ = that.count_;
+
+		storage_ = std::move (that.storage_);
+
+		that.head_ = 0;
+		that.tail_ = 0;
+		that.count_ = 0;
+
+		return *this;
+	}
+
+	bool Empty()
+	{
+		verify_method;
+		return !count_;
+	}
+
+	bool Full()
+	{
+		verify_method;
+		return count_ == (storage_.Capacity() - 1);
+	}
+
 	void Add (T&& object)
 	{
 		verify_method;
@@ -36,14 +99,18 @@ public:
 		msg (E_INFO, E_DEBUGLIB, "Queue [cap %lu] %lu:%lu (%lu) : object add",
 			 storage_.Capacity(), tail_, head_, count_);
 
-		__assert (!count_ || (tail_ != head_), "Queue overflow");
+		if (count_)
+			__assert ((tail_ != head_) && (count_ < storage_.Capacity()), "Queue overflow");
+
 		storage_.Access (head_++) = std::move (object);
+		++count_;
 
 		if (head_ >= storage_.Capacity())
 		{
 			head_ %= storage_.Capacity();
 			msg (E_INFO, E_DEBUGLIB, "Queue wraparound, HEAD now %lu", head_);
 		}
+
 
 		verify_method;
 	}
@@ -55,15 +122,17 @@ public:
 		msg (E_INFO, E_DEBUGLIB, "Queue [cap %lu] %lu:%lu (%lu) : object remove",
 			 storage_.Capacity(), tail_, head_, count_);
 
-		__assert (count_, "Queue underflow");
+		__assert (count_ && (tail_ != head_), "Queue underflow");
 
 		T& obj_to_remove = storage_.Access (tail_++);
+		--count_;
 
 		if (tail_ >= storage_.Capacity())
 		{
 			tail_ %= storage_.Capacity();
 			msg (E_INFO, E_DEBUGLIB, "Queue wraparound, TAIL now %lu", head_);
 		}
+
 
 		verify_method;
 

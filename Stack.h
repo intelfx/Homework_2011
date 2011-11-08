@@ -4,6 +4,13 @@
 #include "build.h"
 #include "Verifier.h"
 
+// -----------------------------------------------------------------------------
+// Library		Antided
+// File			Stack.h
+// Author		intelfx
+// Description	Stack, as per hometask assignment #1.a.
+// -----------------------------------------------------------------------------
+
 static const size_t STACK_SIZE = 100;
 
 DeclareDescriptor(Stack);
@@ -24,6 +31,24 @@ protected:
 	}
 
 public:
+	Stack (Stack&& that) : move_ctor,
+	storage (std::move (that.storage)),
+	stack_top (that.stack_top)
+	{
+	}
+
+	Stack& operator= (Stack&& that)
+	{
+		if (this == &that)
+			return *this;
+
+		move_op;
+
+		storage = std::move (that.storage);
+		stack_top = that.stack_top;
+		that.stack_top = 0;
+	}
+
 	Stack() :
 	stack_top (0)
 	{

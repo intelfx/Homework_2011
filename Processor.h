@@ -7,7 +7,7 @@
 // Library		Antided
 // File			Processor.h
 // Author		intelfx
-// Description	Dumb processor implementation for Ded's pleasure
+// Description	Stack processor, as per hometask assignment #1.b.
 // -----------------------------------------------------------------------------
 
 DeclareDescriptor (Processor);
