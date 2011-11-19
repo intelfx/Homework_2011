@@ -275,10 +275,17 @@ void* queue_transmitter_thread_func (void* arg_)
 
 int main (int argc, char** argv)
 {
-	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING), // & ~MASK (Debug::E_DEBUGLIB)),
+	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING & ~MASK (Debug::E_DEBUGLIB)),
 												   &FXConLog::Instance());
 
-	__sverify (argc > 1, "Invalid parameters");
+
+	if (argc == 1)
+	{
+		fprintf (stderr, "Invalid parameters. Usage: %s\n"
+				 "\t -load <module file>:<queue>:<module id> ...\n"
+				 "\t -param <parameter>:<queue>:<module id> ...\n\n", argv[0]);
+		exit (-1);
+	}
 
 	for (int a = 1; a < argc; ++a)
 	{
