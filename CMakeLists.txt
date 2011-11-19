@@ -15,26 +15,19 @@ main_add_gch(stdafx.h OVERALL_SRC)
 set (STACK_SRC Stack.h Stack.cpp ProcessorTest.cpp Processor.cpp)
 main_add_gch(stdafx.h STACK_SRC)
 
-set(QS_SRC Queue.h Queue.cpp Server.cpp SharedServerClientProtocol.h InputServerApp.h)
-main_add_gch(stdafx.h QS_SRC)
+set(QUEUE_SRC Queue.cpp Queue.h MTServerClientApp/SharedServerClientProtocol.h)
+main_add_gch(stdafx.h QUEUE_SRC)
 
-set(QKEYBR_SRC KeyboardHookReader.cpp)
-main_add_gch(stdafx.h QKEYBR_SRC)
+set(QSERVER_SRC MTServerClientApp/InputServerApp.h MTQueueServer.cpp)
+main_add_gch(stdafx.h QUEUE_SRC)
 
-set(QTRANS_SRC ScrollLockTransmitter.cpp)
-main_add_gch(stdafx.h QTRANS_SRC)
+add_subdirectory(MTServerClientApp)
+
+add_executable(antided_queue_server ${OVERALL_SRC} ${QUEUE_SRC} ${QSERVER_SRC})
+target_link_libraries(antided_queue_server ${THREADLIBS} ${LIBRARIES})
 
 add_executable(antided_stack ${STACK_SRC} ${OVERALL_SRC})
 target_link_libraries(antided_stack ${LIBRARIES})
-
-add_executable(antided_queue_server ${QS_SRC} ${OVERALL_SRC})
-target_link_libraries(antided_queue_server ${LIBRARIES} ${THREADLIBS})
-
-add_library(keyboard_io ${QKEYBR_SRC} ${OVERALL_SRC})
-target_link_libraries(keyboard_io ${LIBRARIES})
-
-add_library(scroll_flasher ${QTRANS_SRC} ${OVERALL_SRC})
-target_link_libraries(scroll_flasher ${LIBRARIES})
 
 #file (GLOB VM_SRC mi_vm_*.cpp)
 #MAIN_ADD_GCH(stdafx.h VM_SRC)

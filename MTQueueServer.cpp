@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "SharedServerClientProtocol.h"
-#include "InputServerApp.h"
+#include "MTServerClientApp/SharedServerClientProtocol.h"
+#include "MTServerClientApp/InputServerApp.h"
 
 #include <uXray/fxlog_console.h>
 #include <uXray/fxmodarch.h>
@@ -63,6 +63,7 @@ struct MessageQueue
 	data_queue(),
 	transmitter (0),
 	transmitter_id (0),
+	transmitter_thread (0),
 	queue_mutex (PTHREAD_MUTEX_INITIALIZER)
 	{
 		create_mutex (&queue_mutex);
@@ -74,6 +75,7 @@ struct MessageQueue
 	data_queue (std::move (that.data_queue)),
 	transmitter (that.transmitter),
 	transmitter_id (that.transmitter_id),
+	transmitter_thread (0),
 	queue_mutex (PTHREAD_MUTEX_INITIALIZER)
 	{
 		that.queue_id = 0;
@@ -160,7 +162,7 @@ void* queue_reader_thread_func (void* arg_)
 
 			if (is_overflow)
 			{
-				smsg (E_INFO, E_DEBUGAPP, "Queue %zu reader %zu: overflow: spin-wait loop",
+				smsg (E_INFO, E_DEBUGLIB, "Queue %zu reader %zu: overflow: spin-wait loop",
 				      arg ->queue ->queue_id, arg ->id);
 
 				sleep (1);
@@ -239,7 +241,7 @@ void* queue_transmitter_thread_func (void* arg_)
 
 			if (empty)
 			{
-				smsg (E_INFO, E_DEBUGAPP, "Queue %zu transmitter %zu: underflow: spin-wait loop",
+				smsg (E_INFO, E_DEBUGLIB, "Queue %zu transmitter %zu: underflow: spin-wait loop",
 				      arg ->queue ->queue_id, arg ->id);
 
 				sleep (1);
@@ -390,13 +392,14 @@ int main (int argc, char** argv)
 
 		MessageQueue& queue = qupair.second;
 
-		if (!queue.transmitter ||
-			       queue.readers.empty())
+		if (!queue.transmitter || queue.readers.empty())
 		{
 			smsg (E_CRITICAL, E_USER,
 			      "Failed to start up queue - configuration is not completed: [%zu trans | %zu read]",
-			      (queue.transmitter),
+			      static_cast<bool> (queue.transmitter),
 			      queue.readers.size());
+
+			continue;
 		}
 
 		// Start a thread per reader.
@@ -430,7 +433,9 @@ int main (int argc, char** argv)
 	for (std::map<size_t, MessageQueue>::value_type& qupair: message_queues)
 	{
 		MessageQueue& queue = qupair.second;
-		pthread_join (queue.transmitter_thread ->thread, 0);
+
+		if (queue.transmitter_thread)
+			pthread_join (queue.transmitter_thread ->thread, 0);
 	}
 
 	smsg (E_INFO, E_USER, "Threads closed");
