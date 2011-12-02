@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 2.6)
 project(Antided)
 
-INCLUDE(${PROJECT_SOURCE_DIR}/../../Common.cmake)
-INCLUDE(${PROJECT_SOURCE_DIR}/../../Precompiled.cmake)
+INCLUDE(${PROJECT_SOURCE_DIR}/Common.cmake)
+INCLUDE(${PROJECT_SOURCE_DIR}/Precompiled.cmake)
+
+set_local_devel_tree (Libs)
 
 find_assert_library ("uXray" LIBRARIES)
 
