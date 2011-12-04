@@ -12,16 +12,13 @@ find_assert_library ("pthread" THREADLIBS)
 # Target specification
 # ----
 set (OVERALL_SRC Verifier.h Verifier.cpp)
-main_add_gch(stdafx.h OVERALL_SRC)
-
 set (STACK_SRC Stack.h Stack.cpp ProcessorTest.cpp Processor.cpp)
-main_add_gch(stdafx.h STACK_SRC)
+set (QUEUE_SRC Queue.cpp Queue.h MTServerClientApp/SharedServerClientProtocol.h)
+set (QSERVER_SRC MTServerClientApp/InputServerApp.h MTQueueServer.cpp)
+set (LIST_SRC LinkedList.h LinkedList.cpp DoubleLinkedList.cpp DoubleLinkedList.h ListDemo.cpp)
 
-set(QUEUE_SRC Queue.cpp Queue.h MTServerClientApp/SharedServerClientProtocol.h)
-main_add_gch(stdafx.h QUEUE_SRC)
 
-set(QSERVER_SRC MTServerClientApp/InputServerApp.h MTQueueServer.cpp)
-main_add_gch(stdafx.h QUEUE_SRC)
+main_add_gch(stdafx.h ${OVERALL_SRC} ${STACK_SRC} ${QUEUE_SRC} ${QSERVER_SRC} ${LIST_SRC})
 
 add_subdirectory(MTServerClientApp)
 
@@ -30,6 +27,9 @@ target_link_libraries(antided_queue_server ${THREADLIBS} ${LIBRARIES})
 
 add_executable(antided_stack ${STACK_SRC} ${OVERALL_SRC})
 target_link_libraries(antided_stack ${LIBRARIES})
+
+add_executable(antided_list ${LIST_SRC})
+target_link_libraries(antided_list ${LIBRARIES})
 
 #file (GLOB VM_SRC mi_vm_*.cpp)
 #MAIN_ADD_GCH(stdafx.h VM_SRC)
