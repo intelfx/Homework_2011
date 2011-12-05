@@ -1,0 +1,6 @@
+__bin
+.kdev4
+*.kate-swp
+*.o
+*.gch
+*~
