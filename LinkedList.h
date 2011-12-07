@@ -4,7 +4,7 @@
 #include "build.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			List.h
 // Author		intelfx
 // Description	Linked list implementation, as per hometask assignment #3.a.

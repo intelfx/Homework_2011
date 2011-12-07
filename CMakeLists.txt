@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
-project(Antided)
+project(Homework)
 
 INCLUDE(${PROJECT_SOURCE_DIR}/Common.cmake)
 INCLUDE(${PROJECT_SOURCE_DIR}/Precompiled.cmake)
@@ -22,18 +22,18 @@ main_add_gch(stdafx.h ${OVERALL_SRC} ${STACK_SRC} ${QUEUE_SRC} ${QSERVER_SRC} ${
 
 add_subdirectory(MTServerClientApp)
 
-add_executable(antided_queue_server ${OVERALL_SRC} ${QUEUE_SRC} ${QSERVER_SRC})
-target_link_libraries(antided_queue_server ${THREADLIBS} ${LIBRARIES})
+add_executable(homework_queue_server ${OVERALL_SRC} ${QUEUE_SRC} ${QSERVER_SRC})
+target_link_libraries(homework_queue_server ${THREADLIBS} ${LIBRARIES})
 
-add_executable(antided_stack ${STACK_SRC} ${OVERALL_SRC})
-target_link_libraries(antided_stack ${LIBRARIES})
+add_executable(homework_stack ${STACK_SRC} ${OVERALL_SRC})
+target_link_libraries(homework_stack ${LIBRARIES})
 
-add_executable(antided_list ${LIST_SRC})
-target_link_libraries(antided_list ${LIBRARIES})
+add_executable(homework_list ${LIST_SRC})
+target_link_libraries(homework_list ${LIBRARIES})
 
 #file (GLOB VM_SRC mi_vm_*.cpp)
 #MAIN_ADD_GCH(stdafx.h VM_SRC)
 
-# add_executable(antided_vm ${VM_SRC})
-# target_link_libraries(antided_vm ${LIBRARIES})
+# add_executable(homework_vm ${VM_SRC})
+# target_link_libraries(homework_vm ${LIBRARIES})
 # ----

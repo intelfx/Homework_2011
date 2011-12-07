@@ -4,7 +4,7 @@
 #include <strings.h>
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Processor.h
 // Author		intelfx
 // Description	Stack processor, as per hometask assignment #1.b.

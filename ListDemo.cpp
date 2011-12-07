@@ -5,7 +5,7 @@
 #include <uXray/fxlog_console.h>
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			ListDemo.cpp
 // Author		intelfx
 // Description	List demonstration and unit-tests.

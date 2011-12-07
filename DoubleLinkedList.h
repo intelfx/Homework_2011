@@ -6,7 +6,7 @@
 #include "LinkedList.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			DoubleLinkedList.h
 // Author		intelfx
 // Description	Double linked list implementation, as per hometask assignment #3.b.

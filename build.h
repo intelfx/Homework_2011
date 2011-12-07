@@ -2,7 +2,7 @@
 #define _ANTIDED_BUILD_H
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			build.h
 // Author		intelfx
 // Description	Build-time dependencies

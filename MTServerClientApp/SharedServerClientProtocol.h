@@ -6,7 +6,7 @@
 #include "Queue.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			SharedServerClientProtocol.h
 // Author		intelfx
 // Description	Shared part of the headers - common for both server and client applications.

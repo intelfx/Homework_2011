@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Server.cpp
 // Author		intelfx
 // Description	Multithreaded application server, as per hometask assignment #2.b.

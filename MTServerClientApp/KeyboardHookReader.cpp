@@ -7,7 +7,7 @@
 #endif
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			KeyboardHookReader.cpp
 // Author		intelfx
 // Description	Reader implementation - global system keyboard hook.

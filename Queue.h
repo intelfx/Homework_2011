@@ -5,7 +5,7 @@
 #include "Verifier.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Queue.h
 // Author		intelfx
 // Description	Queue, as per hometask assignment #2.

@@ -4,7 +4,7 @@
 #include "build.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Verifier.h
 // Author		intelfx
 // Description	Verifier and allocator classes for containers.

@@ -4,7 +4,7 @@
 #include "build.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			InputServerApp.h
 // Author		intelfx
 // Description	Queue application - server header

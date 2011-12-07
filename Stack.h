@@ -5,7 +5,7 @@
 #include "Verifier.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Stack.h
 // Author		intelfx
 // Description	Stack, as per hometask assignment #1.a.
