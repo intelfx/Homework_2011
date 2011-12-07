@@ -135,7 +135,7 @@ public:
 		LLLink (allocated, LinkedList<T>::end_marker_);
 
 		verify_method;
-		msg (E_INFO, E_DEBUGLIB, "Back insertion || count now %zu", LinkedList<T>::count_);
+		msg (E_INFO, E_DEBUG, "Back insertion || count now %zu", LinkedList<T>::count_);
 		return Iterator (this, old_last);
 	}
 
@@ -150,7 +150,7 @@ public:
 		LinkedList<T>::LLReclaim (removed);
 
 		verify_method;
-		msg (E_INFO, E_DEBUGLIB, "Back removal || count now %zu", LinkedList<T>::count_);
+		msg (E_INFO, E_DEBUG, "Back removal || count now %zu", LinkedList<T>::count_);
 		return std::move (LinkedList<T>::storage_[removed]);
 	}
 

@@ -45,7 +45,7 @@ void* POSIXPluginEngine::GetExecutableHandle()
 {
 	dlerror();
 
-	msg (E_INFO, E_DEBUGLIB, "Accessing main executable via POSIX dynamic linker");
+	msg (E_INFO, E_DEBUG, "Accessing main executable via POSIX dynamic linker");
 	void* handle = dlopen (0, RTLD_NOLOAD);
 
 	__assert (handle, "Unable to retrieve main executable handle - \"%s\"", dlerror());
@@ -56,11 +56,11 @@ void* POSIXPluginEngine::ReopenLibrary (const char* filename)
 {
 	dlerror();
 
-	msg (E_INFO, E_DEBUGLIB, "Retrieving handle to shared object \"%s\"", filename);
+	msg (E_INFO, E_DEBUG, "Retrieving handle to shared object \"%s\"", filename);
 	void* handle = dlopen (filename, RTLD_NOLOAD);
 
 	if (!handle)
-		msg (E_WARNING, E_DEBUGLIB, "Shared object \"%s\" was not loaded", filename);
+		msg (E_WARNING, E_DEBUG, "Shared object \"%s\" was not loaded", filename);
 
 	return handle;
 }
@@ -69,7 +69,7 @@ void* POSIXPluginEngine::LoadLibrary (const char* filename)
 {
 	dlerror();
 
-	msg (E_INFO, E_DEBUGLIB, "Loading shared object \"%s\"", filename);
+	msg (E_INFO, E_DEBUG, "Loading shared object \"%s\"", filename);
 	void* handle = dlopen (filename, RTLD_LAZY | RTLD_GLOBAL);
 
 	__verify (handle, "Could not load shared object \"%s\" - %s", filename, dlerror());
@@ -78,7 +78,7 @@ void* POSIXPluginEngine::LoadLibrary (const char* filename)
 
 void POSIXPluginEngine::FreeLibrary (const char* filename)
 {
-	msg (E_INFO, E_DEBUGLIB, "Unloading shared object \"%s\"", filename);
+	msg (E_INFO, E_DEBUG, "Unloading shared object \"%s\"", filename);
 
 	void* handle = dlopen (filename, RTLD_LAZY | RTLD_NOLOAD);
 	__verify (handle, "Shared object \"%s\" was not loaded prior to unloading", filename);
@@ -90,12 +90,12 @@ void* POSIXPluginEngine::Lookup (const char* symbol, void* handle)
 {
 	dlerror();
 
-	msg (E_INFO, E_DEBUGLIB, "Looking up symbol \"%s\"", symbol);
+	msg (E_INFO, E_DEBUG, "Looking up symbol \"%s\"", symbol);
 	void* address = dlsym (handle, symbol);
 
 	if (const char* error = dlerror())
 	{
-		msg (E_WARNING, E_DEBUGLIB, "Could not look up \"%s\" - %s", symbol, error);
+		msg (E_WARNING, E_DEBUG, "Could not look up \"%s\" - %s", symbol, error);
 		address = 0;
 	}
 

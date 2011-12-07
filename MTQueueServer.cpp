@@ -143,12 +143,12 @@ void* queue_reader_thread_func (void* arg_)
 		if (!arg ->queue ->transmitter)
 			break;
 
-		smsg (E_INFO, E_DEBUGAPP, "Queue %zu reader %zu: reading",
+		smsg (E_INFO, E_DEBUG, "Queue %zu reader %zu: reading",
 		      arg ->queue ->queue_id, arg ->id);
 
 		reader -> Read (&data, &length);
 
-		smsg (E_INFO, E_DEBUGAPP, "Queue %zu reader %zu: read completed [%p:%zu]",
+		smsg (E_INFO, E_DEBUG, "Queue %zu reader %zu: read completed [%p:%zu]",
 		      arg ->queue ->queue_id, arg ->id, data, length);
 
 		if (!data || !length)
@@ -162,7 +162,7 @@ void* queue_reader_thread_func (void* arg_)
 
 			if (is_overflow)
 			{
-				smsg (E_INFO, E_DEBUGLIB, "Queue %zu reader %zu: overflow: spin-wait loop",
+				smsg (E_INFO, E_DEBUG, "Queue %zu reader %zu: overflow: spin-wait loop",
 				      arg ->queue ->queue_id, arg ->id);
 
 				sleep (1);
@@ -172,18 +172,18 @@ void* queue_reader_thread_func (void* arg_)
 			break;
 		}
 
-		smsg (E_INFO, E_DEBUGAPP, "Queue %zu reader %zu: write",
+		smsg (E_INFO, E_DEBUG, "Queue %zu reader %zu: write",
 		      arg ->queue ->queue_id, arg ->id);
 
 		lock_mutex_wait (&arg ->queue ->queue_mutex);
 		arg ->queue ->data_queue.Add (Buffer (data, length, tp));
 		unlock_mutex (&arg ->queue ->queue_mutex);
 
-		smsg (E_INFO, E_DEBUGAPP, "Queue %zu reader %zu: write completed",
+		smsg (E_INFO, E_DEBUG, "Queue %zu reader %zu: write completed",
 		      arg ->queue ->queue_id, arg ->id);
 	}
 
-	smsg (E_INFO, E_DEBUGAPP, "Queue %zu reader %zu: quit",
+	smsg (E_INFO, E_DEBUG, "Queue %zu reader %zu: quit",
 	      arg ->queue ->queue_id, arg ->id);
 
 	sleep (1);
@@ -215,7 +215,7 @@ void* queue_transmitter_thread_func (void* arg_)
 		{
 			if (arg ->queue ->data_queue.Empty())
 			{
-				smsg (E_INFO, E_DEBUGAPP, "Queue %zu transmitter %zu: underflow: no readers and empty queue",
+				smsg (E_INFO, E_DEBUG, "Queue %zu transmitter %zu: underflow: no readers and empty queue",
 				      arg ->queue ->queue_id, arg ->id);
 
 				break;
@@ -241,7 +241,7 @@ void* queue_transmitter_thread_func (void* arg_)
 
 			if (empty)
 			{
-				smsg (E_INFO, E_DEBUGLIB, "Queue %zu transmitter %zu: underflow: spin-wait loop",
+				smsg (E_INFO, E_DEBUG, "Queue %zu transmitter %zu: underflow: spin-wait loop",
 				      arg ->queue ->queue_id, arg ->id);
 
 				sleep (1);
@@ -251,23 +251,23 @@ void* queue_transmitter_thread_func (void* arg_)
 			break;
 		}
 
-		smsg (E_INFO, E_DEBUGAPP, "Queue %zu transmitter %zu: read from queue",
+		smsg (E_INFO, E_DEBUG, "Queue %zu transmitter %zu: read from queue",
 		      arg ->queue ->queue_id, arg ->id);
 
 		lock_mutex_wait (&arg ->queue ->queue_mutex);
 		Buffer inp_buf = std::move (arg ->queue ->data_queue.Remove());
 		unlock_mutex (&arg ->queue ->queue_mutex);
 
-		smsg (E_INFO, E_DEBUGAPP, "Queue %zu transmitter %zu: read completed, transmit",
+		smsg (E_INFO, E_DEBUG, "Queue %zu transmitter %zu: read completed, transmit",
 		      arg ->queue ->queue_id, arg ->id);
 
 		transmitter ->Tx (&inp_buf);
 
-		smsg (E_INFO, E_DEBUGAPP, "Queue %zu transmitter %zu: transmit completed",
+		smsg (E_INFO, E_DEBUG, "Queue %zu transmitter %zu: transmit completed",
 		      arg ->queue ->queue_id, arg ->id);
 	}
 
-	smsg (E_INFO, E_DEBUGAPP, "Queue %zu transmitter %zu: quit",
+	smsg (E_INFO, E_DEBUG, "Queue %zu transmitter %zu: quit",
 		  arg ->queue ->queue_id, arg ->id);
 
 	sleep (1);
@@ -277,7 +277,7 @@ void* queue_transmitter_thread_func (void* arg_)
 
 int main (int argc, char** argv)
 {
-	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING & ~MASK (Debug::E_DEBUGLIB)),
+	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING & ~MASK (Debug::E_DEBUG)),
 												   &FXConLog::Instance());
 
 
@@ -309,17 +309,17 @@ int main (int argc, char** argv)
 
 			if (!message_queues.count (queue_id))
 			{
-				smsg (E_INFO, E_DEBUGAPP, "Creating new queue: %zu", queue_id);
+				smsg (E_INFO, E_DEBUG, "Creating new queue: %zu", queue_id);
 				mq = &message_queues.insert (std::make_pair (queue_id, MessageQueue (queue_id))).first ->second;
 			}
 
 			else
 			{
-				smsg (E_INFO, E_DEBUGAPP, "Using queue: %zu", queue_id);
+				smsg (E_INFO, E_DEBUG, "Using queue: %zu", queue_id);
 				mq = &message_queues.at (queue_id);
 			}
 
-			smsg (E_INFO, E_DEBUGAPP, "Initializing plugin API");
+			smsg (E_INFO, E_DEBUG, "Initializing plugin API");
 
 			if (IReader* rinterface = pluginsystem.AttemptInitPlugin<IReader> (handle, reader_init_func))
 			{
@@ -383,12 +383,12 @@ int main (int argc, char** argv)
 			__sverify (0, "Invalid parameter \"%s\"", argv[a]);
 	} // for (args)
 
-	smsg (E_INFO, E_DEBUGAPP, "Parameters processing completed.");
+	smsg (E_INFO, E_DEBUG, "Parameters processing completed.");
 
 	for (std::map<size_t, MessageQueue>::value_type& qupair: message_queues)
 	{
 		size_t readers_count = 0, transmitters_count = 0;
-		smsg (E_INFO, E_DEBUGAPP, "Starting queue #%zu", qupair.first);
+		smsg (E_INFO, E_DEBUG, "Starting queue #%zu", qupair.first);
 
 		MessageQueue& queue = qupair.second;
 
@@ -424,7 +424,7 @@ int main (int argc, char** argv)
 		queue.transmitter_thread = t_arg;
 		++transmitters_count;
 
-		smsg (E_INFO, E_VERBOSELIB, "For queue #%zu: %zu reader threads and %zu transmitter threads",
+		smsg (E_INFO, E_VERBOSE, "For queue #%zu: %zu reader threads and %zu transmitter threads",
 			  qupair.first, readers_count, transmitters_count);
 	}
 

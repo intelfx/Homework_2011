@@ -102,7 +102,7 @@ FXLIB_API int makePrimeTable (int lim, int* output)
     int cpv = 2; //current prime for computing the table
     int lgv = 4; //last "good" value in the table at current iteration
 
-	smsg (E_INFO, E_DEBUGLIB, "Calculating primes table with limit %d", lim);
+	smsg (E_INFO, E_DEBUG, "Calculating primes table with limit %d", lim);
 
     do
     {

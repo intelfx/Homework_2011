@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "fxlog_console.h"
 
 // -----------------------------------------------------------------------------
@@ -215,12 +215,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 			msgspec = "VERBOSE\t";
 			break;
 
-		case EventLevelIndex_::E_VERBOSELIB:
-			msgspec = "BACKEND\t";
-			break;
-
-		case EventLevelIndex_::E_DEBUGAPP:
-		case EventLevelIndex_::E_DEBUGLIB:
+		case EventLevelIndex_::E_DEBUG:
 			msgspec = "DEBUG\t";
 			break;
 		}
@@ -276,7 +271,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 	// It comes in two flavors - high-level (module name) and low-level (file-function-line).
 	if ( (event.event_level == EventLevelIndex_::E_USER ||
 		  event.event_level == EventLevelIndex_::E_VERBOSE ||
-	      event.event_level == EventLevelIndex_::E_VERBOSELIB ||
+	      event.event_level == EventLevelIndex_::E_VERBOSE ||
 	      event.event_type == EventTypeIndex_::E_OBJCREATION ||
 	      event.event_type == EventTypeIndex_::E_OBJDESTRUCTION) &&
 		 (event.event_type != EventTypeIndex_::E_EXCEPTION) &&

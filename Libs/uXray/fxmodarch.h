@@ -145,7 +145,7 @@ T* PluginSystem::AttemptInitPlugin (PluginSystem::Plugin* handle, const char* in
 	void* symbol = handle ->Lookup (init_func);
 	if (!symbol)
 	{
-		msg (E_WARNING, E_DEBUGLIB, "API init attempt: Unsupported API: \"%s\"", init_func);
+		msg (E_WARNING, E_DEBUG, "API init attempt: Unsupported API: \"%s\"", init_func);
 		return 0;
 	}
 

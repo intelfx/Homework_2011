@@ -285,13 +285,13 @@ bool Processor::ReadSignature (FILE* stream)
 	__sverify (file_sig.magic == expect_sig.magic, "FILE SIGNATURE MISMATCH: READ %p EXPECT %p",
 	           file_sig.magic, expect_sig.magic);
 
-	smsg (E_INFO, E_VERBOSELIB, "File signature matched: READ %p", file_sig.magic);
+	smsg (E_INFO, E_VERBOSE, "File signature matched: READ %p", file_sig.magic);
 
 	__sverify (file_sig.is_sparse == expect_sig.is_sparse, "SPARSE MODE MISMATCH: READ %s EXPECT %s",
 	           file_sig.is_sparse ? "sparse" : "compact",
 	           expect_sig.is_sparse ? "sparse" : "compact");
 
-	smsg (E_INFO, E_VERBOSELIB, "File sparse mode: %s", file_sig.is_sparse ? "sparse" : "compact");
+	smsg (E_INFO, E_VERBOSE, "File sparse mode: %s", file_sig.is_sparse ? "sparse" : "compact");
 
 	__sverify (file_sig.version.major == expect_sig.version.major,
 	           "FILE MAJOR VERSION MISMATCH: READ [%c] EXPECT [%c]",
@@ -299,13 +299,13 @@ bool Processor::ReadSignature (FILE* stream)
 	           expect_sig.version.major);
 
 	if (file_sig.version.minor == expect_sig.version.minor)
-		smsg (E_INFO, E_VERBOSELIB, "File version matched: READ %p [%d:%d]",
+		smsg (E_INFO, E_VERBOSE, "File version matched: READ %p [%d:%d]",
 		      file_sig.ver_raw,
 		      file_sig.version.major,
 		      file_sig.version.minor);
 
 	else
-		smsg (E_WARNING, E_VERBOSELIB, "FILE MINOR VERSION MISMATCH: READ [%c] EXPECT [%c]",
+		smsg (E_WARNING, E_VERBOSE, "FILE MINOR VERSION MISMATCH: READ [%c] EXPECT [%c]",
 		      file_sig.version.minor,
 		      expect_sig.version.minor);
 
@@ -314,14 +314,14 @@ bool Processor::ReadSignature (FILE* stream)
 
 void Processor::DumpFlags()
 {
-	msg (E_INFO, E_DEBUGAPP, "Dumping processor flags");
+	msg (E_INFO, E_DEBUG, "Dumping processor flags");
 
-	msg (E_INFO, E_DEBUGAPP, "Processor flags: EIP [%d] EXIT [%d] NFC [%d]",
+	msg (E_INFO, E_DEBUG, "Processor flags: EIP [%d] EXIT [%d] NFC [%d]",
 		 !!(state.flags & MASK(F_EIP)),
 		 !!(state.flags & MASK(F_EXIT)),
 		 !!(state.flags & MASK(F_NFC)));
 
-	msg (E_INFO, E_DEBUGAPP, "Analyze flags: ZERO [%d] NEGATIVE [%d]",
+	msg (E_INFO, E_DEBUG, "Analyze flags: ZERO [%d] NEGATIVE [%d]",
 		 !!(state.flags & MASK(F_ZERO)),
 		 !!(state.flags & MASK(F_NEGATIVE)));
 }
@@ -395,7 +395,7 @@ void Processor::Jump (const Processor::Reference& ref)
 
 	__verify (dref.type == S_CODE, "Cannot jump to non-CODE reference");
 
-	msg (E_INFO, E_DEBUGAPP, "Jumping to address %ld", dref.address);
+	msg (E_INFO, E_DEBUG, "Jumping to address %ld", dref.address);
 	state.ip = dref.address;
 }
 
@@ -498,10 +498,10 @@ void Processor::Analyze (calc_t arg)
 
 void Processor::DumpContext (const Processor::ProcessorState& g_state)
 {
-	msg (E_INFO, E_DEBUGAPP, "Context: IP [%d], FL [0x%08p], BUF [%ld], DEPTH [%ld], FRAME [%ld]",
+	msg (E_INFO, E_DEBUG, "Context: IP [%d], FL [0x%08p], BUF [%ld], DEPTH [%ld], FRAME [%ld]",
 		 g_state.ip, g_state.flags, g_state.buffer, g_state.depth, g_state.frame);
 
-	msg (E_INFO, E_DEBUGAPP,
+	msg (E_INFO, E_DEBUG,
 		 "Registers: A [%lg], B [%lg], C [%lg], D [%lg], E [%lg], F [%lg]",
 	     g_state.registers[R_A],
 	     g_state.registers[R_B],
@@ -571,7 +571,7 @@ void Processor::NextContextBuffer()
 	++state.buffer;
 	state.frame = calc_stack.CurrentTopIndex();
 
-	msg (E_INFO, E_DEBUGAPP, "Switched to next execution context buffer");
+	msg (E_INFO, E_DEBUG, "Switched to next execution context buffer");
 	DumpContext (state);
 }
 
@@ -583,7 +583,7 @@ void Processor::AllocContextBuffer()
 
 	ClearContextBuffer();
 
-	msg (E_INFO, E_DEBUGAPP, "New execution context buffer allocated");
+	msg (E_INFO, E_DEBUG, "New execution context buffer allocated");
 	DumpContext (state);
 }
 
@@ -621,7 +621,7 @@ void Processor::InsertSymbolRaw (symbol_map* map, const char* label, Symbol symb
 
 void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 {
-	msg (E_INFO, E_DEBUGAPP, "Linking decoded symbols: %d", set.symbols.size());
+	msg (E_INFO, E_DEBUG, "Linking decoded symbols: %d", set.symbols.size());
 
 	for (hashed_symbol& symbol: set.symbols)
 	{
@@ -637,14 +637,14 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 		{
 			if (linked_desc.ref.is_symbol)
 			{
-				msg (E_INFO, E_DEBUGAPP, "Definition of alias \"%s\": aliasing %p",
+				msg (E_INFO, E_DEBUG, "Definition of alias \"%s\": aliasing %p",
 					 name.c_str(), linked_desc.ref.symbol_hash);
 			}
 
 			else switch (linked_desc.ref.direct.type)
 			{
 				case S_CODE:
-					msg (E_INFO, E_DEBUGAPP, "Definition of label \"%s\": assigning address %ld",
+					msg (E_INFO, E_DEBUG, "Definition of label \"%s\": assigning address %ld",
 						 name.c_str(), address);
 					linked_desc.ref.direct.address = buffers[state.buffer].cmd_top;
 					break;
@@ -654,17 +654,17 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 					break;
 
 				case S_REGISTER:
-					msg (E_INFO, E_DEBUGAPP, "Definition of register alias \"%s\": aliasing \"%s\"",
+					msg (E_INFO, E_DEBUG, "Definition of register alias \"%s\": aliasing \"%s\"",
 						 name.c_str(), EncodeRegister (linked_desc.ref.direct.address));
 					break;
 
 				case S_FRAME:
-					msg (E_INFO, E_DEBUGAPP, "Definition of stack frame alias \"%s\": aliasing relative address %ld",
+					msg (E_INFO, E_DEBUG, "Definition of stack frame alias \"%s\": aliasing relative address %ld",
 						 name.c_str(), linked_desc.ref.direct.address);
 					break;
 
 				case S_FRAME_BACK:
-					msg (E_INFO, E_DEBUGAPP, "Definition of parameter alias \"%s\": aliasing parameter %ld",
+					msg (E_INFO, E_DEBUG, "Definition of parameter alias \"%s\": aliasing parameter %ld",
 						 name.c_str(), linked_desc.ref.direct.address);
 					break;
 
@@ -687,7 +687,7 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 		// If symbol is used here, check for existing definitions and verify types (now absent).
 		else
 		{
-			msg (E_INFO, E_DEBUGAPP, "Usage of symbol \"%s\"", name.c_str());
+			msg (E_INFO, E_DEBUG, "Usage of symbol \"%s\"", name.c_str());
 
 			linked_desc.ref.direct.address = -1;
 		}
@@ -697,7 +697,7 @@ void Processor::DecodeLinkSymbols (Processor::DecodedSet& set)
 			sym_table.insert (symbol);
 	}
 
-	msg (E_INFO, E_DEBUGAPP, "Link completed");
+	msg (E_INFO, E_DEBUG, "Link completed");
 }
 
 // -----------------------------------------------------------------------------
@@ -744,7 +744,7 @@ Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* se
 				__asshole ("Invalid reference segment specificator: %c", segment);
 		}
 
-		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded direct reference to \"%s:%ld\"",
+		msg (E_INFO, E_DEBUG, "Reference \"%s\": decoded direct reference to \"%s:%ld\"",
 		     ref, _reftype, target_ref.direct.address);
 	}
 
@@ -754,7 +754,7 @@ Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* se
 		target_ref.direct.type = S_REGISTER;
 		target_ref.direct.address = DecodeRegister (reg);
 
-		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded access to register \"%s\"", ref, reg);
+		msg (E_INFO, E_DEBUG, "Reference \"%s\": decoded access to register \"%s\"", ref, reg);
 	}
 
 	else
@@ -764,7 +764,7 @@ Processor::Reference Processor::DecodeReference (const char* ref, DecodedSet* se
 
 		reference_sym.is_resolved = 0;
 
-		msg (E_INFO, E_DEBUGAPP, "Reference \"%s\": decoded access of symbol", ref);
+		msg (E_INFO, E_DEBUG, "Reference \"%s\": decoded access of symbol", ref);
 
 		// Add symbol and write its hash to the command
 		target_ref.is_symbol = 1;
@@ -789,7 +789,7 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 	if (char* cmt = strchr (buffer, ';')) *cmt = '\0'; // Drop commentary
 	else if (char* nl = strchr (buffer, '\n')) *nl = '\0'; // Drop newline (if no commentary)
 
-	msg (E_INFO, E_DEBUGAPP, "Decoding \"%s\"", buffer);
+	msg (E_INFO, E_DEBUG, "Decoding \"%s\"", buffer);
 
 	// Parse labels
 	while (char* colon = strchr (buffer, ':'))
@@ -805,14 +805,14 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 
 		*colon++ = '\0';
 
-		msg (E_INFO, E_DEBUGAPP, "Label \"%s\": adding resolved symbol", buffer);
+		msg (E_INFO, E_DEBUG, "Label \"%s\": adding resolved symbol", buffer);
 		InsertSymbolPrepare (&set.symbols, buffer, label_sym);
 
 		buffer = colon;
 		while (isspace (*buffer)) ++buffer; // Shift buffer
 	}
 
-	msg (E_INFO, E_DEBUGAPP, "Parsed labels: %d", label_count);
+	msg (E_INFO, E_DEBUG, "Parsed labels: %d", label_count);
 
 
 	// Parse command
@@ -820,7 +820,7 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 
 	if ((arg_count == EOF) || !arg_count)
 	{
-		msg (E_INFO, E_DEBUGAPP, "Command: No command");
+		msg (E_INFO, E_DEBUG, "Command: No command");
 		set.cmd.command = C_NONE;
 	}
 
@@ -831,21 +831,21 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 
 		set.cmd.command = cmd_index_iter ->second;
 
-		msg (E_INFO, E_DEBUGAPP, "Command arguments: %d", --arg_count); // Decrement since it contains command itself
+		msg (E_INFO, E_DEBUG, "Command arguments: %d", --arg_count); // Decrement since it contains command itself
 
 		switch (commands_traits[set.cmd.command].arg_type)
 		{
 		case A_NONE:
 			__assert (arg_count == 0, "Invalid argument count: %d", arg_count);
 
-			msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\"",
+			msg (E_INFO, E_DEBUG, "Command: [%d] -> \"%s\"",
 			     set.cmd.command, commands_list[set.cmd.command]);
 			break;
 
 		case A_REFERENCE:
 			__assert (arg_count == 1, "Invalid argument count: %d", arg_count);
 
-			msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" <reference>",
+			msg (E_INFO, E_DEBUG, "Command: [%d] -> \"%s\" <reference>",
 				 set.cmd.command, commands_list[set.cmd.command]);
 
 			set.cmd.ref = DecodeReference (arg, &set);
@@ -856,7 +856,7 @@ Processor::DecodedSet Processor::DecodeCmd (char* buffer)
 
 			sscanf (arg, "%lg", &set.cmd.value);
 
-			msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" %lg",
+			msg (E_INFO, E_DEBUG, "Command: [%d] -> \"%s\" %lg",
 			     set.cmd.command, commands_list[set.cmd.command], set.cmd.value);
 			break;
 
@@ -907,18 +907,18 @@ Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_spars
 	switch (commands_traits[cmd.command].arg_type)
 	{
 	case A_NONE:
-		msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\"",
+		msg (E_INFO, E_DEBUG, "Command: [%d] -> \"%s\"",
 		     cmd.command, commands_list[cmd.command]);
 		break;
 
 	case A_REFERENCE:
 
-		msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" <reference>",
+		msg (E_INFO, E_DEBUG, "Command: [%d] -> \"%s\" <reference>",
 		     cmd.command, commands_list[cmd.command]);
 
 		if (cmd.ref.is_symbol)
 		{
-			msg (E_INFO, E_DEBUGAPP, "Reference: reference of symbol %p", cmd.ref.symbol_hash);
+			msg (E_INFO, E_DEBUG, "Reference: reference of symbol %p", cmd.ref.symbol_hash);
 		}
 
 		else
@@ -927,13 +927,13 @@ Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_spars
 
 			if (cmd.ref.direct.type == S_REGISTER)
 			{
-				msg (E_INFO, E_DEBUGAPP, "Reference: access of register %s",
+				msg (E_INFO, E_DEBUG, "Reference: access of register %s",
 				     EncodeRegister (cmd.ref.direct.address));
 			}
 
 			else
 			{
-				msg (E_INFO, E_DEBUGAPP, "Reference: direct reference to %s:%ld",
+				msg (E_INFO, E_DEBUG, "Reference: direct reference to %s:%ld",
 				     cmd.ref.direct.type == S_CODE ? "CODE" :
 				     cmd.ref.direct.type == S_DATA ? "DATA" : 0,
 				     cmd.ref.direct.address);
@@ -944,7 +944,7 @@ Processor::DecodedCommand Processor::BinaryReadCmd (FILE* stream, bool use_spars
 		break;
 
 	case A_VALUE:
-		msg (E_INFO, E_DEBUGAPP, "Command: [%d] -> \"%s\" %lg",
+		msg (E_INFO, E_DEBUG, "Command: [%d] -> \"%s\" %lg",
 		     cmd.command, commands_list[cmd.command], cmd.value);
 		break;
 
@@ -968,7 +968,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 	size_t decl_count = 0;
 	fread (&decl_count, sizeof (section_id), 1, stream);
 
-	msg (E_INFO, E_DEBUGAPP, "Reading symbols section: %ld symbols", decl_count);
+	msg (E_INFO, E_DEBUG, "Reading symbols section: %ld symbols", decl_count);
 
 	while (decl_count--)
 	{
@@ -980,7 +980,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 		{
 			snprintf (temporary, line_length, "__l_%p", reinterpret_cast<void*> (sym.hash));
 
-			msg (E_INFO, E_DEBUGAPP, "Read symbol: <hash %p>", sym.hash);
+			msg (E_INFO, E_DEBUG, "Read symbol: <hash %p>", sym.hash);
 		}
 
 		else
@@ -992,7 +992,7 @@ void Processor::BinaryReadSymbols (Processor::symbol_map* map, FILE* stream, boo
 			fread (temporary, 1, label_size, stream);
 			temporary[label_size] = '\0';
 
-			msg (E_INFO, E_DEBUGAPP, "Read symbol: \"%s\"", temporary);
+			msg (E_INFO, E_DEBUG, "Read symbol: \"%s\"", temporary);
 		}
 
 		InsertSymbolRaw (map, temporary, sym);
@@ -1018,7 +1018,7 @@ bool Processor::Decode (FILE* stream) throw()
 		line = reinterpret_cast<char*> (malloc (line_length));
 		__assert (line, "Unable to malloc input buffer of %ld bytes", line_length);
 
-		msg (E_INFO, E_DEBUGAPP, "Initial context # is %ld", initial_context_no);
+		msg (E_INFO, E_DEBUG, "Initial context # is %ld", initial_context_no);
 
 		// Exit the parse/decode loop if we're off the initial (primary) context.
 		// This is for proper handling of "cswitch" statements.
@@ -1099,7 +1099,7 @@ bool Processor::Load (FILE* stream) throw()
 
 		if (! (state.flags & MASK (F_EIP)))
 		{
-			msg (E_INFO, E_DEBUGAPP, "Reading symbol section");
+			msg (E_INFO, E_DEBUG, "Reading symbol section");
 			BinaryReadSymbols (&GetBuffer().sym_table, stream, use_sparse_code);
 		}
 
@@ -1107,7 +1107,7 @@ bool Processor::Load (FILE* stream) throw()
 		if (feof (stream))
 			return result;
 
-		msg (E_INFO, E_DEBUGAPP, "Reading command section");
+		msg (E_INFO, E_DEBUG, "Reading command section");
 
 		unsigned long long section_id = 0;
 		fread (&section_id, sizeof (section_id), 1, stream);
@@ -1211,7 +1211,7 @@ void Processor::DumpAsm (FILE* stream, size_t which_buffer)
 			__assert (sym.is_resolved && !sym.ref.is_symbol && sym.ref.direct.type == S_CODE,
 					  "Unsupported label format");
 
-			msg (E_INFO, E_DEBUGAPP, "Address %ld: writing label \"%s\" [address %ld]",
+			msg (E_INFO, E_DEBUG, "Address %ld: writing label \"%s\" [address %ld]",
 				 addr, l_iter ->second.first.c_str(), sym.ref.direct.address);
 
 			fprintf (stream, "%s: ", l_iter ->second.first.c_str());
@@ -1281,24 +1281,24 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 	msg (E_INFO, E_VERBOSE, "Writing bytecode from buffer %ld to binary stream",
 	     which_buffer);
 
-	msg (E_INFO, E_DEBUGAPP, "Writing signature: MAGIC %p VERSION [%d:%d]",
+	msg (E_INFO, E_DEBUG, "Writing signature: MAGIC %p VERSION [%d:%d]",
 	     expect_sig.magic, expect_sig.version.major, expect_sig.version.minor);
 
 	VersionSignature write_sig = expect_sig;
 	write_sig.is_sparse = use_sparse_code;
 	fwrite (&write_sig, sizeof (write_sig), 1, stream);
 
-	msg (E_INFO, E_DEBUGAPP, "Using %s mode", use_sparse_code ? "sparse" : "compact");
+	msg (E_INFO, E_DEBUG, "Using %s mode", use_sparse_code ? "sparse" : "compact");
 
 	Buffer& buffer = buffers[which_buffer]; // It's not going to change
 
-	msg (E_INFO, E_DEBUGAPP, "Writing symbol section");
+	msg (E_INFO, E_DEBUG, "Writing symbol section");
 	fwrite (&symbols_section_sig, sizeof (symbols_section_sig), 1, stream);
 	{
 		size_t sym_count = buffer.sym_table.size();
 		fwrite (&sym_count, sizeof (sym_count), 1, stream);
 
-		msg (E_INFO, E_DEBUGAPP, "Writing symbol table: %ld symbols", sym_count);
+		msg (E_INFO, E_DEBUG, "Writing symbol table: %ld symbols", sym_count);
 
 		for (const hashed_symbol& s_ref: buffer.sym_table)
 		{
@@ -1319,15 +1319,15 @@ void Processor::DumpBC (FILE* stream, bool use_sparse_code, size_t which_buffer)
 
 	if (!buffer.cmd_top)
 	{
-		msg (E_WARNING, E_DEBUGAPP, "Not writing empty code section");
+		msg (E_WARNING, E_DEBUG, "Not writing empty code section");
 	}
 
 	else
 	{
-		msg (E_INFO, E_DEBUGAPP, "Writing code section");
+		msg (E_INFO, E_DEBUG, "Writing code section");
 		fwrite (&command_section_sig, sizeof (command_section_sig), 1, stream);
 
-		msg (E_INFO, E_DEBUGAPP, "Writing %ld instructions", buffer.cmd_top);
+		msg (E_INFO, E_DEBUG, "Writing %ld instructions", buffer.cmd_top);
 		fwrite (&buffer.cmd_top, sizeof (buffer.cmd_top), 1, stream);
 		for (size_t i = 0; i < buffer.cmd_top; ++i)
 		{

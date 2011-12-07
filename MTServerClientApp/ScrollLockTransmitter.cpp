@@ -123,7 +123,7 @@ void ScrollLockMorseTransmitter::Tx (const Buffer* input)
 
 	char* dptr = reinterpret_cast<char*> (input ->data);
 
-	msg (E_INFO, E_DEBUGLIB, "Transmitting \"%.*s\" [%zu]", input ->length, dptr, input ->length);
+	msg (E_INFO, E_DEBUG, "Transmitting \"%.*s\" [%zu]", input ->length, dptr, input ->length);
 	for (unsigned i = 0; i < input ->length; ++i)
 	{
 		if (dptr[i] == ' ')

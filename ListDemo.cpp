@@ -55,4 +55,6 @@ int main (int, char**)
 
 	dl.PopFront();
 	dl.PopBack();
+
+	Debug::System::Instance.ForceDelete();
 }

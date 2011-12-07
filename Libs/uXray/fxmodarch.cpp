@@ -95,15 +95,15 @@ PluginSystem::Plugin& PluginSystem::Plugin::operator= (PluginSystem::Plugin&& th
 
 void* PluginSystem::Plugin::Lookup (const char* symbol)
 {
-	msg (E_INFO, E_DEBUGLIB, "Looking up symbol \"%s\" in library \"%s\"", symbol, filename_);
+	msg (E_INFO, E_DEBUG, "Looking up symbol \"%s\" in library \"%s\"", symbol, filename_);
 	__assert (symbol, "NULL symbol name for lookup");
 	return engine_ ->Lookup (symbol, handle_);
 }
 
 std::list<PluginSystem::Plugin>::iterator PluginSystem::CheckInsertPluginObject (PluginSystem::Plugin&& plugin)
 {
-	msg (E_INFO, E_DEBUGLIB, "Inserting plugin \"%s\"", plugin.GetFilename());
-	msg (E_INFO, E_DEBUGLIB, "The given plugin object is of type %s",
+	msg (E_INFO, E_DEBUG, "Inserting plugin \"%s\"", plugin.GetFilename());
+	msg (E_INFO, E_DEBUG, "The given plugin object is of type %s",
 		 plugin.IsPrimary() ? "primary" : "reference");
 
 	for (auto i = plugins.begin(); i != plugins.end(); ++i)
@@ -128,8 +128,8 @@ std::list<PluginSystem::Plugin>::iterator PluginSystem::CheckInsertPluginObject 
 
 std::list<PluginSystem::Plugin>::iterator PluginSystem::CheckGetPluginObject (PluginSystem::Plugin&& plugin)
 {
-	msg (E_INFO, E_DEBUGLIB, "Searching primary for plugin \"%s\"", plugin.GetFilename());
-	msg (E_INFO, E_DEBUGLIB, "The given plugin object is of type %s",
+	msg (E_INFO, E_DEBUG, "Searching primary for plugin \"%s\"", plugin.GetFilename());
+	msg (E_INFO, E_DEBUG, "The given plugin object is of type %s",
 		 plugin.IsPrimary() ? "primary" : "reference");
 
 	for (auto i = plugins.begin(); i != plugins.end(); ++i)
@@ -138,7 +138,7 @@ std::list<PluginSystem::Plugin>::iterator PluginSystem::CheckGetPluginObject (Pl
 			// If we have it already, the plugin object must not be primary.
 			__assert (!plugin.IsPrimary(), "Found duplicate for a primary type plugin");
 
-			msg (E_INFO, E_DEBUGLIB, "Plugin found as \"%s\"", i ->GetFilename());
+			msg (E_INFO, E_DEBUG, "Plugin found as \"%s\"", i ->GetFilename());
 			return i;
 		}
 
@@ -160,8 +160,8 @@ std::list<PluginSystem::Plugin>::iterator PluginSystem::CheckGetPluginObject (Pl
 
 void PluginSystem::CheckRemovePluginObject (PluginSystem::Plugin&& plugin)
 {
-	msg (E_INFO, E_DEBUGLIB, "Checking and removing plugin \"%s\"", plugin.GetFilename());
-	msg (E_INFO, E_DEBUGLIB, "The given plugin object is of type %s",
+	msg (E_INFO, E_DEBUG, "Checking and removing plugin \"%s\"", plugin.GetFilename());
+	msg (E_INFO, E_DEBUG, "The given plugin object is of type %s",
 		   plugin.IsPrimary() ? "primary" : "reference");
 
 	for (auto i = plugins.begin(); i != plugins.end(); ++i)
@@ -189,7 +189,7 @@ PluginSystem::Plugin* PluginSystem::LoadPlugin (const char* filename)
 
 PluginSystem::Plugin* PluginSystem::ReferencePlugin (const char* filename)
 {
-	msg (E_INFO, E_DEBUGLIB, "Returning existing handle to plugin \"%s\"", filename);
+	msg (E_INFO, E_DEBUG, "Returning existing handle to plugin \"%s\"", filename);
 	auto ref_iter = CheckGetPluginObject (Plugin (filename, GetNativeEngine(), 1));
 
 	if (ref_iter == plugins.end())
@@ -219,19 +219,19 @@ void PluginSystem::RemovePlugin (PluginSystem::Plugin* handle)
 
 void* PluginSystem::LookupGlobal (const char* symbol)
 {
-	msg (E_INFO, E_DEBUGLIB, "Globally looking for symbol \"%s\"", symbol);
+	msg (E_INFO, E_DEBUG, "Globally looking for symbol \"%s\"", symbol);
 
 	Plugin global;
 	void* address = global.Lookup (symbol);
 	if (!address)
-		msg (E_WARNING, E_DEBUGLIB, "We got NULL results for symbol \"%s\"", symbol);
+		msg (E_WARNING, E_DEBUG, "We got NULL results for symbol \"%s\"", symbol);
 
 	return address;
 }
 
 void* PluginSystem::LookupSequential (const char* symbol)
 {
-	msg (E_INFO, E_DEBUGLIB, "Sequentially looking for symbol \"%s\"", symbol);
+	msg (E_INFO, E_DEBUG, "Sequentially looking for symbol \"%s\"", symbol);
 
 	for (Plugin& plugin: plugins)
 	{
@@ -239,12 +239,12 @@ void* PluginSystem::LookupSequential (const char* symbol)
 
 		if (void* address = plugin.Lookup (symbol))
 		{
-			msg (E_INFO, E_DEBUGLIB, "Found symbol \"%s\" in plugin \"%s\"", symbol, plugin.GetFilename());
+			msg (E_INFO, E_DEBUG, "Found symbol \"%s\" in plugin \"%s\"", symbol, plugin.GetFilename());
 			return address;
 		}
 	}
 
-	msg (E_WARNING, E_DEBUGLIB, "We got NULL results for symbol \"%s\"", symbol);
+	msg (E_WARNING, E_DEBUG, "We got NULL results for symbol \"%s\"", symbol);
 	return 0;
 }
 

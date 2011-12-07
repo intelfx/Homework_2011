@@ -146,7 +146,11 @@ const char* SilentException::what() const throw()
 	return a_code_;
 }
 
-
+Debug::_InsideBase::_InsideBase() :
+dbg_info_ (0),
+dbg_params_ (Debug::CreateParameters (this, dbg_info_)) // stub
+{
+}
 
 Exception::Exception (SourceDescriptor place,
                       ObjectParameters object,
@@ -369,12 +373,6 @@ void System::HandleError (EventDescriptor event, SourceDescriptor place, ObjectP
 	}
 }
 
-_InsideBase::_InsideBase() :
-dbg_info_ (0),
-dbg_params_ (Debug::CreateParameters (0, 0)) // stub
-{
-}
-
 void _InsideBase::_MoveDynamicDbgInfo (const Debug::_InsideBase* that)
 {
 	dbg_info_ = that ->dbg_info_;
@@ -408,7 +406,7 @@ void _InsideBase::_SetDynamicDbgInfo (const ObjectDescriptor_* info)
 		break;
 
 	case MOD_OBJECT:
-		ctor_event_level = E_DEBUGAPP;
+		ctor_event_level = E_DEBUG;
 	};
 
 	call_log (dbg_params_, place, // Collected data
@@ -432,7 +430,7 @@ _InsideBase::~_InsideBase()
 			break;
 
 		case MOD_OBJECT:
-			dtor_event_level = E_DEBUGAPP;
+			dtor_event_level = E_DEBUG;
 	};
 
 	call_log (dbg_params_, place,

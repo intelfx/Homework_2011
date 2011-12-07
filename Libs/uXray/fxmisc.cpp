@@ -83,7 +83,7 @@ FXLIB_API unsigned hashstr (const char* source_, unsigned source_len_ /*= 0*/)
 		unsigned add_h = unsigned (source_[i]) *
 				unsigned (pow (double (base), double (source_len_ - i - 1)));
 
-		smsg (E_INFO, E_DEBUGLIB, "Applying value %d from char %c pos %d\n", add_h, source_[i], i);
+		smsg (E_INFO, E_DEBUG, "Applying value %d from char %c pos %d\n", add_h, source_[i], i);
 		hash += add_h;
 	}
 

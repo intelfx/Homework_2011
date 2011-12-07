@@ -96,7 +96,7 @@ public:
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUGLIB, "Queue [cap %lu] %lu:%lu (%lu) : object add",
+		msg (E_INFO, E_DEBUG, "Queue [cap %lu] %lu:%lu (%lu) : object add",
 			 storage_.Capacity(), tail_, head_, count_);
 
 		if (count_)
@@ -108,7 +108,7 @@ public:
 		if (head_ >= storage_.Capacity())
 		{
 			head_ %= storage_.Capacity();
-			msg (E_INFO, E_DEBUGLIB, "Queue wraparound, HEAD now %lu", head_);
+			msg (E_INFO, E_DEBUG, "Queue wraparound, HEAD now %lu", head_);
 		}
 
 
@@ -119,7 +119,7 @@ public:
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUGLIB, "Queue [cap %lu] %lu:%lu (%lu) : object remove",
+		msg (E_INFO, E_DEBUG, "Queue [cap %lu] %lu:%lu (%lu) : object remove",
 			 storage_.Capacity(), tail_, head_, count_);
 
 		__assert (count_ && (tail_ != head_), "Queue underflow");
@@ -130,7 +130,7 @@ public:
 		if (tail_ >= storage_.Capacity())
 		{
 			tail_ %= storage_.Capacity();
-			msg (E_INFO, E_DEBUGLIB, "Queue wraparound, TAIL now %lu", head_);
+			msg (E_INFO, E_DEBUG, "Queue wraparound, TAIL now %lu", head_);
 		}
 
 
@@ -143,7 +143,7 @@ public:
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUGLIB, "Queue [cal %lu] %lu:%lu (%lu) : accessing head",
+		msg (E_INFO, E_DEBUG, "Queue [cal %lu] %lu:%lu (%lu) : accessing head",
 			 storage_.Capacity(), tail_, head_, count_);
 
 		__assert (count_, "Queue underflow");
@@ -154,7 +154,7 @@ public:
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUGLIB, "Queue [cal %lu] %lu:%lu (%lu) : accessing tail",
+		msg (E_INFO, E_DEBUG, "Queue [cal %lu] %lu:%lu (%lu) : accessing tail",
 			 storage_.Capacity(), tail_, head_, count_);
 
 		__assert (count_, "Queue underflow");

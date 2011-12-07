@@ -29,9 +29,13 @@ protected:
 
 	virtual void LLRealloc (size_t new_cap)
 	{
-		T* new_stor = reinterpret_cast<T*> (realloc (storage_, sizeof (T) * new_cap));
+		T* new_stor = new T[new_cap];
 		__assert (new_stor, "Unable to reallocate main storage");
-		storage_ = new_stor;
+
+		for (size_t i = 0; i < capacity_; ++i)
+			new_stor[i] = std::move (storage_[i]);
+
+		delete[] storage_; storage_ = new_stor;
 
 		size_t* new_next = reinterpret_cast<size_t*> (realloc (next_, sizeof (size_t) * new_cap));
 		__assert (new_next, "Unable to reallocate supplementary 'next' storage");
@@ -79,7 +83,7 @@ protected:
 		__assert (new_cap, "Cannot reallocate to zero capacity");
 		__assert (new_cap > capacity_, "Cannot reallocate to reduce capacity");
 
-		msg (E_INFO, E_DEBUGLIB, "Adding capacity %zu -> %zu", capacity_, new_cap);
+		msg (E_INFO, E_DEBUG, "Adding capacity %zu -> %zu", capacity_, new_cap);
 
 		size_t first_new_element = capacity_;
 		size_t last_new_element = new_cap - 1;
@@ -261,7 +265,7 @@ public:
 
 			size_t idx = Index();
 
-			msg (E_INFO, E_DEBUGLIB, "Dereferencing [%zu]", idx);
+			msg (E_INFO, E_DEBUG, "Dereferencing [%zu]", idx);
 			return parent_ ->storage_[idx];
 		}
 
@@ -271,7 +275,7 @@ public:
 
 			size_t idx = Index();
 
-			msg (E_INFO, E_DEBUGLIB, "Const-dereferencing [%zu]", idx);
+			msg (E_INFO, E_DEBUG, "Const-dereferencing [%zu]", idx);
 			return parent_ ->storage_[idx];
 		}
 
@@ -312,7 +316,7 @@ public:
 		LLLink (end_marker_, allocated);
 
 		verify_method;
-		msg (E_INFO, E_DEBUGLIB, "Front insertion || count now %zu", count_);
+		msg (E_INFO, E_DEBUG, "Front insertion || count now %zu", count_);
 		return Iterator (this, end_marker_);
 	}
 
@@ -327,7 +331,7 @@ public:
 		LLReclaim (removed);
 
 		verify_method;
-		msg (E_INFO, E_DEBUGLIB, "Front removal || count now %zu", count_);
+		msg (E_INFO, E_DEBUG, "Front removal || count now %zu", count_);
 		return std::move (storage_[removed]);
 	}
 
@@ -345,7 +349,7 @@ public:
 		LLLink (place, allocated);
 
 		verify_method;
-		msg (E_INFO, E_DEBUGLIB, "Insertion %zu -> [%zu] -> %zu || count now %zu",
+		msg (E_INFO, E_DEBUG, "Insertion %zu -> [%zu] -> %zu || count now %zu",
 			 place, allocated, next_[allocated], count_);
 		return Iterator (this, place);
 	}
@@ -363,7 +367,7 @@ public:
 		LLReclaim (index);
 
 		verify_method;
-		msg (E_INFO, E_DEBUGLIB, "Removal %zu ( --> [%zu] ) --> %zu || count now %zu",
+		msg (E_INFO, E_DEBUG, "Removal %zu ( --> [%zu] ) --> %zu || count now %zu",
 			 prev, index, next_[prev]);
 		return Iterator (this, prev);
 	}

@@ -272,7 +272,7 @@ public:
 	void AccessRegister (size_t reg, calc_t value)
 	{
 		__assert (reg < R_MAX, "Invalid register ID");
-		msg (E_INFO, E_DEBUGAPP, "Userland sets register %s to %lg", EncodeRegister (reg), value);
+		msg (E_INFO, E_DEBUG, "Userland sets register %s to %lg", EncodeRegister (reg), value);
 
 		state.registers[reg] = value;
 	}
