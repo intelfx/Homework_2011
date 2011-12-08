@@ -333,7 +333,7 @@ namespace Debug
 
 		inline void _VerifyAndSetState() const
 		{
-			#ifndef NDEBUG
+#ifndef NDEBUG
 			// eliminate successive _Verify() calls in case of bad object to reduce log clutter
 			if (dbg_params_.object_status != OS_BAD)
 			{
@@ -342,9 +342,9 @@ namespace Debug
 				if (this ->_Verify())
 					dbg_params_.object_status = OS_OK;
 			}
-			#else
+#else
 			dbg_params_.object_status = OS_UNCHECKED;
-			#endif
+#endif
 		}
 
 	protected:
@@ -395,17 +395,22 @@ namespace Debug
 	template <typename InfoHolderType>
 	class BaseClass : virtual public _InsideBase_DefaultVerify
 	{
-	protected:
-		// For static assertion and logging
-		static const ObjectDescriptor_* _specific_dbg_info;
+		static ObjectDescriptor_ type_dbginfo;
 
 	public:
-		static const ObjectDescriptor_* _SetStaticDbgInfo()
-		{
-			// Initialize the static pointer if it hasn't been done already (once per type).
-			if (!_specific_dbg_info) _specific_dbg_info = InfoHolderType() ();
+		static const ObjectDescriptor_* const _specific_dbg_info; /* API pointer */
 
-			return _specific_dbg_info;
+		static void _SetStaticDbgInfo()
+		{
+			// Initialize the static data if it hasn't been done already (once per type).
+			if (type_dbginfo.object_id == GLOBAL_OID)
+			{
+				const ObjectDescriptor_*	canonical_dbginfo = InfoHolderType() ();
+
+				type_dbginfo.object_id		= canonical_dbginfo ->object_id;
+				type_dbginfo.object_name	= canonical_dbginfo ->object_name;
+				type_dbginfo.object_type	= canonical_dbginfo ->object_type;
+			}
 		}
 
 	protected:
@@ -418,17 +423,12 @@ namespace Debug
 
 		BaseClass()
 		{
-			_SetDynamicDbgInfo (_SetStaticDbgInfo());
+			_SetStaticDbgInfo();
+			_SetDynamicDbgInfo (_specific_dbg_info);
 		}
 
 		virtual ~BaseClass();
 	};
-
-	template <typename InfoHolderType>
-	const ObjectDescriptor_* BaseClass<InfoHolderType>::_specific_dbg_info = 0;
-
-	template <typename InfoHolderType>
-	BaseClass<InfoHolderType>::~BaseClass() = default;
 
 	// ---------------------------------------
 	// The mess ends here
@@ -597,27 +597,27 @@ namespace Debug
 			return typeid (*object).name();
 		}
 
-		template <typename T>
-		inline void SetTypeVerbosity (EventLevelIndex_ max)
-		{
-			T::_SetStaticDbgInfo() ->maximum_accepted_level = max;
-		}
-
-		template <typename T>
-		inline void SetTypeSilence (EventTypeIndex_ min)
-		{
-			T::_SetStaticDbgInfo() ->minimum_accepted_type = min;
-		}
-
 		inline void SetObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_SetFlag (flag); }
 		inline void ClrObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_ClrFlag (flag); }
+
+		template <typename T>
+		inline void SetStaticTypeVerbosity (EventLevelIndex_ max)
+		{
+			T::_specific_dbg_info ->maximum_accepted_level = max;
+		}
+
+		template <typename T>
+		inline void SetStaticTypeEvtFilter (EventTypeIndex_ min)
+		{
+			T::_specific_dbg_info ->minimum_accepted_type = min;
+		}
 
 		inline void SetTypeVerbosityByObj (_InsideBase* obj, EventLevelIndex_ max)
 		{
 			obj ->_GetDynamicDbgInfo().object_descriptor ->maximum_accepted_level = max;
 		}
 
-		inline void SetTypeSilenceByObj (_InsideBase* obj, EventTypeIndex_ min)
+		inline void SetTypeEvtFilterByObj (_InsideBase* obj, EventTypeIndex_ min)
 		{
 			obj ->_GetDynamicDbgInfo().object_descriptor ->minimum_accepted_type = min;
 		}
@@ -626,6 +626,15 @@ namespace Debug
 	// ---------------------------------------
 	// BaseClass<_information> implementation
 	// ---------------------------------------
+
+	template <typename InfoHolderType>
+	ObjectDescriptor_ BaseClass<InfoHolderType>::type_dbginfo = CreateGlobalObject();
+
+	template <typename InfoHolderType>
+	const ObjectDescriptor_* const BaseClass<InfoHolderType>::_specific_dbg_info = &type_dbginfo;
+
+	template <typename InfoHolderType>
+	BaseClass<InfoHolderType>::~BaseClass() = default;
 
 } // namespace Debug
 
@@ -703,8 +712,8 @@ inline bool Debug::_InsideBase::CheckObject() const
 	if (err)
 		call_log (dbg_params_, THIS_PLACE, E_CRITICAL, E_USER, "Verification error: %s", err);
 
-	return !((dbg_params_.object_status == OS_BAD) &&
-			 (dbg_params_.flags & MASK (OF_FATALVERIFY)));
+	return ! ( (dbg_params_.object_status == OS_BAD) &&
+			   (dbg_params_.flags & MASK (OF_FATALVERIFY)));
 }
 
 #endif // _FXASSERT_H_
@@ -714,4 +723,6 @@ inline bool Debug::_InsideBase::CheckObject() const
 // -----------------------------------------------------------------------------
 #include "encap.h"
 
-// kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
+
+

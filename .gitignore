@@ -4,3 +4,4 @@ __bin
 *.o
 *.gch
 *~
+.sync_Libs.sh

@@ -16,39 +16,20 @@ static const size_t STACK_SIZE = 100;
 DeclareDescriptor(Stack);
 
 template <typename T>
-class Stack : LogBase(Stack)
+class Stack : LogBase(Stack), protected MallocAllocator<T>
 {
-	MallocAllocator<T> storage;
 	size_t stack_top;
 
 protected:
 	virtual bool Verify_() const
 	{
-		if (stack_top > storage.Capacity())
+		if (stack_top > MallocAllocator<T>::Capacity())
 			return 0;
 
 		return 1;
 	}
 
 public:
-	Stack (Stack&& that) : move_ctor,
-	storage (std::move (that.storage)),
-	stack_top (that.stack_top)
-	{
-	}
-
-	Stack& operator= (Stack&& that)
-	{
-		if (this == &that)
-			return *this;
-
-		move_op;
-
-		storage = std::move (that.storage);
-		stack_top = that.stack_top;
-		that.stack_top = 0;
-	}
-
 	Stack() :
 	stack_top (0)
 	{
@@ -63,24 +44,24 @@ public:
 
 	void Push (const T& object)
 	{
-		msg (E_INFO, E_DEBUG, "Pushing object on [%ld] (capacity %ld)", stack_top, storage.Capacity());
+		msg (E_INFO, E_DEBUG, "Pushing object on [%ld] (capacity %ld)", stack_top, MallocAllocator<T>::Capacity());
 
-		if (stack_top == storage.Capacity())
+		if (stack_top == MallocAllocator<T>::Capacity())
 		{
 			msg (E_INFO, E_DEBUG, "Trying to reallocate");
-			storage.Realloc (storage.Capacity() * 2);
-			msg (E_INFO, E_DEBUG, "New capacity is %ld", storage.Capacity());
+			MallocAllocator<T>::Realloc (MallocAllocator<T>::Capacity() * 2);
+			msg (E_INFO, E_DEBUG, "New capacity is %ld", MallocAllocator<T>::Capacity());
 		}
 
-		storage.Access (stack_top++) = std::move (object);
+		MallocAllocator<T>::Access (stack_top++) = std::move (object);
 	}
 
 	T Pop()
 	{
 		__assert (stack_top > 0, "Stack underrun trying to pop an object");
-		msg (E_INFO, E_DEBUG, "Popping object from [%ld] (capacity %ld)", --stack_top, storage.Capacity());
+		msg (E_INFO, E_DEBUG, "Popping object from [%ld] (capacity %ld)", --stack_top, MallocAllocator<T>::Capacity());
 
-		return std::move (storage.Access (stack_top));
+		return std::move (MallocAllocator<T>::Access (stack_top));
 	}
 
 	T& Top()
@@ -88,7 +69,7 @@ public:
 		__assert (stack_top > 0, "Stack underrun trying to access stack top");
 		msg (E_INFO, E_DEBUG, "Accessing stack top on [%ld] (R/W)", stack_top - 1);
 
-		return storage.Access (stack_top - 1);
+		return MallocAllocator<T>::Access (stack_top - 1);
 	}
 
 	const T& Top() const
@@ -96,7 +77,7 @@ public:
 		__assert (stack_top > 0, "Stack underrun trying to access stack top at %d", stack_top - 1);
 		msg (E_INFO, E_DEBUG, "Accessing stack top on [%ld] (R/O)", stack_top - 1);
 
-		return storage.Access (stack_top - 1);
+		return MallocAllocator<T>::Access (stack_top - 1);
 	}
 
 	T& Introspect (size_t offset)
@@ -105,7 +86,7 @@ public:
 				  stack_top - offset - 1);
 		msg (E_INFO, E_DEBUG, "Introspecting stack at [%ld] (R/W)", stack_top - offset - 1);
 
-		return storage.Access (stack_top - offset - 1);
+		return MallocAllocator<T>::Access (stack_top - offset - 1);
 	}
 
 	const T& Introspect (size_t offset) const
@@ -114,7 +95,7 @@ public:
 				  stack_top - offset - 1);
 		msg (E_INFO, E_DEBUG, "Introspecting stack at [%ld] (R/O)", stack_top - offset - 1);
 
-		return storage.Access (stack_top - offset - 1);
+		return MallocAllocator<T>::Access (stack_top - offset - 1);
 	}
 
 	T& Absolute (size_t offset)
@@ -122,7 +103,7 @@ public:
 		__assert (offset <= stack_top, "Absolute offset too big at %ld", offset);
 		msg (E_INFO, E_DEBUG, "Absolute accessing stack at [%ld] (R/W)", offset);
 
-		return storage.Access (offset);
+		return MallocAllocator<T>::Access (offset);
 	}
 
 	const T& Absolute (size_t offset) const
@@ -130,7 +111,7 @@ public:
 		__assert (offset <= stack_top, "Absolute offset too big at %ld", offset);
 		msg (E_INFO, E_DEBUG, "Absolute accessing stack at [%ld] (R/O)", offset);
 
-		return storage.Access (offset);
+		return MallocAllocator<T>::Access (offset);
 	}
 
 	size_t CurrentTopIndex() const

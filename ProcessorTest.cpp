@@ -123,13 +123,16 @@ void NonInteractive (Processor& proc, char** argv)
 
 int main (int argc, char** argv)
 {
-	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, MASK (Debug::E_INFO)),
+	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING),
 												   &FXConLog::Instance());
 
 	srand (time (0));
 	int a1 = rand(), a2 = rand();
 	smsg (E_INFO, E_USER, "Stack self-tests");
 	Stack<int> stack;
+
+	Debug::API::SetTypeVerbosityByObj (&stack, Debug::E_USER);
+
 	stack.Push (a1);
 	stack.Push (a2);
 
