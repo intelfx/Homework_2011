@@ -277,7 +277,7 @@ void* queue_transmitter_thread_func (void* arg_)
 
 int main (int argc, char** argv)
 {
-	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING & ~MASK (Debug::E_DEBUG)),
+	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING),
 												   &FXConLog::Instance());
 
 
@@ -286,6 +286,7 @@ int main (int argc, char** argv)
 		fprintf (stderr, "Invalid parameters. Usage: %s\n"
 				 "\t -load <module file>:<queue>:<module id> ...\n"
 				 "\t -param <parameter>:<queue>:<module id> ...\n\n", argv[0]);
+        Debug::System::Instance.ForceDelete();
 		exit (-1);
 	}
 
@@ -293,10 +294,10 @@ int main (int argc, char** argv)
 	{
 		if (!strcmp (argv[a], "-load"))
 		{
-			char *file;
+			char file[STATIC_LENGTH];
 			size_t queue_id, module_id;
 
-			int result = sscanf (argv[a + 1], "%a[^:]:%zu:%zu", &file, &queue_id, &module_id);
+			int result = sscanf (argv[a + 1], "%[^:]:%zu:%zu", file, &queue_id, &module_id);
 			__sassert (result == 3, "Invalid parameter syntax: \"%s\"", argv[a + 1]);
 
 			smsg (E_INFO, E_USER, "Adding plugin to system: \"%s\" -> [%zu:%zu]",
@@ -347,10 +348,10 @@ int main (int argc, char** argv)
 
 		else if (!strcmp (argv[a], "-param"))
 		{
-			char* par;
+			char par[STATIC_LENGTH];
 			size_t queue_id, module_id;
 
-			int result = sscanf (argv[a + 1], "%a[^:]:%zu:%zu", &par, &queue_id, &module_id);
+			int result = sscanf (argv[a + 1], "%[^:]:%zu:%zu", par, &queue_id, &module_id);
 			__sverify (result == 3, "Invalid parameter syntax: \"%s\"", argv[a + 1]);
 
 			smsg (E_INFO, E_USER, "Attaching parameter to plugin: \"%s\" -> [%zu:%zu]",
@@ -373,8 +374,6 @@ int main (int argc, char** argv)
 
 			else
 				__sverify (0, "Invalid module ID: %zu [queue %zu]", module_id, queue_id);
-
-			free (par);
 
 			++a;
 		}
@@ -439,6 +438,5 @@ int main (int argc, char** argv)
 	}
 
 	smsg (E_INFO, E_USER, "Threads closed");
-
 	Debug::System::Instance().CloseTargets();
 }

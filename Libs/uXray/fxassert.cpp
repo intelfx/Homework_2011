@@ -146,7 +146,7 @@ const char* SilentException::what() const throw()
 	return a_code_;
 }
 
-Debug::_InsideBase::_InsideBase() :
+_InsideBase::_InsideBase() :
 dbg_info_ (0),
 dbg_params_ (Debug::CreateParameters (this, dbg_info_)) // stub
 {
@@ -271,7 +271,7 @@ void System::SetTargetProperties (TargetDescriptor target, LogEngine* logger)
 	}
 
 	msg (E_INFO, E_VERBOSE, "New target initialized using %s, destination \"%s\"",
-		 GetClassName (logger),
+		 API::GetClassName (logger),
 		 target.target_name);
 }
 
@@ -281,7 +281,12 @@ void System::DoLogging (EventDescriptor event,
 {
 	bool is_emergency_mode = object.is_emergency_mode;
 	bool is_critical_message = (event.event_type >= E_CRITICAL);
+	bool is_message_allowed = CheckDynamicVerbosity (*object.object_descriptor, event);
 	TargetDescriptor_* current_target = 0;
+
+	// TODO Semantically verify this statement
+	if (!is_message_allowed)
+		return;
 
 	// In this state we will simply discard the message.
 	if (state == S_UNINITIALIZED)
@@ -395,18 +400,19 @@ void _InsideBase::_SetDynamicDbgInfo (const ObjectDescriptor_* info)
 	SourceDescriptor_ place = THIS_PLACE; // Place information is a kind of "stub"
 	EventLevelIndex_ ctor_event_level;
 
+	// Auto-determine verbosity of object creation message (based on common sense).
 	switch (dbg_info_ ->object_type)
 	{
 	default:
 	case MOD_INTERNAL:
-		return;
+		return; // Do not log them at all
 
 	case MOD_APPMODULE:
-		ctor_event_level = E_VERBOSE;
+		ctor_event_level = E_VERBOSE; // Module creation logging is "verbose" message
 		break;
 
 	case MOD_OBJECT:
-		ctor_event_level = E_DEBUG;
+		ctor_event_level = E_DEBUG; // Logging creation of objects is intended for debugging only
 	};
 
 	call_log (dbg_params_, place, // Collected data

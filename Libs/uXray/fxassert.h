@@ -233,12 +233,10 @@ namespace Debug
 		 * "mutable" is required here not so inevitably as in ObjectParameters_,
 		 * but this seems to be the most fine way to place an all-modifiable parameter
 		 * in otherwise fully constant descriptor structure.
-		 *
-		 * Parameter determines maximum event message level from an object of this class
-		 * that is processed. Everything higher is discarded.
 		 */
 
-		mutable EventLevelIndex_ maximum_accepted_level;
+		mutable EventLevelIndex_ maximum_accepted_level; /* everything higher is discarded - filters too verbose messages */
+		mutable EventTypeIndex_ minimum_accepted_type; /* everything lower is discarded - filters non-critical messages */
 
 	};
 	typedef const ObjectDescriptor_& ObjectDescriptor;
@@ -380,11 +378,11 @@ namespace Debug
 			return dbg_params_;
 		}
 
+		inline void _SetFlag (ObjectFlags_ flag) { dbg_params_.flags |=  MASK (flag); }
+		inline void _ClrFlag (ObjectFlags_ flag) { dbg_params_.flags &= ~MASK (flag); }
+
 		// Returns whether object state is BAD.
 		inline bool CheckObject() const; // defined after everything in "fxassert.h"
-
-		inline void SetFlag (ObjectFlags_ flag) { dbg_params_.flags |=  MASK (flag); }
-		inline void DelFlag (ObjectFlags_ flag) { dbg_params_.flags &= ~MASK (flag); }
 	};
 
 	class FXLIB_API _InsideBase_DefaultVerify : public _InsideBase
@@ -401,21 +399,26 @@ namespace Debug
 		// For static assertion and logging
 		static const ObjectDescriptor_* _specific_dbg_info;
 
+	public:
+		static const ObjectDescriptor_* _SetStaticDbgInfo()
+		{
+			// Initialize the static pointer if it hasn't been done already (once per type).
+			if (!_specific_dbg_info) _specific_dbg_info = InfoHolderType() ();
+
+			return _specific_dbg_info;
+		}
+
+	protected:
+
 		// Constructor used to signal object move
 		BaseClass (const _InsideBase* src)
 		{
-			// Do not initialize the static pointer since we already have at least one
-			// object of this type (the move source).
-
 			_MoveDynamicDbgInfo (src);
 		}
 
 		BaseClass()
 		{
-			// Initialize the static pointer if it hasn't been done already (once per type).
-			if (!_specific_dbg_info) _specific_dbg_info = InfoHolderType() ();
-
-			_SetDynamicDbgInfo (_specific_dbg_info);
+			_SetDynamicDbgInfo (_SetStaticDbgInfo());
 		}
 
 		virtual ~BaseClass();
@@ -523,6 +526,12 @@ namespace Debug
 			   (MASK (event.event_level) & target.target_levelmask);
 	}
 
+	inline bool CheckDynamicVerbosity (ObjectDescriptor object, EventDescriptor event)
+	{
+		return (event.event_level <= object.maximum_accepted_level) &&
+			   (event.event_type >= object.minimum_accepted_type);
+	}
+
 	inline bool TargetIsOK (const TargetDescriptor_* target)
 	{
 		return target && (target ->target_descriptor && target ->target_engine);
@@ -544,13 +553,13 @@ namespace Debug
 	inline ObjectDescriptor_ CreateObject (const char* name, Debug::ModuleType_ type,
 										   const std::type_info* info)
 	{
-		ObjectDescriptor_ object = {info ? info ->hash_code() : 0, name, type, E_DEBUG};
+		ObjectDescriptor_ object = {info ? info ->hash_code() : 0, name, type, E_DEBUG, E_INFO};
 		return object;
 	}
 
 	inline ObjectDescriptor_ CreateGlobalObject()
 	{
-		ObjectDescriptor_ global_object = {GLOBAL_OID, "global scope", MOD_APPMODULE, E_DEBUG};
+		ObjectDescriptor_ global_object = {GLOBAL_OID, "global scope", MOD_APPMODULE, E_DEBUG, E_INFO};
 		return global_object;
 	}
 
@@ -570,23 +579,48 @@ namespace Debug
 
 	inline void WriteOutAtom (LogAtom atom, bool emergency_mode)
 	{
-		if (emergency_mode)
-			atom.target.target_engine ->WriteLogEmergency (atom);
-
-		else
-			atom.target.target_engine ->WriteLog (atom);
+		if (emergency_mode)	atom.target.target_engine ->WriteLogEmergency (atom);
+		else				atom.target.target_engine ->WriteLog (atom);
 	}
 
-	template <typename T>
-	inline const char* GetClassName (const T* object)
+	namespace API
 	{
-		if (!object)
-			return "NULL pointer";
+		template <typename T>
+		inline const char* GetClassName (const T* object)
+		{
+			if (!object)
+				return "NULL pointer";
 
-		if (const _InsideBase* baseptr = dynamic_cast<const _InsideBase*> (object))
-			return baseptr ->_GetDynamicDbgInfo().object_descriptor ->object_name;
+			if (const _InsideBase* baseptr = dynamic_cast<const _InsideBase*> (object))
+				return baseptr ->_GetDynamicDbgInfo().object_descriptor ->object_name;
 
-		return typeid (*object).name();
+			return typeid (*object).name();
+		}
+
+		template <typename T>
+		inline void SetTypeVerbosity (EventLevelIndex_ max)
+		{
+			T::_SetStaticDbgInfo() ->maximum_accepted_level = max;
+		}
+
+		template <typename T>
+		inline void SetTypeSilence (EventTypeIndex_ min)
+		{
+			T::_SetStaticDbgInfo() ->minimum_accepted_type = min;
+		}
+
+		inline void SetObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_SetFlag (flag); }
+		inline void ClrObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_ClrFlag (flag); }
+
+		inline void SetTypeVerbosityByObj (_InsideBase* obj, EventLevelIndex_ max)
+		{
+			obj ->_GetDynamicDbgInfo().object_descriptor ->maximum_accepted_level = max;
+		}
+
+		inline void SetTypeSilenceByObj (_InsideBase* obj, EventTypeIndex_ min)
+		{
+			obj ->_GetDynamicDbgInfo().object_descriptor ->minimum_accepted_type = min;
+		}
 	}
 
 	// ---------------------------------------

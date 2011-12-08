@@ -80,7 +80,7 @@ void POSIXPluginEngine::FreeLibrary (const char* filename)
 {
 	msg (E_INFO, E_DEBUG, "Unloading shared object \"%s\"", filename);
 
-	void* handle = dlopen (filename, RTLD_LAZY | RTLD_NOLOAD);
+	void* handle = dlopen (filename, RTLD_NOLOAD);
 	__verify (handle, "Shared object \"%s\" was not loaded prior to unloading", filename);
 
 	dlclose (handle);

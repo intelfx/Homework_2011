@@ -20,6 +20,11 @@ PluginSystem::~PluginSystem()
 {
 }
 
+void PluginSystem::ClearPlugins()
+{
+	plugins.clear();
+}
+
 PluginEngine* PluginSystem::GetNativeEngine()
 {
 	__sassert (native_engine_, "Native engine is not registered - plugin system is probably not initialized yet!");
@@ -35,7 +40,7 @@ void PluginSystem::SetNativeEngine (PluginEngine* engine)
 
 PluginSystem::Plugin::Plugin (const char* filename, PluginEngine* engine, bool reopen_only /* = 0 */) :
 engine_		(engine),
-filename_	(filename),
+filename_	(reinterpret_cast<char*> (malloc (STATIC_LENGTH))),
 handle_		(engine_ ->ReopenLibrary (filename)),
 is_primary_	(!handle_ && !reopen_only) // If reopen returned 0, then we're supposed to load (if allowed).
 {
@@ -45,6 +50,8 @@ is_primary_	(!handle_ && !reopen_only) // If reopen returned 0, then we're suppo
 		__assert (handle_, "Unable to load \"%s\" somewhy... Check upper log for engine messages",
 		          filename);
 	}
+
+	strncpy (filename_, filename, STATIC_LENGTH);
 }
 
 PluginSystem::Plugin::Plugin() :
@@ -61,6 +68,8 @@ PluginSystem::Plugin::~Plugin()
 {
 	if (handle_ && is_primary_)
 		engine_ ->FreeLibrary (filename_);
+
+	free (filename_);
 }
 
 PluginSystem::Plugin::Plugin (PluginSystem::Plugin&& that) : move_ctor,

@@ -6,11 +6,11 @@ BuildDirs=/home/intelfx/devel/__auxiliary/cpp/SideProjects/__temp/uXray
 CMakeDir=/usr/share/cmake-2.8/Modules
 Current CMake Binary=file:///usr/bin/cmake
 CurrentBuildDir=file:///home/intelfx/devel/__auxiliary/cpp/SideProjects/__temp/uXray
-CurrentBuildType=Release
+CurrentBuildType=Debug
 CurrentInstallDir=file:///usr/local
 Extra Arguments=
 ProjectRootRelative=./
 
 [MakeBuilder]
-Default Make Environment Profile=0
+Default Make Environment Profile=
 Number Of Jobs=2

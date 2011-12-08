@@ -48,6 +48,7 @@ class FXLIB_API FXConLog : LogBase(FXConLog), public Debug::LogEngine, public In
 	void SetExtended (FILE* stream, ConsoleExtendedData data);
 	void SetPosition (FILE* stream, unsigned short column, unsigned short row = 0);
 	void ResetExtended (FILE* stream);
+	void ClearLine (FILE* stream);
 
 	FILE* OpenFile (const char* filename);
 	void CloseFile (FILE* descriptor);
