@@ -2,7 +2,7 @@
 #define _INTERFACES_H
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Interfaces.h
 // Author		intelfx
 // Description	Interface declarations.

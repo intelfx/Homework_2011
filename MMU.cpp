@@ -67,7 +67,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSELIB, "Reading stack image (%p : %lu) -> global",
+		msg (E_INFO, E_VERBOSE, "Reading stack image (%p : %lu) -> global",
 			 image, size);
 
 		main_stack.clear();
@@ -87,7 +87,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSELIB, "Reading data image (%p : %lu) -> ctx %lu",
+		msg (E_INFO, E_VERBOSE, "Reading data image (%p : %lu) -> ctx %lu",
 			 image, size, context.buffer);
 
 		std::vector<calc_t>& data_dest = CurrentBuffer().data;
@@ -109,7 +109,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSELIB, "Attaching symbol map (%p) -> ctx %lu",
+		msg (E_INFO, E_VERBOSE, "Attaching symbol map (%p) -> ctx %lu",
 			 image, context.buffer);
 
 		symbol_map& dest = CurrentBuffer().sym_table;
@@ -121,7 +121,7 @@ namespace ProcessorImplementation
 
 		else
 		{
-			msg (E_WARNING, E_DEBUGAPP, "Not attaching empty or NULL symbol map");
+			msg (E_WARNING, E_DEBUG, "Not attaching empty or NULL symbol map");
 			dest.clear();
 		}
 	}
@@ -130,7 +130,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSELIB, "Reading text image (%p : %lu) -> ctx %lu",
+		msg (E_INFO, E_VERBOSE, "Reading text image (%p : %lu) -> ctx %lu",
 			 image, size, context.buffer);
 
 		std::vector<DecodedCommand>& text_dest = CurrentBuffer().commands;
@@ -152,7 +152,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSELIB, "Resetting images in context %lu", ctx_id);
+		msg (E_INFO, E_VERBOSE, "Resetting images in context %lu", ctx_id);
 
 		__assert (ctx_id < buffers.Capacity(), "Invalid given buffer ID [%lu]: max %lu");
 		InternalContextBuffer& buffer_dest = buffers[ctx_id];
@@ -183,7 +183,7 @@ namespace ProcessorImplementation
 
 		verify_method;
 
-		msg (E_INFO, E_DEBUGAPP, "Saving execution context");
+		msg (E_INFO, E_DEBUG, "Saving execution context");
 		DumpContext (context);
 
 		// Update current context
@@ -208,7 +208,7 @@ namespace ProcessorImplementation
 		verify_method;
 
 		ClearContext();
-		msg (E_INFO, E_DEBUGAPP, "Switched to next context buffer [%lu]", context.buffer);
+		msg (E_INFO, E_DEBUG, "Switched to next context buffer [%lu]", context.buffer);
 	}
 
 	void MMU::AllocContextBuffer()
@@ -225,7 +225,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUGAPP, "Restoring execution context");
+		msg (E_INFO, E_DEBUG, "Restoring execution context");
 
 		context = context_stack.back();
 		context_stack.pop_back();
@@ -236,7 +236,7 @@ namespace ProcessorImplementation
 	{
 		// See NextContextBuffer() for info on why don't we call verify_method
 
-		msg (E_INFO, E_DEBUGAPP, "Ctx [%ld]: IP [%lu] FL [%lu] STACK [T %lu F %lu] DEPTH [%lu]",
+		msg (E_INFO, E_DEBUG, "Ctx [%ld]: IP [%lu] FL [%lu] STACK [T %lu F %lu] DEPTH [%lu]",
 			 w_context.buffer, w_context.ip, w_context.flags, main_stack.size(),
 			 w_context.frame, w_context.depth);
 
@@ -244,7 +244,7 @@ namespace ProcessorImplementation
 		if (w_context.buffer < buffers.Capacity())
 		{
 			calc_t* registers = CurrentBuffer().registers;
-			msg (E_INFO, E_DEBUGAPP, "Reg: A [%lg] B [%lg] C [%lg] D [%lg] E [%lg] F [%lg]",
+			msg (E_INFO, E_DEBUG, "Reg: A [%lg] B [%lg] C [%lg] D [%lg] E [%lg] F [%lg]",
 			     registers[R_A],
 			     registers[R_B],
 			     registers[R_C],
@@ -254,7 +254,7 @@ namespace ProcessorImplementation
 		}
 
 		else
-			msg (E_INFO, E_DEBUGAPP, "Reg: N/A");
+			msg (E_INFO, E_DEBUG, "Reg: N/A");
 
 	}
 

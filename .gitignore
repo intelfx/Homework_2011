@@ -1,0 +1,7 @@
+__bin
+.kdev4
+*.kate-swp
+*.o
+*.gch
+*~
+.sync_Libs.sh

@@ -2,7 +2,7 @@
 #define _MMU_H
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			MMU.h
 // Author		intelfx
 // Description	Memory management unit.

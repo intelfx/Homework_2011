@@ -2,7 +2,7 @@
 #define _LINKER_H
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Linker.h
 // Author		intelfx
 // Description	Linker.

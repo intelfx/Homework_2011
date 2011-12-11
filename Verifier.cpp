@@ -2,7 +2,7 @@
 #include "Verifier.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Verifier.cpp
 // Author		intelfx
 // Description	Verifier and allocator classes for containers.

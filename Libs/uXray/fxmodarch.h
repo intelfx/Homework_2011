@@ -58,7 +58,7 @@ public:
 	class Plugin : LogBase(PluginSystem_Plugin)
 	{
 		PluginEngine*	engine_; /* Engine used to create the plugin object */
-		const char*		filename_; /* Not always filename, maybe soname or similar */
+		char*			filename_; /* Not always filename, maybe soname or similar */
 		void*			handle_;
 		bool			is_primary_; /* Set to 1 if this object loaded its library, 0 if reopened */
 
@@ -126,6 +126,8 @@ public:
 	void RemovePlugin (const char* filename); // Unload a library
 	void RemovePlugin (Plugin* handle); // Unload a library (by handle)
 
+	void ClearPlugins();
+
 	void* LookupSequential (const char* symbol); /* Lookup in all registered libraries */
 	void* LookupGlobal (const char* symbol); /* Lookup in global space (implementation-defined!) */
 
@@ -145,7 +147,7 @@ T* PluginSystem::AttemptInitPlugin (PluginSystem::Plugin* handle, const char* in
 	void* symbol = handle ->Lookup (init_func);
 	if (!symbol)
 	{
-		msg (E_WARNING, E_DEBUGLIB, "API init attempt: Unsupported API: \"%s\"", init_func);
+		msg (E_WARNING, E_DEBUG, "API init attempt: Unsupported API: \"%s\"", init_func);
 		return 0;
 	}
 

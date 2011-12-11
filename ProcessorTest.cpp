@@ -26,7 +26,7 @@ void Interactive (OLD_Processor& proc)
 
 int main (int argc, char** argv)
 {
-	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING & ~MASK (Debug::E_DEBUGLIB)),
+	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING & ~MASK (Debug::E_DEBUG)),
 												   &FXConLog::Instance());
 
 	srand (time (0));

@@ -2,7 +2,7 @@
 #include "Interfaces.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Interfaces.cpp
 // Author		intelfx
 // Description	Interfaces supplementary function implementation.

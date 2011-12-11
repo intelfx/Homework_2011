@@ -2,7 +2,7 @@
 #include "Linker.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Linker.cpp
 // Author		intelfx
 // Description	Linker.
@@ -14,7 +14,7 @@ namespace ProcessorImplementation
 
 	void UATLinker::LinkSymbols (DecodedSet& input)
 	{
-		msg (E_INFO, E_DEBUGAPP, "Linking symbols [%lu]", input.symbols.size());
+		msg (E_INFO, E_DEBUG, "Linking symbols [%lu]", input.symbols.size());
 
 		for (symbol_map::value_type& hsymbol: input.symbols)
 		{
@@ -30,7 +30,7 @@ namespace ProcessorImplementation
 			{
 				if (linked_desc.ref.is_symbol)
 				{
-					msg (E_INFO, E_DEBUGAPP, "Definition of alias \"%s\": aliasing %p",
+					msg (E_INFO, E_DEBUG, "Definition of alias \"%s\": aliasing %p",
 						 name.c_str(), linked_desc.ref.symbol_hash);
 
 					__assert (input.symbols.count (linked_desc.ref.symbol_hash),
@@ -39,7 +39,7 @@ namespace ProcessorImplementation
 
 				else if (linked_desc.ref.direct.address != symbol_auto_placement_addr)
 				{
-					msg (E_INFO, E_DEBUGAPP, "Definition of symbol \"%s\": not linking address %s:%ld",
+					msg (E_INFO, E_DEBUG, "Definition of symbol \"%s\": not linking address %s:%ld",
 						 name.c_str(), Dbg_AddrType (linked_desc.ref.direct.type),
 						 linked_desc.ref.direct.address);
 				}
@@ -47,29 +47,29 @@ namespace ProcessorImplementation
 				else switch (linked_desc.ref.direct.type)
 				{
 					case S_CODE:
-						msg (E_INFO, E_DEBUGAPP, "Definition of TEXT label \"%s\": assigning address %ld",
+						msg (E_INFO, E_DEBUG, "Definition of TEXT label \"%s\": assigning address %ld",
 							 name.c_str(), caddress);
 						linked_desc.ref.direct.address = caddress;
 						break;
 
 					case S_DATA:
-						msg (E_INFO, E_DEBUGAPP, "Definition of DATA label \"%s\": assigning address %ld",
+						msg (E_INFO, E_DEBUG, "Definition of DATA label \"%s\": assigning address %ld",
 							 name.c_str(), daddress);
 						linked_desc.ref.direct.address = daddress;
 						break;
 
 					case S_REGISTER:
-						msg (E_INFO, E_DEBUGAPP, "Definition of register alias \"%s\": aliasing \"%s\"",
+						msg (E_INFO, E_DEBUG, "Definition of register alias \"%s\": aliasing \"%s\"",
 							 name.c_str(), proc_ ->EncodeRegister (static_cast<Register> (linked_desc.ref.direct.address)));
 						break;
 
 					case S_FRAME:
-						msg (E_INFO, E_DEBUGAPP, "Definition of stack frame alias \"%s\": aliasing local address %ld",
+						msg (E_INFO, E_DEBUG, "Definition of stack frame alias \"%s\": aliasing local address %ld",
 							 name.c_str(), linked_desc.ref.direct.address);
 						break;
 
 					case S_FRAME_BACK:
-						msg (E_INFO, E_DEBUGAPP, "Definition of parameter alias \"%s\": aliasing parameter #%ld",
+						msg (E_INFO, E_DEBUG, "Definition of parameter alias \"%s\": aliasing parameter #%ld",
 							 name.c_str(), linked_desc.ref.direct.address);
 						break;
 
@@ -91,7 +91,7 @@ namespace ProcessorImplementation
 
 			else
 			{
-				msg (E_INFO, E_DEBUGAPP, "Usage of symbol \"%s\"", name.c_str());
+				msg (E_INFO, E_DEBUG, "Usage of symbol \"%s\"", name.c_str());
 			}
 
 			// Add symbol if it does not exist at all.
@@ -99,7 +99,7 @@ namespace ProcessorImplementation
 				temporary_map.insert (hsymbol);
 		}
 
-		msg (E_INFO, E_DEBUGAPP, "Link completed");
+		msg (E_INFO, E_DEBUG, "Link completed");
 	}
 
 	Reference::Direct& UATLinker::Resolve (Reference& reference)
@@ -121,16 +121,16 @@ namespace ProcessorImplementation
 
 	void UATLinker::InitLinkSession()
 	{
-		msg (E_INFO, E_VERBOSELIB, "Initializing linker");
+		msg (E_INFO, E_VERBOSE, "Initializing linker");
 		temporary_map.clear();
 	}
 
 	void UATLinker::Finalize()
 	{
-		msg (E_INFO, E_VERBOSELIB, "Finishing linkage");
-		msg (E_INFO, E_VERBOSELIB, "Image size - %lu symbols", temporary_map.size());
+		msg (E_INFO, E_VERBOSE, "Finishing linkage");
+		msg (E_INFO, E_VERBOSE, "Image size - %lu symbols", temporary_map.size());
 
-		msg (E_INFO, E_DEBUGAPP, "Checking image completeness");
+		msg (E_INFO, E_DEBUG, "Checking image completeness");
 		for (symbol_map::value_type& sym_iter: temporary_map)
 		{
 			symbol_type* current_sym = &sym_iter.second;
@@ -151,14 +151,14 @@ namespace ProcessorImplementation
 				          "Linker error: Unresolved symbol [%p] \"%s\"",
 				          current_sym ->second.hash, current_sym ->first.c_str());
 
-				msg (E_INFO, E_DEBUGLIB, "Symbol [%p] \"%s\": %s",
+				msg (E_INFO, E_DEBUG, "Symbol [%p] \"%s\": %s",
 					 sym.hash, current_sym ->first.c_str(),
 				     sym.ref.is_symbol ? "alias" : "direct reference");
 
 
 				if (sym.ref.is_symbol)
 				{
-					msg (E_INFO, E_DEBUGLIB, "...aliasing [%p]", sym.ref.symbol_hash);
+					msg (E_INFO, E_DEBUG, "...aliasing [%p]", sym.ref.symbol_hash);
 					symbol_map::iterator target_iter = temporary_map.find (sym.ref.symbol_hash);
 
 					__assert (target_iter != temporary_map.end(),
@@ -180,31 +180,31 @@ namespace ProcessorImplementation
 					switch (dref.type)
 					{
 						case S_CODE:
-							msg (E_INFO, E_DEBUGLIB, "Reference to TEXT segment [%lu]", dref.address);
+							msg (E_INFO, E_DEBUG, "Reference to TEXT segment [%lu]", dref.address);
 							__verify (dref.address < proc_ ->MMU() ->GetTextSize(),
 									  "Reference points beyond TEXT end (%lu)",
 									  proc_ ->MMU() ->GetTextSize());
 							break;
 
 						case S_DATA:
-							msg (E_INFO, E_DEBUGLIB, "Reference to DATA segment [%lu]", dref.address);
+							msg (E_INFO, E_DEBUG, "Reference to DATA segment [%lu]", dref.address);
 							__verify (dref.address < proc_ ->MMU() ->GetDataSize(),
 									  "Reference points beyond DATA end (%lu)",
 									  proc_ ->MMU() ->GetDataSize());
 							break;
 
 						case S_REGISTER:
-							msg (E_INFO, E_DEBUGLIB, "Reference of register [%d] \"%s\"",
+							msg (E_INFO, E_DEBUG, "Reference of register [%d] \"%s\"",
 								 dref.address, proc_ ->EncodeRegister (static_cast<Register> (dref.address)));
 							break;
 
 						case S_FRAME:
-							msg (E_INFO, E_DEBUGLIB, "Reference of stack frame with offset %ld",
+							msg (E_INFO, E_DEBUG, "Reference of stack frame with offset %ld",
 								 dref.address);
 							break;
 
 						case S_FRAME_BACK:
-							msg (E_INFO, E_DEBUGLIB, "Reference of function parameter #%ld",
+							msg (E_INFO, E_DEBUG, "Reference of function parameter #%ld",
 								 dref.address);
 							break;
 
@@ -222,7 +222,7 @@ namespace ProcessorImplementation
 			} // for (while is symbol alias)
 		} // for (temporary_map)
 
-		msg (E_INFO, E_DEBUGLIB, "Writing temporary map");
+		msg (E_INFO, E_DEBUG, "Writing temporary map");
 		proc_ ->MMU() ->ReadSyms (&temporary_map);
 		temporary_map.clear(); // Well, MMU should move-assign our map, but who knows...
 	}

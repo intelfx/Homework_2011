@@ -6,16 +6,7 @@
 #include "debugmacros.h"
 
 /*
- * WARNING
- * Very nontrivial nuance on using BaseClass or anything related in the debug system:
- * Make sure your classes that derive from BaseClass<> (uses LogBase) have
- * EXPLICIT visibility-default (non-inline and attributes set) ctor/dtor!
- *
- * The DeclareDescriptor/ImplementDescriptor macros does not have their own access specifiers
- * (like FXLIB_API) because they can be used in whatever library and from whatever library.
- * And it seems that generated BaseClass fields "inherit" their visibility from descendant.
- *
- * TODO verify everything on MSVC, since we've probably gone into "unspecified behavior".
+ * Per rectum ad astra.
  */
 
 // -----------------------------------------------------------------------------
@@ -119,6 +110,27 @@ namespace Init
 // ---- The mainline debugging system
 // -----------------------------------------------------------------------------
 
+/*
+ * WARNING
+ * Very nontrivial nuance on using BaseClass or anything related in the debug system:
+ * Make sure your classes that derive from BaseClass<> (uses LogBase) have
+ * EXPLICIT visibility-default (non-inline and attributes set) ctor/dtor!
+ *
+ * The DeclareDescriptor/ImplementDescriptor macros does not have their own access specifiers
+ * (like FXLIB_API) because they can be used in whatever library and from whatever library.
+ * And it seems that generated BaseClass fields "inherit" their visibility from descendant.
+ *
+ * TODO verify everything on MSVC, since we've probably gone into "unspecified behavior".
+ */
+
+namespace Debug
+{
+	struct ObjectDescriptor_;
+}
+
+FXLIB_API extern const Debug::ObjectDescriptor_* _specific_dbg_info;
+
+
 namespace Debug
 {
 	// ---------------------------------------
@@ -145,9 +157,7 @@ namespace Debug
 	{
 		E_USER = 1,		// User-readable and critical messages.
 		E_VERBOSE,		// Verbose user-readable messages.
-		E_VERBOSELIB,	// Verbose backend messages.
-		E_DEBUGAPP,	 	// Debugging messages from the application.
-		E_DEBUGLIB		// Debugging messages from the library.
+		E_DEBUG		 	// Debugging messages.
 	};
 
 	// Specifies this object's type for the logger to select right log targets and verbosity levels.
@@ -170,6 +180,12 @@ namespace Debug
 		OS_MOVED, // Object is moved and must not provide logs anymore
 		OS_BAD, // Verification failed
 		OS_OK // Verification passed
+	};
+
+	enum ObjectFlags_
+	{
+		OF_FATALVERIFY = 1, // Whether we need to __assert() verification result
+		OF_USEVERIFY = 2 // Whether to call Verify_() at all
 	};
 
 
@@ -221,6 +237,17 @@ namespace Debug
 		// but we need them on non-dynamic logging (when no object is available)
 		const char* object_name;
 		ModuleType_ object_type;
+
+		/*
+		 * "mutable" is required here not so inevitably as in ObjectParameters_,
+		 * but this seems to be the most fine way to place an all-modifiable parameter
+		 * in otherwise fully constant descriptor structure.
+		 */
+
+		mutable EventLevelIndex_ maximum_accepted_level; /* everything higher is discarded - filters too verbose messages */
+		mutable EventTypeIndex_ minimum_accepted_type; /* everything lower is discarded - filters non-critical messages */
+		mutable size_t type_flags;
+
 	};
 	typedef const ObjectDescriptor_& ObjectDescriptor;
 
@@ -230,13 +257,14 @@ namespace Debug
 		const ObjectDescriptor_* object_descriptor;
 
 		/*
-		 * "mutable" is required here since error indicator/string
+		 * "mutable" is required here since error indicator data
 		 * must be semantically available RW even on constant objects.
 		 */
 
 		mutable ObjectState_ object_status;
 		mutable char* error_string;
 
+		size_t flags;
 		bool is_emergency_mode;
 	};
 	typedef const ObjectParameters_& ObjectParameters;
@@ -269,6 +297,81 @@ namespace Debug
 	};
 	typedef const DumpEntity_& DumpEntity;
 
+
+	// ---------------------------------------
+	// C-style functions
+	// ---------------------------------------
+
+	inline TargetDescriptor_ CreateTarget (const char* name, mask_t typemask, mask_t levelmask)
+	{
+		TargetDescriptor_ target = {name, 0, 0, typemask, levelmask};
+		return target;
+	}
+
+	inline bool TargetAcceptsEvent (EventDescriptor event, TargetDescriptor target)
+	{
+		return (MASK (event.event_type) & target.target_typemask) &&
+			   (MASK (event.event_level) & target.target_levelmask);
+	}
+
+	inline bool CheckDynamicVerbosity (ObjectDescriptor object, EventDescriptor event)
+	{
+		return (event.event_level <= object.maximum_accepted_level) &&
+			   (event.event_type >= object.minimum_accepted_type);
+	}
+
+	inline bool TargetIsOK (const TargetDescriptor_* target)
+	{
+		return target && (target ->target_descriptor && target ->target_engine);
+	}
+
+	inline SourceDescriptor_ CreatePlace (const char* filename, const char* function, unsigned line)
+	{
+		SourceDescriptor_ place = {filename, function, line};
+		return place;
+	}
+
+	inline ObjectDescriptor_ CreateObject (const char* name, Debug::ModuleType_ type,
+										   const std::type_info* info)
+	{
+		ObjectDescriptor_ object = {info ? info ->hash_code() : 0, name, type,
+									/* these parameters aren't going to be used in real objects
+									 * see _SetStaticDbgInfo()
+									 *
+									 * Expl.: until at least one object is created,
+									 * static ObjectDescriptor_ in BaseClass<T> will be initialized by global one
+									 * and will be possibly altered by type-wide API functions.
+									 *
+									 * On first object creation, name, type and ID are copied from this descriptor
+									 * to static one in BaseClass<T>.
+									 */
+									E_DEBUG, E_INFO, EVERYTHING
+								   };
+		return object;
+	}
+
+	inline ObjectDescriptor_ CreateGlobalObject()
+	{
+		ObjectDescriptor_ global_object = {GLOBAL_OID, "global scope", MOD_APPMODULE,
+										   /* these parameters will be inherited by every object */
+										   E_DEBUG, E_INFO, MASK (OF_FATALVERIFY) | MASK (OF_USEVERIFY)
+										  };
+		return global_object;
+	}
+
+	inline ObjectParameters_ CreateParameters (_InsideBase*, const ObjectDescriptor_* descriptor)
+	{
+		// descriptor (passed), initial status (OK), error string (NULL), errors are fatal (1), is emergency mode (0)
+		ObjectParameters_ parameters = {descriptor, OS_OK, 0, descriptor ? descriptor ->type_flags : 0, 0};
+		return parameters;
+	}
+
+	inline ObjectParameters_ CreateEmergencyObject (ObjectParameters object)
+	{
+		ObjectParameters_ emergency_object = object;
+		emergency_object.is_emergency_mode = 1;
+		return emergency_object;
+	}
 
 	// ---------------------------------------
 	// Classes
@@ -313,6 +416,8 @@ namespace Debug
 		// error or inconsistency.
 		virtual bool _Verify() const = 0;
 
+		inline void _VerifyAndSetState (SourceDescriptor place) const; // defined after everything
+
 	protected:
 		// Should return the ctor logging fmt string.
 		// Redefine if you want to say something specific for your module.
@@ -333,42 +438,35 @@ namespace Debug
 		// first fed descriptor is saved, others discarded.
 		void _SetDynamicDbgInfo (const ObjectDescriptor_* info);
 
-		inline void _VerifyAndSetState() const
-		{
-#ifndef NDEBUG
-			// eliminate successive _Verify() calls in case of bad object to reduce log clutter
-			if (dbg_params_.object_status != OS_BAD)
-			{
-				// eliminate recursive _Verify() calls from log statements in _Verify() itself
-				dbg_params_.object_status = OS_BAD;
-
-				if (this ->_Verify())
-					dbg_params_.object_status = OS_OK;
-			}
-#else
-			dbg_params_.object_status = OS_UNCHECKED;
-#endif
-		}
-
 	public:
-		_InsideBase();
+		_InsideBase(); // defined after everything in "fxassert.h"
 		virtual ~_InsideBase();
 
-		// Public, because anybody must have access to read object state.
-		// Performs auto-verification of object state.
-		inline ObjectParameters _GetDynamicDbgInfo() const
+		// Checks object for errors and returns its actual state.
+		inline ObjectParameters _GetDynamicDbgInfo (SourceDescriptor place) const
 		{
-			_VerifyAndSetState();
+			_VerifyAndSetState (place);
 			return dbg_params_;
 		}
 
-		inline const char* GetError() const
+		// Returns whether object state is BAD.
+		inline bool CheckObject (SourceDescriptor place) const
 		{
-			_VerifyAndSetState();
-			return dbg_params_.error_string;
+			_VerifyAndSetState (place);
+
+			return ! ( (dbg_params_.object_status == OS_BAD) &&
+					   (dbg_params_.flags & MASK (OF_FATALVERIFY)));
 		}
 
-		inline bool CheckObject() const; // defined after everything
+		// Returns whether object state is BAD.
+		inline bool CheckObject() const
+		{
+			static const SourceDescriptor_ stat_desc = THIS_PLACE;
+			return CheckObject (stat_desc);
+		}
+
+		inline void _SetFlag (ObjectFlags_ flag) { dbg_params_.flags |=  MASK (flag); }
+		inline void _ClrFlag (ObjectFlags_ flag) { dbg_params_.flags &= ~MASK (flag); }
 	};
 
 	class FXLIB_API _InsideBase_DefaultVerify : public _InsideBase
@@ -377,43 +475,49 @@ namespace Debug
 		virtual bool _Verify() const { return 1; }
 	};
 
-	// The helper base class which holds various information about the object
-	// and helps to log creation/destruction.
 	// We need InfoHolderType to be a functor returning "const ObjectDescriptor_*".
 	template <typename InfoHolderType>
 	class BaseClass : virtual public _InsideBase_DefaultVerify
 	{
+		static ObjectDescriptor_ type_dbginfo;
+
+	public:
+		static const ObjectDescriptor_* const _specific_dbg_info; /* API pointer */
+
+		static void _SetStaticDbgInfo()
+		{
+			// Initialize the static data if it hasn't been done already (once per type).
+			if (type_dbginfo.object_id == GLOBAL_OID)
+			{
+				const ObjectDescriptor_* canonical_dbginfo = InfoHolderType() ();
+
+				type_dbginfo.object_id = canonical_dbginfo ->object_id;
+				type_dbginfo.object_name = canonical_dbginfo ->object_name;
+				type_dbginfo.object_type = canonical_dbginfo ->object_type;
+
+				/*
+				 * We do not assign type flags and debug settings since they may
+				 * have been altered by static type-wide functions in Debug::API
+				 */
+			}
+		}
+
 	protected:
-		// For static assertion and logging
-		static const ObjectDescriptor_* _specific_dbg_info;
 
 		// Constructor used to signal object move
 		BaseClass (const _InsideBase* src)
 		{
-			// Do not initialize the static pointer since we already have at least one
-			// object of this type (the move source).
-
 			_MoveDynamicDbgInfo (src);
 		}
 
 		BaseClass()
 		{
-			// Initialize the static pointer if it hasn't been done already
-			// (once per every type)
-			if (!_specific_dbg_info)
-				_specific_dbg_info = InfoHolderType() ();
-
+			_SetStaticDbgInfo();
 			_SetDynamicDbgInfo (_specific_dbg_info);
 		}
 
 		virtual ~BaseClass();
 	};
-
-	template <typename InfoHolderType>
-	const ObjectDescriptor_* BaseClass<InfoHolderType>::_specific_dbg_info = 0;
-
-	template <typename InfoHolderType>
-	BaseClass<InfoHolderType>::~BaseClass() = default;
 
 	// ---------------------------------------
 	// The mess ends here
@@ -495,25 +599,11 @@ namespace Debug
 		void CloseTargets(); // Removes all targets and puts system into uninitialized state
 	};
 
-	// ---------------------------------------
-	// C-style functions
-	// ---------------------------------------
 
-	inline TargetDescriptor_ CreateTarget (const char* name, mask_t typemask, mask_t levelmask)
+	inline void WriteOutAtom (LogAtom atom, bool emergency_mode)
 	{
-		TargetDescriptor_ target = {name, 0, 0, typemask, levelmask};
-		return target;
-	}
-
-	inline bool TargetAcceptsEvent (EventDescriptor event, TargetDescriptor target)
-	{
-		return (MASK (event.event_type) & target.target_typemask) &&
-			   (MASK (event.event_level) & target.target_levelmask);
-	}
-
-	inline bool TargetIsOK (const TargetDescriptor_* target)
-	{
-		return target && (target ->target_descriptor && target ->target_engine);
+		if (emergency_mode)	atom.target.target_engine ->WriteLogEmergency (atom);
+		else				atom.target.target_engine ->WriteLog (atom);
 	}
 
 	inline void CloseTarget (TargetDescriptor_* target)
@@ -523,74 +613,71 @@ namespace Debug
 		target ->target_descriptor = 0;
 	}
 
-	inline SourceDescriptor_ CreatePlace (const char* filename, const char* function, unsigned line)
+	namespace API
 	{
-		SourceDescriptor_ place = {filename, function, line};
-		return place;
-	}
+		template <typename T>
+		inline const char* GetClassName (const T* object)
+		{
+			if (!object)
+				return "NULL pointer";
 
-	inline ObjectDescriptor_ CreateObject (const char* name, Debug::ModuleType_ type,
-										   const std::type_info* info)
-	{
-		ObjectDescriptor_ object = {info ? info ->hash_code() : 0, name, type};
-		return object;
-	}
+			if (const _InsideBase* baseptr = dynamic_cast<const _InsideBase*> (object))
+				return baseptr ->_GetDynamicDbgInfo (THIS_PLACE).object_descriptor ->object_name;
 
-	inline ObjectParameters_ CreateEmergencyObject (ObjectParameters object)
-	{
-		ObjectParameters_ emergency_object = object;
-		emergency_object.is_emergency_mode = 1;
-		return emergency_object;
-	}
+			return typeid (*object).name();
+		}
 
-	inline ObjectDescriptor_ CreateGlobalObject()
-	{
-		ObjectDescriptor_ global_object = {GLOBAL_OID, "global scope", MOD_APPMODULE};
-		return global_object;
-	}
+		inline void SetObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_SetFlag (flag); }
+		inline void ClrObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_ClrFlag (flag); }
 
-	inline ObjectParameters_ CreateParameters (_InsideBase*, const ObjectDescriptor_* descriptor)
-	{
-		ObjectParameters_ parameters = {descriptor, OS_OK, 0, 0};
-		return parameters;
-	}
+		template <typename T>
+		inline void SetStaticTypeFlag (ObjectFlags_ flag) { T::_specific_dbg_info ->type_flags |=  MASK(flag); }
+		template <typename T>
+		inline void ClrStaticTypeFlag (ObjectFlags_ flag) { T::_specific_dbg_info ->type_flags &= ~MASK(flag); }
 
-	inline void WriteOutAtom (LogAtom atom, bool emergency_mode)
-	{
-		if (emergency_mode)
-			atom.target.target_engine ->WriteLogEmergency (atom);
+		template <typename T>
+		inline void SetStaticTypeVerbosity (EventLevelIndex_ max)
+		{
+			T::_specific_dbg_info ->maximum_accepted_level = max;
+		}
 
-		else
-			atom.target.target_engine ->WriteLog (atom);
-	}
+		template <typename T>
+		inline void SetStaticTypeEvtFilter (EventTypeIndex_ min)
+		{
+			T::_specific_dbg_info ->minimum_accepted_type = min;
+		}
 
-	template <typename T>
-	inline const char* GetClassName (const T* object)
-	{
-		if (!object)
-			return "NULL pointer";
+		template<>
+		inline void SetStaticTypeVerbosity<void> (EventLevelIndex_ max)
+		{
+			::_specific_dbg_info ->maximum_accepted_level = max;
+		}
 
-		if (const _InsideBase* baseptr = dynamic_cast<const _InsideBase*> (object))
-			return baseptr ->_GetDynamicDbgInfo().object_descriptor ->object_name;
-
-		return typeid (*object).name();
+		template<>
+		inline void SetStaticTypeEvtFilter<void> (EventTypeIndex_ min)
+		{
+			::_specific_dbg_info ->minimum_accepted_type = min;
+		}
 	}
 
 	// ---------------------------------------
 	// BaseClass<_information> implementation
 	// ---------------------------------------
 
+	template <typename InfoHolderType>
+	ObjectDescriptor_ BaseClass<InfoHolderType>::type_dbginfo = CreateGlobalObject();
+
+	template <typename InfoHolderType>
+	const ObjectDescriptor_* const BaseClass<InfoHolderType>::_specific_dbg_info = &type_dbginfo;
+
+	template <typename InfoHolderType>
+	BaseClass<InfoHolderType>::~BaseClass() = default;
+
 } // namespace Debug
 
 using Debug::ModuleType_;
 using Debug::EventTypeIndex_;
 using Debug::EventLevelIndex_;
-
-// -----------------------------------------------------------------------------
-// ---- Global debug descriptor
-// -----------------------------------------------------------------------------
-// FXLIB_API extern const Debug::ObjectDescriptor_* _dbg_info;
-FXLIB_API extern const Debug::ObjectDescriptor_* _specific_dbg_info;
 
 // -----------------------------------------------------------------------------
 // ---- Wrappers
@@ -621,23 +708,23 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 // __assert is for verifying system-dependent conditions (as pointers),
 // __verify is for checking user-dependent conditions (as input file names and expressions).
 
-#define __silent(sta, code) ((sta) || dosilentthrow (_GetDynamicDbgInfo(), THIS_PLACE))
-#define __ssilent(sta, code) ((sta) || dosilentthrow (Debug::CreateParameters (0, _specific_dbg_info, THIS_PLACE))
+#define __silent(sta, code) ((sta) || dosilentthrow (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE))
+#define __ssilent(sta, code) ((sta) || dosilentthrow (Debug::CreateParameters (0, _specific_dbg_info))
 
 #define __sassert(sta, fmt...) ((sta) || dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_BUG, #sta, fmt))
 #define __sverify(sta, fmt...) ((sta) || dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, #sta, fmt))
 #define __sasshole(fmt...)				dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_BUG, "code flow", fmt)
 
-#define __assert(sta, fmt...) ((sta) || dothrow (_GetDynamicDbgInfo(), THIS_PLACE, Debug::EX_BUG, #sta, fmt))
-#define __verify(sta, fmt...) ((sta) || dothrow (_GetDynamicDbgInfo(), THIS_PLACE, Debug::EX_INPUT, #sta, fmt))
-#define __asshole(fmt...)				dothrow (_GetDynamicDbgInfo(), THIS_PLACE, Debug::EX_BUG, "code flow", fmt)
+#define __assert(sta, fmt...) ((sta) || dothrow (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE, Debug::EX_BUG, #sta, fmt))
+#define __verify(sta, fmt...) ((sta) || dothrow (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE, Debug::EX_INPUT, #sta, fmt))
+#define __asshole(fmt...)				dothrow (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE, Debug::EX_BUG, "code flow", fmt)
 
 #define smsg(type, level, ...) call_log (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__)
-#define msg(type, level, ...) call_log (_GetDynamicDbgInfo(), THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__)
+#define msg(type, level, ...) call_log (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__)
 
-#define verify_statement(sta, fmt...) if (!(sta)) { seterror (_GetDynamicDbgInfo(), fmt); return 0; }
-#define verify_method { __verify (CheckObject(), "Object verification failed."); }
-#define verify_foreign(x) { __verify ((x).CheckObject(), "Object verification failed."); }
+#define verify_statement(sta, fmt...) if (!(sta)) { seterror (_GetDynamicDbgInfo (THIS_PLACE), fmt); return 0; }
+#define verify_method __verify (CheckObject (THIS_PLACE), "In-method object verification failed")
+#define verify_foreign(x) __verify ((x).CheckObject(), "External object verification failed")
 
 #define sverify_statement(sta, fmt...) if (!(sta)) { smsg (E_CRITICAL, E_USER, fmt); return 0; }
 
@@ -649,14 +736,25 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 // ---- Assertions
 // -----------------------------------------------------------------------------
 
-inline bool Debug::_InsideBase::CheckObject() const
+inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor place) const
 {
-	const char* err = GetError();
+#ifndef NDEBUG
+	// eliminate successive _Verify() calls in case of bad object to reduce log clutter
+	if (dbg_params_.flags & MASK (OF_USEVERIFY) &&
+		dbg_params_.object_status != Debug::OS_BAD)
+	{
+		dbg_params_.object_status = Debug::OS_BAD; // eliminate recursive calls from verify_statement statements
 
-	if (err)
-		msg (E_CRITICAL, E_USER, "Verification error: %s", err);
+		if (this ->_Verify())
+			dbg_params_.object_status = Debug::OS_OK;
 
-	return !err;
+		else
+			call_log (dbg_params_, place, Debug::E_CRITICAL, Debug::E_USER,
+					  "Verification error: %s", dbg_params_.error_string);
+	}
+#else
+	dbg_params_.object_status = OS_UNCHECKED;
+#endif
 }
 
 #endif // _FXASSERT_H_
@@ -666,4 +764,6 @@ inline bool Debug::_InsideBase::CheckObject() const
 // -----------------------------------------------------------------------------
 #include "encap.h"
 
-// kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
+
+

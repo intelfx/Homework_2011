@@ -83,7 +83,7 @@ int main (int argc, char** argv)
 {
 	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr",
 																		EVERYTHING,
-																		EVERYTHING & ~MASK (Debug::E_DEBUGLIB)),
+																		EVERYTHING & ~MASK (Debug::E_DEBUG)),
 												   &FXConLog::Instance());
 
 	for (unsigned i = 1; i < argc; ++i)

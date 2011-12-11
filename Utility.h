@@ -5,7 +5,7 @@
 #include "Verifier.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Utility.h
 // Author		intelfx
 // Description	Utilitary structures and definitions.

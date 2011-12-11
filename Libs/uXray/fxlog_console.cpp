@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "fxlog_console.h"
 
 // -----------------------------------------------------------------------------
@@ -148,6 +148,22 @@ void FXConLog::ResetExtended (FILE* stream)
 	}
 }
 
+void FXConLog::ClearLine (FILE* stream)
+{
+	switch (extended_mode)
+	{
+		case EXT_ANSI:
+			// ECMA-48 (ANSI X.364) CSI EL sequence
+			fprintf (stream, "\033[K");
+			break;
+
+		case EXT_NONE:
+		default:
+			break;
+	}
+}
+
+
 void FXConLog::SetPosition (FILE* stream, unsigned short column, unsigned short row /* =0 */)
 {
 	switch (extended_mode)
@@ -215,12 +231,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 			msgspec = "VERBOSE\t";
 			break;
 
-		case EventLevelIndex_::E_VERBOSELIB:
-			msgspec = "BACKEND\t";
-			break;
-
-		case EventLevelIndex_::E_DEBUGAPP:
-		case EventLevelIndex_::E_DEBUGLIB:
+		case EventLevelIndex_::E_DEBUG:
 			msgspec = "DEBUG\t";
 			break;
 		}
@@ -274,9 +285,10 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	// Step 2. Write position (place)
 	// It comes in two flavors - high-level (module name) and low-level (file-function-line).
-	if ( (event.event_level == EventLevelIndex_::E_USER ||
+	if ( object.object_status != Debug::OS_BAD &&
+		 (event.event_level == EventLevelIndex_::E_USER ||
 		  event.event_level == EventLevelIndex_::E_VERBOSE ||
-	      event.event_level == EventLevelIndex_::E_VERBOSELIB ||
+	      event.event_level == EventLevelIndex_::E_VERBOSE ||
 	      event.event_type == EventTypeIndex_::E_OBJCREATION ||
 	      event.event_type == EventTypeIndex_::E_OBJDESTRUCTION) &&
 		 (event.event_type != EventTypeIndex_::E_EXCEPTION) &&
@@ -308,59 +320,60 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	// Step 3. Move to column (color is set at Step 2)
 	SetPosition (target, MSG_BASE_COLUMN);
+	ClearLine (target); // we do not limit length of file
 	fprintf (target, ":: ");
 
 	// Step 4. Write object state.
-	switch (object.object_status)
-	{
-	default:
-	case Debug::OS_UNCHECKED:
-		status_data.background = CCC_TRANSPARENT;
-		status_data.foreground = CCC_WHITE;
-		status_data.brightness = 0;
-		msgspec = "UNKNOWN\t";
-		break;
-
-	case Debug::OS_MOVED:
-		status_data.background = CCC_TRANSPARENT;
-		status_data.foreground = CCC_WHITE;
-		status_data.brightness = 0;
-		msgspec = "MOVED\t";
-		break;
-
-	case Debug::OS_OK:
-		status_data.background = CCC_TRANSPARENT;
-		status_data.foreground = CCC_GREEN;
-		status_data.brightness = 0;
-		msgspec = "OK\t";
-		break;
-
-	case Debug::OS_BAD:
-		status_data.background = CCC_TRANSPARENT;
-		status_data.foreground = CCC_RED;
-		status_data.brightness = 1;
-		msgspec = "BAD\t";
-		break;
-	}
-
 	if ((event.event_type == Debug::E_OBJCREATION))
 	{
 		status_data = data;
 		msgspec = "CREATE\t";
 	}
 
-	if ((event.event_type == Debug::E_OBJDESTRUCTION))
+	else if ((event.event_type == Debug::E_OBJDESTRUCTION))
 	{
 		status_data = data;
 		msgspec = "DELETE\t";
 	}
 
-	if (object.object_descriptor ->object_id == Debug::GLOBAL_OID)
+	else if (object.object_descriptor ->object_id == Debug::GLOBAL_OID)
 	{
 		status_data.background = CCC_TRANSPARENT;
 		status_data.foreground = CCC_WHITE;
 		status_data.brightness = 0;
 		msgspec = "GLOBAL\t";
+	}
+
+	else switch (object.object_status)
+	{
+		default:
+		case Debug::OS_UNCHECKED:
+			status_data.background = CCC_TRANSPARENT;
+			status_data.foreground = CCC_WHITE;
+			status_data.brightness = 0;
+			msgspec = "UNKNOWN\t";
+			break;
+
+		case Debug::OS_MOVED:
+			status_data.background = CCC_TRANSPARENT;
+			status_data.foreground = CCC_WHITE;
+			status_data.brightness = 0;
+			msgspec = "MOVED\t";
+			break;
+
+		case Debug::OS_OK:
+			status_data.background = CCC_TRANSPARENT;
+			status_data.foreground = CCC_GREEN;
+			status_data.brightness = 0;
+			msgspec = "OK\t";
+			break;
+
+		case Debug::OS_BAD:
+			status_data.background = CCC_TRANSPARENT;
+			status_data.foreground = CCC_RED;
+			status_data.brightness = 1;
+			msgspec = "BAD\t";
+			break;
 	}
 
 	SetExtended (target, status_data);

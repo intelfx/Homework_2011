@@ -21,4 +21,20 @@ FXLIB_API int rand (int limit, int shift = 0);
 FXLIB_API unsigned parse_char (char ch, unsigned radix);
 FXLIB_API char make_char (unsigned val);
 
+inline unsigned int rotl (const unsigned int value, int shift)
+{
+	if ( (shift &= sizeof (value) * 8 - 1) == 0)
+		return value;
+
+	return (value << shift) | (value >> (sizeof (value) * 8 - shift));
+}
+
+inline unsigned int rotr (const unsigned int value, int shift)
+{
+	if ( (shift &= sizeof (value) * 8 - 1) == 0)
+		return value;
+
+	return (value >> shift) | (value << (sizeof (value) * 8 - shift));
+}
+
 #endif // _FXMATH_H_

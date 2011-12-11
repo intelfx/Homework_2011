@@ -4,7 +4,7 @@
 #include "build.h"
 
 // -----------------------------------------------------------------------------
-// Library		Antided
+// Library		Homework
 // File			Verifier.h
 // Author		intelfx
 // Description	Verifier and allocator classes for containers.
@@ -56,7 +56,7 @@ void AllocBase<T>::Realloc (size_t capacity)
 template <typename T>
 T& AllocBase<T>::Access (size_t subscript)
 {
-	msg (E_INFO, E_DEBUGLIB, "Accessing [%d] for RW", subscript);
+	msg (E_INFO, E_DEBUG, "Accessing [%d] for RW", subscript);
 	__assert (subscript < Capacity(), "Accessing beyond the end");
 
 	return _Access (subscript);
@@ -65,7 +65,7 @@ T& AllocBase<T>::Access (size_t subscript)
 template <typename T>
 const T& AllocBase<T>::Access (size_t subscript) const
 {
-	msg (E_INFO, E_DEBUGLIB, "Accessing [%d] for R", subscript);
+	msg (E_INFO, E_DEBUG, "Accessing [%d] for R", subscript);
 	__assert (subscript < Capacity(), "Accessing beyond the end");
 
 	return _Access (subscript);
@@ -101,7 +101,7 @@ protected:
 
 	virtual void _Realloc (size_t cap)
 	{
-		msg (E_INFO, E_VERBOSELIB, "Reallocating dynamic allocator to %d", cap);
+		msg (E_INFO, E_VERBOSE, "Reallocating dynamic allocator to %d", cap);
 
 		T* old_array = array_;
 		array_ = reinterpret_cast<T*> (realloc (old_array, cap * sizeof (T)));
