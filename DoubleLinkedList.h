@@ -45,6 +45,12 @@ class DoubleLinkedList : LogBase(DoubleLinkedList), public LinkedList<T>
 			prev_[elem2] = elem1;
 	}
 
+	virtual void LLInitFields()
+	{
+		LinkedList<T>::LLInitFields();
+		last_ = -1;
+	}
+
 protected:
 	virtual bool _Verify() const
 	{
@@ -124,6 +130,9 @@ public:
 	{
 		verify_method;
 
+		msg (E_INFO, E_DEBUG, "Back insertion: count %zu capacity %zu",
+			 LinkedList<T>::count_, LinkedList<T>::capacity_);
+
 		while (LinkedList<T>::count_ >= LinkedList<T>::capacity_)
 			LinkedList<T>::Reallocate (LinkedList<T>::capacity_ * 2);
 
@@ -135,7 +144,8 @@ public:
 		LLLink (allocated, LinkedList<T>::end_marker_);
 
 		verify_method;
-		msg (E_INFO, E_DEBUG, "Back insertion || count now %zu", LinkedList<T>::count_);
+		msg (E_INFO, E_DEBUG, "Back insertion completed");
+
 		return Iterator (this, old_last);
 	}
 
@@ -144,13 +154,17 @@ public:
 		verify_method;
 		__verify (LinkedList<T>::count_, "Cannot remove from empty list");
 
+		msg (E_INFO, E_DEBUG, "Back removal: count %zu capacity %zu",
+			 LinkedList<T>::count_, LinkedList<T>::capacity_);
+
 		size_t removed = last_;
 
 		LLLink (prev_[removed], LinkedList<T>::end_marker_);
 		LinkedList<T>::LLReclaim (removed);
 
 		verify_method;
-		msg (E_INFO, E_DEBUG, "Back removal || count now %zu", LinkedList<T>::count_);
+		msg (E_INFO, E_DEBUG, "Back removal completed");
+
 		return std::move (LinkedList<T>::storage_[removed]);
 	}
 

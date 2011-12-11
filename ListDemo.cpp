@@ -56,5 +56,28 @@ int main (int, char**)
 	dl.PopFront();
 	dl.PopBack();
 
+	l.CheckObject();
+	dl.CheckObject();
+
+
+	smsg (E_INFO, E_USER, "Testing limits");
+	l.Clear();
+	dl.Clear();
+
+	for (int i = 0; i < 100; ++i)
+	{
+		l.PushFront (int(i));
+		l.PopFront();
+
+        dl.PushFront (int(i));
+        dl.PushBack (int(i));
+	}
+
+	smsg (E_INFO, E_USER, "Testing exceptions");
+
+    dl.Clear();
+    dl.PopBack();
+	l.PopFront();
+
 	Debug::System::Instance.ForceDelete();
 }

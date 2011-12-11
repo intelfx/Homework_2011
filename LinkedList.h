@@ -20,7 +20,7 @@ protected:
 	T*		storage_;
 	size_t*	next_;
 
-	size_t free_, last_free_;
+	size_t free_;
 	size_t first_;
 
 	size_t count_, capacity_;
@@ -76,6 +76,24 @@ protected:
 		--count_;
 	}
 
+	void LLResetChains (size_t first_new_element, size_t last_new_element)
+	{
+		// Initialize free chain body
+		for (unsigned i = first_new_element; i < last_new_element - 1; ++i)
+			next_[i] = i + 1;
+
+		// Link to existing free chain
+		next_[last_new_element - 1] = free_;
+		free_ = first_new_element;
+	}
+
+	virtual void LLInitFields()
+	{
+		first_	= -1;
+		free_	= -1;
+		count_	= 0;
+	}
+
 	void Reallocate (size_t new_cap)
 	{
 		verify_method;
@@ -85,24 +103,11 @@ protected:
 
 		msg (E_INFO, E_DEBUG, "Adding capacity %zu -> %zu", capacity_, new_cap);
 
-		size_t first_new_element = capacity_;
-		size_t last_new_element = new_cap - 1;
+		size_t old_cap = capacity_;
 		LLRealloc (new_cap);
+		LLResetChains (old_cap, new_cap);
 
-		// Initialize free chain body
-		for (unsigned i = first_new_element; i < last_new_element; ++i)
-			next_[i] = i + 1;
-
-		// Link to existing free chain (if any)
-		if (free_ == end_marker_)
-			free_ = first_new_element; /* new chain */
-
-		else
-			next_[last_free_] = first_new_element; /* existing chain */
-
-		// Terminate free chain
-		last_free_ = last_new_element;
-		next_[last_free_] = -1;
+		msg (E_INFO, E_DEBUG, "Reallocation completed");
 
 		verify_method;
 	}
@@ -110,7 +115,7 @@ protected:
 protected:
 	virtual bool _Verify() const
 	{
-		size_t tmp_count, index, prev;
+		size_t tmp_count, index;
 
 		verify_statement (count_ <= capacity_, "Count is greater than capacity");
 
@@ -121,7 +126,6 @@ protected:
 
 			verify_statement (!count_, "Invalid uninitialized state: count is %zu", count_);
 			verify_statement (free_ == end_marker_, "Invalid uninitialized state: free chain head is %zd", free_);
-			verify_statement (last_free_ == end_marker_, "Invalid uninitialized state: free chain tail is %zd", last_free_);
 			verify_statement (first_ == end_marker_, "Invalid uninitialized state: main chain head is %zd", first_);
 
 			return 1; // not initialized
@@ -134,7 +138,7 @@ protected:
 		for (tmp_count = 0, index = 0; index < capacity_; ++index)
 			verify_statement (next_[index] == end_marker_ ||
 							  next_[index] < capacity_,
-							  "NEXT [%zu] -> %zd points out of bounds (cap %zu)", index, next_[index], capacity_);
+							  "NEXT [%zd] -> %zd points out of bounds (cap %zu)", index, next_[index], capacity_);
 
 		/* allocated chain verification */
 		for (index = first_; index != end_marker_; index = next_[index])
@@ -144,13 +148,11 @@ protected:
 						  tmp_count, count_);
 
 		/* free chain verification */
-		for (tmp_count = 0, index = free_; index != end_marker_; prev = index, index = next_[index])
+		for (tmp_count = 0, index = free_; index != end_marker_; index = next_[index])
 			++tmp_count;
 
 		verify_statement (tmp_count == capacity_ - count_, "Chain inconsistency: free chain length %zu (accounted %zu)",
 						  tmp_count, capacity_ - count_);
-
-		verify_statement (prev == last_free_, "Chain inconsistency: free chain malformed [observed end = %zu; last_free = %zu]", prev, last_free_);
 
 		return 1;
 	}
@@ -264,8 +266,6 @@ public:
 			verify_method;
 
 			size_t idx = Index();
-
-			msg (E_INFO, E_DEBUG, "Dereferencing [%zu]", idx);
 			return parent_ ->storage_[idx];
 		}
 
@@ -274,8 +274,6 @@ public:
 			verify_method;
 
 			size_t idx = Index();
-
-			msg (E_INFO, E_DEBUG, "Const-dereferencing [%zu]", idx);
 			return parent_ ->storage_[idx];
 		}
 
@@ -294,7 +292,6 @@ public:
 	storage_ (0),
 	next_ (0),
 	free_ (-1),
-	last_free_ (-1),
 	first_ (-1),
 	count_ (0),
 	capacity_ (0)
@@ -302,9 +299,26 @@ public:
 		Reallocate (initial_capacity);
 	}
 
+	size_t Count() const
+	{
+		verify_method;
+
+		return count_;
+	}
+
+	void Clear()
+	{
+		verify_method;
+		LLInitFields();
+		LLResetChains (0, capacity_);
+		verify_method;
+	}
+
 	Iterator PushFront (T&& object)
 	{
 		verify_method;
+
+		msg (E_INFO, E_DEBUG, "Front insertion: count %zu capacity %zu", count_, capacity_);
 
 		while (count_ >= capacity_)
 			Reallocate (capacity_ * 2);
@@ -316,7 +330,8 @@ public:
 		LLLink (end_marker_, allocated);
 
 		verify_method;
-		msg (E_INFO, E_DEBUG, "Front insertion || count now %zu", count_);
+		msg (E_INFO, E_DEBUG, "Front insertion completed");
+
 		return Iterator (this, end_marker_);
 	}
 
@@ -325,19 +340,24 @@ public:
 		verify_method;
 		__verify (count_, "Cannot remove from empty list");
 
+		msg (E_INFO, E_DEBUG, "Front removal: count %zu capacity %zu", count_, capacity_);
+
 		size_t removed = first_;
 
 		LLLink (end_marker_, next_[removed]);
 		LLReclaim (removed);
 
 		verify_method;
-		msg (E_INFO, E_DEBUG, "Front removal || count now %zu", count_);
+		msg (E_INFO, E_DEBUG, "Front removal completed");
+
 		return std::move (storage_[removed]);
 	}
 
 	Iterator Insert (Iterator where, T&& object)
 	{
 		verify_method;
+
+		msg (E_INFO, E_DEBUG, "Iterator insertion: count %zu capacity %zu", count_, capacity_);
 
 		while (count_ >= capacity_)
 			Reallocate (capacity_ * 2);
@@ -349,8 +369,9 @@ public:
 		LLLink (place, allocated);
 
 		verify_method;
-		msg (E_INFO, E_DEBUG, "Insertion %zu -> [%zu] -> %zu || count now %zu",
-			 place, allocated, next_[allocated], count_);
+		msg (E_INFO, E_DEBUG, "Insertion %zu -> [%zu] -> %zu completed",
+			 place, allocated, next_[allocated]);
+
 		return Iterator (this, place);
 	}
 
@@ -361,14 +382,17 @@ public:
 		size_t index = where.Index();
 		size_t prev = where.Prev();
 
+		msg (E_INFO, E_DEBUG, "Iterator removal: count %zu capacity %zu", count_, capacity_);
+
 		__assert (next_[prev] == index, "Chain malformed");
 
 		LLLink (prev, next_[index]);
 		LLReclaim (index);
 
 		verify_method;
-		msg (E_INFO, E_DEBUG, "Removal %zu ( --> [%zu] ) --> %zu || count now %zu",
+		msg (E_INFO, E_DEBUG, "Removal %zu ( --> [%zu] ) --> %zu completed",
 			 prev, index, next_[prev]);
+
 		return Iterator (this, prev);
 	}
 
