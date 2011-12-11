@@ -131,8 +131,6 @@ int main (int argc, char** argv)
 	smsg (E_INFO, E_USER, "Stack self-tests");
 	Stack<int> stack;
 
-	Debug::API::SetTypeVerbosityByObj (&stack, Debug::E_USER);
-
 	stack.Push (a1);
 	stack.Push (a2);
 

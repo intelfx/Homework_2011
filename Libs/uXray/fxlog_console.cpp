@@ -285,7 +285,8 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	// Step 2. Write position (place)
 	// It comes in two flavors - high-level (module name) and low-level (file-function-line).
-	if ( (event.event_level == EventLevelIndex_::E_USER ||
+	if ( object.object_status != Debug::OS_BAD &&
+		 (event.event_level == EventLevelIndex_::E_USER ||
 		  event.event_level == EventLevelIndex_::E_VERBOSE ||
 	      event.event_level == EventLevelIndex_::E_VERBOSE ||
 	      event.event_type == EventTypeIndex_::E_OBJCREATION ||
