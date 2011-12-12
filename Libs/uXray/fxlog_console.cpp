@@ -252,13 +252,13 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	case EventTypeIndex_::E_OBJCREATION:
 		data.foreground = CCC_BLUE;
-		data.brightness = 1;
+		data.brightness = 0;
 		msgspec = "-- CTOR\t";
 		break;
 
 	case EventTypeIndex_::E_OBJDESTRUCTION:
 		data.foreground = CCC_RED;
-		data.brightness = 1;
+		data.brightness = 0;
 		msgspec = "-- DTOR\t";
 		break;
 

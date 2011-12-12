@@ -631,9 +631,9 @@ namespace Debug
 		inline void ClrObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_ClrFlag (flag); }
 
 		template <typename T>
-		inline void SetStaticTypeFlag (ObjectFlags_ flag) { T::_specific_dbg_info ->type_flags |=  MASK(flag); }
+		inline void SetStaticTypeFlag (ObjectFlags_ flag) { T::_specific_dbg_info ->type_flags |=  MASK (flag); }
 		template <typename T>
-		inline void ClrStaticTypeFlag (ObjectFlags_ flag) { T::_specific_dbg_info ->type_flags &= ~MASK(flag); }
+		inline void ClrStaticTypeFlag (ObjectFlags_ flag) { T::_specific_dbg_info ->type_flags &= ~MASK (flag); }
 
 		template <typename T>
 		inline void SetStaticTypeVerbosity (EventLevelIndex_ max)
@@ -735,13 +735,12 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 // -----------------------------------------------------------------------------
 // ---- Assertions
 // -----------------------------------------------------------------------------
+#ifndef NDEBUG
 
 inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor place) const
 {
-#ifndef NDEBUG
 	// eliminate successive _Verify() calls in case of bad object to reduce log clutter
-	if (dbg_params_.flags & MASK (OF_USEVERIFY) &&
-		dbg_params_.object_status != Debug::OS_BAD)
+	if ((dbg_params_.flags & MASK (OF_USEVERIFY)) && (dbg_params_.object_status != Debug::OS_BAD))
 	{
 		dbg_params_.object_status = Debug::OS_BAD; // eliminate recursive calls from verify_statement statements
 
@@ -752,10 +751,17 @@ inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor plac
 			call_log (dbg_params_, place, Debug::E_CRITICAL, Debug::E_USER,
 					  "Verification error: %s", dbg_params_.error_string);
 	}
-#else
 	dbg_params_.object_status = OS_UNCHECKED;
-#endif
 }
+
+#else
+
+inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor) const
+{
+	dbg_params_.object_status = OS_UNCHECKED;
+}
+
+#endif // NDEBUG
 
 #endif // _FXASSERT_H_
 
