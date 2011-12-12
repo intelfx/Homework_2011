@@ -299,6 +299,12 @@ public:
 		Reallocate (initial_capacity);
 	}
 
+	virtual ~LinkedList()
+	{
+		delete[] storage_;
+		free (next_);
+	}
+
 	size_t Count() const
 	{
 		verify_method;

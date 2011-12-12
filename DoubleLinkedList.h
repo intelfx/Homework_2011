@@ -6,17 +6,17 @@
 #include "LinkedList.h"
 
 // -----------------------------------------------------------------------------
-// Library		Homework
-// File			DoubleLinkedList.h
-// Author		intelfx
-// Description	Double linked list implementation, as per hometask assignment #3.b.
+// Library      Homework
+// File         DoubleLinkedList.h
+// Author       intelfx
+// Description  Double linked list implementation, as per hometask assignment #3.b.
 // -----------------------------------------------------------------------------
 
-DeclareDescriptor(DoubleLinkedList);
-DeclareDescriptor(DoubleLinkedListIterator);
+DeclareDescriptor (DoubleLinkedList);
+DeclareDescriptor (DoubleLinkedListIterator);
 
 template <typename T>
-class DoubleLinkedList : LogBase(DoubleLinkedList), public LinkedList<T>
+class DoubleLinkedList : LogBase (DoubleLinkedList), public LinkedList<T>
 {
 	size_t last_;
 	size_t* prev_;
@@ -54,8 +54,8 @@ class DoubleLinkedList : LogBase(DoubleLinkedList), public LinkedList<T>
 protected:
 	virtual bool _Verify() const
 	{
-        /*
-         * Base class verification
+		/*
+		 * Base class verification
 		 */
 
 		if (!LinkedList<T>::_Verify())
@@ -79,12 +79,12 @@ protected:
 			for (size_t idx = LinkedList<T>::end_marker_;;)
 			{
 				size_t next = (idx  == LinkedList<T>::end_marker_) ? LinkedList<T>::first_
-																   : LinkedList<T>::next_[idx];
+							  : LinkedList<T>::next_[idx];
 				size_t prev = (next == LinkedList<T>::end_marker_) ? last_
-																   : prev_[next];
+							  : prev_[next];
 
 				verify_statement (idx == prev,
-								"%zd -> [%zd] <- %zd next-prev inconsistency", idx, next, prev);
+								  "%zd -> [%zd] <- %zd next-prev inconsistency", idx, next, prev);
 
 				if (next == LinkedList<T>::end_marker_)
 					break;
@@ -102,8 +102,8 @@ public:
 
 	public:
 		Iterator (DoubleLinkedList* parent, size_t prev) :
-		LinkedList<T>::Iterator (parent, prev),
-		parent_ (parent)
+			LinkedList<T>::Iterator (parent, prev),
+			parent_ (parent)
 		{
 		}
 
@@ -119,14 +119,19 @@ public:
 	};
 
 	DoubleLinkedList (size_t initial_capacity = 10) :
-	LinkedList<T> (initial_capacity),
-	last_ (-1),
-	prev_ (0)
+		LinkedList<T> (initial_capacity),
+		last_ (-1),
+		prev_ (0)
 	{
 		ReallocPrev_ (initial_capacity);
 	}
 
-	Iterator PushBack (T&& object)
+	virtual ~DoubleLinkedList()
+	{
+		free (prev_);
+	}
+
+	Iterator PushBack (T && object)
 	{
 		verify_method;
 
@@ -177,3 +182,4 @@ public:
 };
 
 #endif // _DLLIST_H
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
