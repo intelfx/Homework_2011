@@ -120,7 +120,7 @@ public:
 		delete[] table_;
 	}
 
-	Iterator Add (Key && key, Data && data)
+	Iterator Add (Key&& key, Data&& data)
 	{
 		verify_method;
 
@@ -150,7 +150,7 @@ public:
 		return i;
 	}
 
-	Iterator Find (Key && key)
+	Iterator Find (Key&& key)
 	{
 		verify_method;
 
@@ -175,7 +175,7 @@ public:
 		return i;
 	}
 
-	void Remove (Key && key)
+	void Remove (Key&& key)
 	{
 		verify_method;
 

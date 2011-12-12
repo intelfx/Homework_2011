@@ -19,6 +19,16 @@ timespec clock_resolution, start_clock;
 static const size_t line_max = 0x100;
 static const unsigned long nano_divisor = 1000000000;
 
+template<>
+void ByteStreamRepresentation<std::string>::operator() (const std::string* object, const void** pointer, size_t* size)
+{
+	*pointer = object ->c_str();
+	*size = object ->size();
+
+	smsg (E_INFO, E_DEBUG, "String representation: \"%s\" -> %p:%zu", object ->c_str(),
+		  *pointer, *size);
+}
+
 struct DictEntry
 {
 	char *_1, *_2;
@@ -31,7 +41,7 @@ struct DictEntry
 		that._2 = 0;
 	}
 
-	DictEntry& operator= (DictEntry && that)
+	DictEntry& operator= (DictEntry&& that)
 	{
 		if (this == &that)
 			return *this;
@@ -198,23 +208,23 @@ void write_stats (FILE* statfile, StatEntry* entries, size_t count)
 	__sassert (statfile && !ferror (statfile), "Invalid stream");
 
 	for (unsigned i = 0; i < count; ++i)
-		fprintf (statfile, ",%s", entries[i].name);
+		fprintf (statfile, ";%s", entries[i].name);
 
 	fprintf (statfile, "\nInitialise time");
 	for (unsigned i = 0; i < count; ++i)
-		fprintf (statfile, ",\"%f\"", timespec_to_fp (entries[i].init));
+		fprintf (statfile, ";%f", timespec_to_fp (entries[i].init));
 
 	fprintf (statfile, "\nSeek time");
 	for (unsigned i = 0; i < count; ++i)
-		fprintf (statfile, ",\"%f\"", timespec_to_fp (entries[i].seek));
+		fprintf (statfile, ";%f", timespec_to_fp (entries[i].seek));
 
 	fprintf (statfile, "\nDump time");
 	for (unsigned i = 0; i < count; ++i)
-		fprintf (statfile, ",\"%f\"", timespec_to_fp (entries[i].dump));
+		fprintf (statfile, ";%f", timespec_to_fp (entries[i].dump));
 
-	fprintf (statfile, "\n,,,\n");
+	fprintf (statfile, "\n;;;\n");
 	for (unsigned i = 0; i < count; ++i)
-		fprintf (statfile, "%s,", entries[i].name);
+		fprintf (statfile, "%s;", entries[i].name);
 
 	size_t cellcount = entries[0].total;
 	for (size_t i = 1; i < count; ++i)
@@ -225,7 +235,7 @@ void write_stats (FILE* statfile, StatEntry* entries, size_t count)
 		fprintf (statfile, "\n");
 
 		for (size_t j = 0; j < count; ++j)
-			fprintf (statfile, "\"%zu\",", entries[j].counts[i]);
+			fprintf (statfile, "%zu;", entries[j].counts[i]);
 	}
 }
 
@@ -241,7 +251,9 @@ void test_dictionary (Hashtable<std::string, std::string>::hash_function hasher,
 	clock_measure_start ("Dictionary initialize");
 
 	for (auto i = input.cbegin(); i != input.cend(); ++i)
+	{
 		dictionary.Add (i ->_1, i ->_2);
+	}
 
 	stat_init_time = clock_measure_end();
 
@@ -274,6 +286,7 @@ int main (int argc, char** argv)
 	Debug::API::ClrStaticTypeFlag< LinkedList<int> > (Debug::OF_USEVERIFY);
 
 	const char* filename = "dictionary.txt";
+	const char* outfile = "stats.csv";
 
 	char sstr[line_max], str1[line_max], str2[line_max];
 	size_t dict_line = 0;
@@ -308,8 +321,8 @@ int main (int argc, char** argv)
 
 	smsg (E_INFO, E_USER, "Read completed: %zu lines read", dict_line);
 
-	smsg (E_INFO, E_USER, "Testing with 'constant' hasher");
-	test_dictionary (&hasher_zero, dict_data, stat_data, "Constant");
+// 	smsg (E_INFO, E_USER, "Testing with 'constant' hasher");
+// 	test_dictionary (&hasher_zero, dict_data, stat_data, "Constant");
 
 	smsg (E_INFO, E_USER, "Testing with 'length' hasher");
 	test_dictionary (&hasher_length, dict_data, stat_data, "Length");
@@ -318,15 +331,15 @@ int main (int argc, char** argv)
 	test_dictionary (&hasher_sum, dict_data, stat_data, "Byte sum");
 
 	smsg (E_INFO, E_USER, "Testing with 'xor/roll' hasher");
-	test_dictionary (&hasher_xroll, dict_data, stat_data, "xor/roll hash");
+	test_dictionary (&hasher_xroll_plain, dict_data, stat_data, "xor/roll hash");
 
 	smsg (E_INFO, E_USER, "Testing with STL hasher");
 	test_dictionary (&hasher_stl, dict_data, stat_data, "STL hash");
 
 	smsg (E_INFO, E_USER, "Writing statistics");
 
-	FILE* statfile = fopen ("stats.csv", "wt");
-	__sverify (statfile, "Unable to open stats.csv: %s", strerror (errno));
+	FILE* statfile = fopen (outfile, "wt");
+	__sverify (statfile, "Unable to open \"%s\": %s", outfile, strerror (errno));
 	write_stats (statfile, stat_data.data(), stat_data.size());
 
 	fclose (statfile);
