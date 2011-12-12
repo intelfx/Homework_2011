@@ -74,17 +74,16 @@ struct StatEntry
 {
 	const char* name;
 	size_t total, used, *counts;
-	timespec init, seek, dump;
+	timespec init, seek;
 
 	StatEntry (const char* name_, size_t total_, size_t used_, size_t* counts_,
-			   timespec init_, timespec seek_, timespec dump_) :
+			   timespec init_, timespec seek_) :
 	name (name_),
 	total (total_),
 	used (used_),
 	counts (counts_),
 	init (init_),
-	seek (seek_),
-	dump (dump_)
+	seek (seek_)
 	{
 	}
 
@@ -105,7 +104,6 @@ struct StatEntry
 		counts = that.counts;
 		init = that.init;
 		seek = that.seek;
-		dump = that.dump;
 
 		that.counts = 0;
 
@@ -118,8 +116,7 @@ struct StatEntry
 	used (that.used),
 	counts (that.counts),
 	init (that.init),
-	seek (that.seek),
-	dump (that.dump)
+	seek (that.seek)
 	{
 		that.counts = 0;
 	}
@@ -218,10 +215,6 @@ void write_stats (FILE* statfile, StatEntry* entries, size_t count)
 	for (unsigned i = 0; i < count; ++i)
 		fprintf (statfile, ";%f", timespec_to_fp (entries[i].seek));
 
-	fprintf (statfile, "\nDump time");
-	for (unsigned i = 0; i < count; ++i)
-		fprintf (statfile, ";%f", timespec_to_fp (entries[i].dump));
-
 	fprintf (statfile, "\n;;;\n");
 	for (unsigned i = 0; i < count; ++i)
 		fprintf (statfile, "%s;", entries[i].name);
@@ -245,7 +238,7 @@ void test_dictionary (Hashtable<std::string, std::string>::hash_function hasher,
 					  const char* name)
 {
 	Hashtable<std::string, std::string> dictionary (hasher);
-	timespec stat_init_time, stat_seek_time, stat_dump_time;
+	timespec stat_init_time, stat_seek_time;
 	size_t total, used, *counts;
 
 	clock_measure_start ("Dictionary initialize");
@@ -267,11 +260,8 @@ void test_dictionary (Hashtable<std::string, std::string>::hash_function hasher,
 
 	stat_seek_time = clock_measure_end();
 
-	clock_measure_start ("Dictionary statistics dump");
 	dictionary.ReadStats (&total, &used, &counts);
-	stat_dump_time = clock_measure_end();
-
-	stat.push_back (StatEntry (name, total, used, counts, stat_init_time, stat_seek_time, stat_dump_time));
+	stat.push_back (StatEntry (name, total, used, counts, stat_init_time, stat_seek_time));
 }
 
 int main (int argc, char** argv)
