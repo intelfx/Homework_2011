@@ -19,14 +19,17 @@ timespec clock_resolution, start_clock;
 static const size_t line_max = 0x100;
 static const unsigned long nano_divisor = 1000000000;
 
+/*
+ * Specialisation of representation function for hash table to correctly handle std::string.
+ */
+
 template<>
-void ByteStreamRepresentation<std::string>::operator() (const std::string* object, const void** pointer, size_t* size)
+void ByteStreamRepresentation<std::string>::operator() (const std::string* object,
+														const void** pointer,
+														size_t* size)
 {
 	*pointer = object ->c_str();
 	*size = object ->size();
-
-	smsg (E_INFO, E_DEBUG, "String representation: \"%s\" -> %p:%zu", object ->c_str(),
-		  *pointer, *size);
 }
 
 struct DictEntry
@@ -243,9 +246,12 @@ void test_dictionary (Hashtable<std::string, std::string>::hash_function hasher,
 
 	clock_measure_start ("Dictionary initialize");
 
-	for (auto i = input.cbegin(); i != input.cend(); ++i)
+	size_t added_count = 0;
+	for (auto i = input.cbegin(); i != input.cend(); ++i, ++added_count)
 	{
 		dictionary.Add (i ->_1, i ->_2);
+		if (!(added_count % 100))
+			smsg (E_INFO, E_DEBUG, "Added %zu-th element", added_count);
 	}
 
 	stat_init_time = clock_measure_end();
@@ -273,7 +279,7 @@ int main (int argc, char** argv)
 	Debug::API::SetStaticTypeVerbosity< LinkedList<int>::Iterator > (Debug::E_USER);
 	Debug::API::SetStaticTypeVerbosity< Hashtable<int, int> > (Debug::E_USER);
 	Debug::API::SetStaticTypeVerbosity<void> (Debug::E_VERBOSE);
-	Debug::API::ClrStaticTypeFlag< LinkedList<int> > (Debug::OF_USEVERIFY);
+ 	Debug::API::ClrStaticTypeFlag< LinkedList<int> > (Debug::OF_USEVERIFY);
 
 	const char* filename = "dictionary.txt";
 	const char* outfile = "stats.csv";
@@ -311,8 +317,8 @@ int main (int argc, char** argv)
 
 	smsg (E_INFO, E_USER, "Read completed: %zu lines read", dict_line);
 
-// 	smsg (E_INFO, E_USER, "Testing with 'constant' hasher");
-// 	test_dictionary (&hasher_zero, dict_data, stat_data, "Constant");
+  	smsg (E_INFO, E_USER, "Testing with 'constant' hasher");
+  	test_dictionary (&hasher_zero, dict_data, stat_data, "Constant");
 
 	smsg (E_INFO, E_USER, "Testing with 'length' hasher");
 	test_dictionary (&hasher_length, dict_data, stat_data, "Length");

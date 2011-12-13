@@ -72,7 +72,7 @@ public:
 private:
 	LinkedList< Pair<Key, Data> >** table_;
 	size_t table_size_;
-	hash_function hasher_;
+	hash_function bytes_hasher_;
 	Rep hash_data_prep_;
 
 	LinkedList< Pair<Key, Data> >& AcTable (size_t hash)
@@ -88,12 +88,25 @@ private:
 		return *table_[index];
 	}
 
+	size_t Hash (const Key* object)
+	{
+		const void* bytes_ptr;
+		size_t length;
+
+		hash_data_prep_ (object, &bytes_ptr, &length);
+
+		if (length <= sizeof (size_t))
+			return *reinterpret_cast<const size_t*> (bytes_ptr); /* trivial hash */
+
+		else return bytes_hasher_ (bytes_ptr, length); /* normal hash */
+	}
+
 protected:
 	virtual bool _Verify() const
 	{
 		verify_statement (table_, "NULL table pointer");
 		verify_statement (table_size_, "Zero table size");
-		verify_statement (hasher_, "Zero hash worker pointer");
+		verify_statement (bytes_hasher_, "Zero hash worker pointer");
 
 		return 1;
 	}
@@ -102,7 +115,7 @@ public:
 	Hashtable (hash_function hasher, size_t table_size = 0x100) :
 	table_ (new LinkedList< Pair<Key, Data> >* [table_size]),
 	table_size_ (table_size),
-	hasher_ (hasher),
+	bytes_hasher_ (hasher),
 	hash_data_prep_()
 	{
 		__assert (table_size, "Zero table size");
@@ -124,10 +137,7 @@ public:
 	{
 		verify_method;
 
-		const void* ptr;
-		size_t sz, hash;
-		hash_data_prep_ (&key, &ptr, &sz);
-		hash = hasher_ (ptr, sz);
+		size_t hash = Hash (&key);
 
 		msg (E_INFO, E_DEBUG, "Adding new object with hash %p -> %zu [len %zu]",
 			 hash, hash % table_size_, table_size_);
@@ -154,10 +164,7 @@ public:
 	{
 		verify_method;
 
-		const void* ptr;
-		size_t sz, hash;
-		hash_data_prep_ (&key, &ptr, &sz);
-		hash = hasher_ (ptr, sz);
+		size_t hash = Hash (&key);
 
 		msg (E_INFO, E_DEBUG, "Searching for hash %p -> %zu [len %zu]",
 			 hash, hash % table_size_, table_size_);
@@ -179,10 +186,7 @@ public:
 	{
 		verify_method;
 
-		void* ptr;
-		size_t sz, hash;
-		hash_data_prep_ (&key, &ptr, &sz);
-		hash = hasher_ (ptr, sz);
+		size_t hash = Hash (&key);
 
 		msg (E_INFO, E_DEBUG, "Removing with hash %p -> %zu [len %zu]",
 			 hash, hash % table_size_, table_size_);
