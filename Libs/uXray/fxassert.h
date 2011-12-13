@@ -733,8 +733,9 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 
 
 // -----------------------------------------------------------------------------
-// ---- Assertions
+// ---- Verifier implementation
 // -----------------------------------------------------------------------------
+
 #ifndef NDEBUG
 
 inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor place) const
@@ -764,11 +765,6 @@ inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor) con
 #endif // NDEBUG
 
 #endif // _FXASSERT_H_
-
-// -----------------------------------------------------------------------------
-// ---- Encapsulation
-// -----------------------------------------------------------------------------
-#include "encap.h"
 
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
 
