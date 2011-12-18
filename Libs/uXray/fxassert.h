@@ -749,7 +749,6 @@ inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor plac
 			call_log (dbg_params_, place, Debug::E_CRITICAL, Debug::E_USER,
 					  "Verification error: %s", dbg_params_.error_string);
 	}
-	dbg_params_.object_status = OS_UNCHECKED;
 }
 
 #else
