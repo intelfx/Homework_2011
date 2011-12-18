@@ -41,7 +41,7 @@ Mappings to functions:
 Language setting:
 	Command descriptor - CommandTraits array indexed by mnemonic (mnemonic hash) using std::map<size_t, CommandTraits>
 	Decode - search of a mnemonic in map
-	DecodedCommand holds either pointer to CommandTraits or mnemonic hash
+	DecodedCommand holds either pointer to CommandTraits (preferably) or index of map
 	Encode - search of a hash in map, then get const char* mnemonic from CommandTraits
 	Execution - calling executor-defined handle in CommandTraits (std::map<size_t, void*>)
 		where size_t is executor identification (may be type_info::hash_code()),
