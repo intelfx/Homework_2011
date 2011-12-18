@@ -7,8 +7,17 @@
 // Author		intelfx
 // Description	Log/debug system and reworked assertion
 // -----------------------------------------------------------------------------
-static const Debug::ObjectDescriptor_ _dbg_iobject = Debug::CreateGlobalObject();
-const Debug::ObjectDescriptor_* _specific_dbg_info = &_dbg_iobject;
+
+static const Debug::ObjectDescriptor_ _global_dbg_info = {Debug::GLOBAL_OID, "global scope", Debug::MOD_APPMODULE,
+														  Debug::E_UNDEFINED_VERBOSITY, Debug::E_UNDEFINED_TYPE, 0
+														 };
+
+const Debug::ObjectDescriptor_ Debug::_default_dbg_info = {Debug::GLOBAL_OID, "undefined object", Debug::MOD_INTERNAL,
+														   Debug::E_UNDEFINED_VERBOSITY, Debug::E_UNDEFINED_TYPE,
+														   MASK (Debug::OF_FATALVERIFY) | MASK (Debug::OF_USEVERIFY)
+														  };
+
+const Debug::ObjectDescriptor_* _specific_dbg_info = &_global_dbg_info;
 
 FXLIB_API bool fx_vasprintf (char** dest, const char* fmt, va_list args)
 {
@@ -97,6 +106,9 @@ FXLIB_API int call_log (Debug::ObjectParameters object,
 
 	if (object.object_status == Debug::OS_MOVED)
 		return 0;
+
+	__sassert (event_type != Debug::E_UNDEFINED_TYPE, "Message has undefined type");
+	__sassert (event_level != Debug::E_UNDEFINED_VERBOSITY, "Message has undefined verbosity");
 
 	Debug::EventDescriptor_ event;
 	event.event_type = event_type;
@@ -284,7 +296,6 @@ void System::DoLogging (EventDescriptor event,
 	bool is_message_allowed = CheckDynamicVerbosity (*object.object_descriptor, event);
 	TargetDescriptor_* current_target = 0;
 
-	// TODO Semantically verify this statement
 	if (!is_message_allowed)
 		return;
 
@@ -302,7 +313,7 @@ void System::DoLogging (EventDescriptor event,
 		return;
 	}
 
-	// In normal state we will do regular logging.
+	// In emergency state we will use default target.
 	if (is_emergency_mode)
 		current_target = &default_target;
 

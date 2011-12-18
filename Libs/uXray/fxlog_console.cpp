@@ -221,7 +221,6 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 		switch (event.event_level)
 		{
-		default:
 		case EventLevelIndex_::E_USER:
 			msgspec = "INFO\t";
 			data.brightness = 0;
@@ -233,6 +232,11 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 		case EventLevelIndex_::E_DEBUG:
 			msgspec = "DEBUG\t";
+			break;
+
+		default:
+		case EventLevelIndex_::E_UNDEFINED_VERBOSITY:
+			msgspec = "UNKNOWN\n";
 			break;
 		}
 
@@ -274,6 +278,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 		msgspec = "-- EPIC SHIT ";
 		break;
 
+	case EventTypeIndex_::E_UNDEFINED_TYPE:
 	default:
 		data.foreground = CCC_WHITE;
 		data.brightness = 1;
