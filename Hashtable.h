@@ -67,22 +67,23 @@ class Hashtable : LogBase (Hashtable)
 {
 public:
 	typedef size_t (*hash_function) (const void*, size_t);
-	typedef typename LinkedList< Pair<Key, Data> >::Iterator Iterator;
+	typedef LinkedList< Pair<Key, Data> > Hashlist;
+	typedef typename Hashlist::Iterator Iterator;
 
 private:
-	LinkedList< Pair<Key, Data> >** table_;
+	Hashlist** table_;
 	size_t table_size_;
 	hash_function bytes_hasher_;
 	Rep hash_data_prep_;
 
-	LinkedList< Pair<Key, Data> >& AcTable (size_t hash)
+	Hashlist& AcTable (size_t hash)
 	{
 		size_t index = hash % table_size_;
 
 		if (!table_[index])
 		{
 			msg (E_INFO, E_DEBUG, "Creating linked list in cell [%zu]", index);
-			table_[index] = new LinkedList< Pair<Key, Data> >;
+			table_[index] = new Hashlist;
 		}
 
 		return *table_[index];
@@ -112,8 +113,47 @@ protected:
 	}
 
 public:
+	Hashtable (const Hashtable& src) = delete;
+	Hashtable& operator= (const Hashtable& src) = delete;
+
+	Hashtable (Hashtable&& that) : move_ctor,
+	table_ (that.table_),
+	table_size_ (that.table_size_),
+	bytes_hasher_ (that.bytes_hasher_),
+	hash_data_prep_ (that.hash_data_prep_)
+	{
+		that.table_ = 0;
+		that.table_size_ = 0;
+		that.bytes_hasher_ = 0;
+	}
+
+	Hashtable& operator= (Hashtable&& that)
+	{
+		if (this == &that)
+			return *this;
+
+		move_op;
+
+		if (table_)
+			for (size_t i = 0; i < table_size_; ++i)
+				delete table_[i];
+
+		free (table_);
+
+		table_ = that.table_;
+		table_size_ = that.table_size_;
+		bytes_hasher_ = that.bytes_hasher_;
+		hash_data_prep_ = that.hash_data_prep_;
+
+		that.table_ = 0;
+		that.table_size_ = 0;
+		that.bytes_hasher_ = 0;
+
+		return *this;
+	}
+
 	Hashtable (hash_function hasher, size_t table_size = 0x100) :
-	table_ (new LinkedList< Pair<Key, Data> >* [table_size]),
+	table_ (reinterpret_cast<Hashlist**> (calloc (table_size, sizeof (Hashlist*)))),
 	table_size_ (table_size),
 	bytes_hasher_ (hasher),
 	hash_data_prep_()
@@ -127,13 +167,14 @@ public:
 
 	virtual ~Hashtable()
 	{
-		for (size_t i = 0; i < table_size_; ++i)
-			delete table_[i];
+		if (table_)
+			for (size_t i = 0; i < table_size_; ++i)
+				delete table_[i];
 
-		delete[] table_;
+		free (table_);
 	}
 
-	Iterator Add (Key&& key, Data&& data)
+	Iterator Add (Key&& key, Data&& data, bool allow_multi_insertion = 0)
 	{
 		verify_method;
 
@@ -144,15 +185,21 @@ public:
 
 		Iterator i = AcTable (hash).Begin();
 
-		for (; !i.End(); ++i)
-			if (i ->key == key)
-				break;
 
-		if (!i.End())
-			msg (E_WARNING, E_DEBUG, "Key already exists");
+		if (!allow_multi_insertion) /* check for existing keys */
+		{
+			for (; !i.End(); ++i)
+				if (i ->key == key)
+					break;
 
-		else
-			i = AcTable (hash).PushFront (Pair <Key, Data> (std::move (key), std::move (data)));
+			if (!i.End())
+			{
+				msg (E_WARNING, E_DEBUG, "Key already exists");
+				return i;
+			}
+		}
+
+		i = AcTable (hash).PushFront (Pair <Key, Data> (std::move (key), std::move (data)));
 
 		verify_method;
 		msg (E_INFO, E_DEBUG, "Addition completed");

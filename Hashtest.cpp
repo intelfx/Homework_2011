@@ -4,20 +4,14 @@
 #include <uXray/fxlog_console.h>
 #include <uXray/fxhash_functions.h>
 
-#include <time.h>
+#include "time_ops.h"
 
 // -----------------------------------------------------------------------------
 // Library      Homework
 // File         Hashtest.cpp
 // Author       intelfx
-// Description  Hash table demonstration and unit-tests.
+// Description  Hash table demonstration, as per hometask assignment #4.a.
 // -----------------------------------------------------------------------------
-
-
-timespec clock_resolution, start_clock;
-
-static const size_t line_max = 0x100;
-static const unsigned long nano_divisor = 1000000000;
 
 /*
  * Specialisation of representation function for hash table to correctly handle std::string.
@@ -59,11 +53,11 @@ struct DictEntry
 	}
 
 	DictEntry (const char* s1, const char* s2) :
-		_1 (reinterpret_cast<char*> (malloc (line_max))),
-		_2 (reinterpret_cast<char*> (malloc (line_max)))
+		_1 (reinterpret_cast<char*> (malloc (STATIC_LENGTH))),
+		_2 (reinterpret_cast<char*> (malloc (STATIC_LENGTH)))
 	{
-		strncpy (_1, s1, line_max);
-		strncpy (_2, s2, line_max);
+		strncpy (_1, s1, STATIC_LENGTH);
+		strncpy (_2, s2, STATIC_LENGTH);
 	}
 
 	~DictEntry()
@@ -127,81 +121,6 @@ struct StatEntry
 	StatEntry (const StatEntry&) = delete;
 	StatEntry& operator= (const StatEntry&) = delete;
 };
-
-void calibrate_and_setup_clock()
-{
-	timespec calibrate_source;
-
-	int value = clock_getres (CLOCK_THREAD_CPUTIME_ID, &calibrate_source);
-	__sassert (!value, "Clock resolution get failed: %s", strerror (errno));
-
-	clock_resolution.tv_sec  = calibrate_source.tv_nsec / nano_divisor;
-	clock_resolution.tv_nsec = calibrate_source.tv_nsec % nano_divisor;
-	clock_resolution.tv_sec += calibrate_source.tv_sec;
-
-	if (clock_resolution.tv_sec)
-		smsg (E_WARNING, E_VERBOSE, "Clock resolution too big: %lu.%09lu",
-			  clock_resolution.tv_sec, clock_resolution.tv_nsec);
-
-	else
-		smsg (E_INFO, E_VERBOSE, "Clock resolution: .%09lu",
-			  clock_resolution.tv_nsec);
-}
-
-inline void clock_measure_start (const char* message)
-{
-	timespec time_source;
-
-	smsg (E_INFO, E_VERBOSE, "Starting measure on \"%s\"", message);
-
-	int value = clock_gettime (CLOCK_THREAD_CPUTIME_ID, &time_source);
-	__sassert (!value, "Clock get failed: %s", strerror (errno));
-
-	long nsec_error = clock_resolution.tv_nsec ? time_source.tv_nsec % clock_resolution.tv_nsec : 0;
-	long sec_error  = clock_resolution.tv_sec  ? time_source.tv_sec  % clock_resolution.tv_sec  : 0;
-
-	start_clock.tv_nsec = time_source.tv_nsec - nsec_error;
-	start_clock.tv_sec  = time_source.tv_sec - sec_error;
-
-	if (nsec_error || sec_error)
-		smsg (E_WARNING, E_VERBOSE, "Clock reading does not obey resolution: %lu.%09lu -> errors [%lu.%09lu]",
-			  time_source.tv_sec, time_source.tv_nsec, sec_error, nsec_error);
-}
-
-inline double timespec_to_fp (const timespec& time)
-{
-	double result;
-	result  = time.tv_nsec;
-	result /= nano_divisor;
-	result += time.tv_sec;
-	return result;
-}
-
-inline timespec clock_measure_end()
-{
-	timespec time_source;
-
-	int value = clock_gettime (CLOCK_THREAD_CPUTIME_ID, &time_source);
-	__sassert (!value, "Clock get failed: %s", strerror (errno));
-
-	long nsec_error = clock_resolution.tv_nsec ? time_source.tv_nsec % clock_resolution.tv_nsec : 0;
-	long sec_error  = clock_resolution.tv_sec  ? time_source.tv_sec  % clock_resolution.tv_sec  : 0;
-
-	time_source.tv_nsec -= nsec_error;
-	time_source.tv_sec  -= sec_error;
-
-	time_source.tv_nsec -= start_clock.tv_nsec;
-	time_source.tv_sec  -= start_clock.tv_sec;
-
-	if (nsec_error || sec_error)
-		smsg (E_WARNING, E_VERBOSE, "Clock reading does not obey resolution: %lu.%09lu -> errors [%lu.%09lu]",
-			  time_source.tv_sec, time_source.tv_nsec, sec_error, nsec_error);
-
-	smsg (E_INFO, E_VERBOSE, "Action has taken %lu.%09lu seconds",
-		  time_source.tv_sec, time_source.tv_nsec);
-
-	return time_source;
-}
 
 void write_stats (FILE* statfile, StatEntry* entries, size_t count)
 {
@@ -275,16 +194,15 @@ int main (int argc, char** argv)
 	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING),
 												   &FXConLog::Instance());
 
-	Debug::API::SetStaticTypeVerbosity< LinkedList<int> > (Debug::E_USER);
-	Debug::API::SetStaticTypeVerbosity< LinkedList<int>::Iterator > (Debug::E_USER);
-	Debug::API::SetStaticTypeVerbosity< Hashtable<int, int> > (Debug::E_USER);
-	Debug::API::SetStaticTypeVerbosity<void> (Debug::E_VERBOSE);
+
+	Debug::API::SetDefaultVerbosity (Debug::E_USER);
+	Debug::API::SetStaticTypeVerbosity< void > (Debug::E_VERBOSE);
  	Debug::API::ClrStaticTypeFlag< LinkedList<int> > (Debug::OF_USEVERIFY);
 
 	const char* filename = "dictionary.txt";
 	const char* outfile = "stats.csv";
 
-	char sstr[line_max], str1[line_max], str2[line_max];
+	char sstr[STATIC_LENGTH], str1[STATIC_LENGTH], str2[STATIC_LENGTH];
 	size_t dict_line = 0;
 
 	FILE* dict;
@@ -299,7 +217,7 @@ int main (int argc, char** argv)
 
 	while (!feof (dict))
 	{
-		if (!fgets (sstr, line_max, dict))
+		if (!fgets (sstr, STATIC_LENGTH, dict))
 			continue;
 
 		++dict_line;

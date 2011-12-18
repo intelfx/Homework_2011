@@ -20,6 +20,7 @@ set (LIST_SRC LinkedList.h LinkedList.cpp DoubleLinkedList.cpp DoubleLinkedList.
 set (LISTDEMO_SRC ListDemo.cpp)
 set (HTABLE_SRC Hashtable.h Hashtable.cpp)
 set (HASHTEST_SRC Hashtest.cpp)
+set (HASHDICT_SRC Dictionary.cpp DictReader.h DictOperations.h DictStructures.h)
 
 add_subdirectory(MTServerClientApp)
 
@@ -36,6 +37,9 @@ target_link_libraries(homework_list ${LIBRARIES})
 
 add_executable(homework_hash ${HTABLE_SRC} ${LIST_SRC} ${HASHTEST_SRC})
 target_link_libraries(homework_hash ${LIBRARIES})
+
+add_executable(homework_dict ${HTABLE_SRC} ${LIST_SRC} ${HASHDICT_SRC})
+target_link_libraries(homework_dict ${LIBRARIES})
 
 #file (GLOB VM_SRC mi_vm_*.cpp)
 #MAIN_ADD_GCH(stdafx.h VM_SRC)
