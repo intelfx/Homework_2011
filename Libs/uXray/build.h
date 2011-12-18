@@ -126,6 +126,7 @@
 #include <vector>
 #include <list>
 #include <typeinfo>
+#include <initializer_list>
 
 #include <stddef.h>
 #include <stdarg.h>
@@ -136,6 +137,11 @@
 #include <math.h>
 #include <ctype.h>
 #include <errno.h>
+#include <unistd.h>
+
+#include <locale.h>
+#include <wctype.h>
+#include <wchar.h>
 
 #ifndef va_start
 # define va_start(list, arg) __sasshole ("VA_START unsupported!")

@@ -234,6 +234,10 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 		case EventLevelIndex_::E_DEBUG:
 			msgspec = "DEBUG\t";
 			break;
+
+		case EventLevelIndex_::E_UNDEFINED_VERBOSITY:
+			msgspec = "UNKNOWN\n";
+			break;
 		}
 
 		break;
@@ -252,13 +256,13 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	case EventTypeIndex_::E_OBJCREATION:
 		data.foreground = CCC_BLUE;
-		data.brightness = 1;
+		data.brightness = 0;
 		msgspec = "-- CTOR\t";
 		break;
 
 	case EventTypeIndex_::E_OBJDESTRUCTION:
 		data.foreground = CCC_RED;
-		data.brightness = 1;
+		data.brightness = 0;
 		msgspec = "-- DTOR\t";
 		break;
 
@@ -274,6 +278,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 		msgspec = "-- EPIC SHIT ";
 		break;
 
+	case EventTypeIndex_::E_UNDEFINED_TYPE:
 	default:
 		data.foreground = CCC_WHITE;
 		data.brightness = 1;

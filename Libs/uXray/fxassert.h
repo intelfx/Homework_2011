@@ -140,7 +140,8 @@ namespace Debug
 	// Specifies logged event's type for the logger to select targets and verbosity levels.
 	enum EventTypeIndex_
 	{
-		E_INFO = 1,			// Normal information message.
+		E_UNDEFINED_TYPE = 0,
+		E_INFO,				// Normal information message.
 		E_WARNING,			// Non-critical (recoverable) error message.
 		E_CRITICAL,			// Critical (unrecoverable) error message. Application usually cannot continue.
 
@@ -155,7 +156,8 @@ namespace Debug
 	// Specifies logged event's desired verbosity level.
 	enum EventLevelIndex_
 	{
-		E_USER = 1,		// User-readable and critical messages.
+		E_UNDEFINED_VERBOSITY = 0,
+		E_USER,			// User-readable and critical messages.
 		E_VERBOSE,		// Verbose user-readable messages.
 		E_DEBUG		 	// Debugging messages.
 	};
@@ -297,6 +299,7 @@ namespace Debug
 	};
 	typedef const DumpEntity_& DumpEntity;
 
+	FXLIB_API extern const ObjectDescriptor_ _default_dbg_info;
 
 	// ---------------------------------------
 	// C-style functions
@@ -316,8 +319,25 @@ namespace Debug
 
 	inline bool CheckDynamicVerbosity (ObjectDescriptor object, EventDescriptor event)
 	{
-		return (event.event_level <= object.maximum_accepted_level) &&
-			   (event.event_type >= object.minimum_accepted_type);
+		bool allowed = 1;
+
+		EventLevelIndex_ effective_maxlevel = object.maximum_accepted_level;
+
+		if (effective_maxlevel == E_UNDEFINED_VERBOSITY)
+			effective_maxlevel = _default_dbg_info.maximum_accepted_level;
+
+		if (effective_maxlevel != E_UNDEFINED_VERBOSITY)
+			allowed &= (event.event_level <= effective_maxlevel);
+
+		EventTypeIndex_ effective_mintype = object.minimum_accepted_type;
+
+		if (effective_mintype == E_UNDEFINED_TYPE)
+			effective_mintype = _default_dbg_info.minimum_accepted_type;
+
+		if (effective_mintype != E_UNDEFINED_TYPE)
+			allowed &= (event.event_type >= effective_mintype);
+
+		return allowed;
 	}
 
 	inline bool TargetIsOK (const TargetDescriptor_* target)
@@ -345,18 +365,9 @@ namespace Debug
 									 * On first object creation, name, type and ID are copied from this descriptor
 									 * to static one in BaseClass<T>.
 									 */
-									E_DEBUG, E_INFO, EVERYTHING
+									E_UNDEFINED_VERBOSITY, E_UNDEFINED_TYPE, 0
 								   };
 		return object;
-	}
-
-	inline ObjectDescriptor_ CreateGlobalObject()
-	{
-		ObjectDescriptor_ global_object = {GLOBAL_OID, "global scope", MOD_APPMODULE,
-										   /* these parameters will be inherited by every object */
-										   E_DEBUG, E_INFO, MASK (OF_FATALVERIFY) | MASK (OF_USEVERIFY)
-										  };
-		return global_object;
 	}
 
 	inline ObjectParameters_ CreateParameters (_InsideBase*, const ObjectDescriptor_* descriptor)
@@ -630,34 +641,17 @@ namespace Debug
 		inline void SetObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_SetFlag (flag); }
 		inline void ClrObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_ClrFlag (flag); }
 
-		template <typename T>
-		inline void SetStaticTypeFlag (ObjectFlags_ flag) { T::_specific_dbg_info ->type_flags |=  MASK(flag); }
-		template <typename T>
-		inline void ClrStaticTypeFlag (ObjectFlags_ flag) { T::_specific_dbg_info ->type_flags &= ~MASK(flag); }
+		template <typename T> inline void SetStaticTypeVerbosity (EventLevelIndex_ max) { T::_specific_dbg_info ->maximum_accepted_level = max; }
+		template <typename T> inline void SetStaticTypeEvtFilter (EventTypeIndex_ min)  { T::_specific_dbg_info ->minimum_accepted_type = min; }
 
-		template <typename T>
-		inline void SetStaticTypeVerbosity (EventLevelIndex_ max)
-		{
-			T::_specific_dbg_info ->maximum_accepted_level = max;
-		}
+		template<> inline void SetStaticTypeVerbosity<void> (EventLevelIndex_ max)      { ::_specific_dbg_info ->maximum_accepted_level = max; }
+		template<> inline void SetStaticTypeEvtFilter<void> (EventTypeIndex_ min)       { ::_specific_dbg_info ->minimum_accepted_type = min; }
 
-		template <typename T>
-		inline void SetStaticTypeEvtFilter (EventTypeIndex_ min)
-		{
-			T::_specific_dbg_info ->minimum_accepted_type = min;
-		}
+		template <typename T> inline void SetStaticTypeFlag (ObjectFlags_ flag)         { T::_specific_dbg_info ->type_flags |=  MASK (flag); }
+		template <typename T> inline void ClrStaticTypeFlag (ObjectFlags_ flag)         { T::_specific_dbg_info ->type_flags &= ~MASK (flag); }
 
-		template<>
-		inline void SetStaticTypeVerbosity<void> (EventLevelIndex_ max)
-		{
-			::_specific_dbg_info ->maximum_accepted_level = max;
-		}
-
-		template<>
-		inline void SetStaticTypeEvtFilter<void> (EventTypeIndex_ min)
-		{
-			::_specific_dbg_info ->minimum_accepted_type = min;
-		}
+		inline void SetDefaultVerbosity (EventLevelIndex_ max) { _default_dbg_info.maximum_accepted_level = max; }
+		inline void SetDefaultEvtFilter (EventTypeIndex_ min)  { _default_dbg_info.minimum_accepted_type = min; }
 	}
 
 	// ---------------------------------------
@@ -665,7 +659,7 @@ namespace Debug
 	// ---------------------------------------
 
 	template <typename InfoHolderType>
-	ObjectDescriptor_ BaseClass<InfoHolderType>::type_dbginfo = CreateGlobalObject();
+	ObjectDescriptor_ BaseClass<InfoHolderType>::type_dbginfo = _default_dbg_info;
 
 	template <typename InfoHolderType>
 	const ObjectDescriptor_* const BaseClass<InfoHolderType>::_specific_dbg_info = &type_dbginfo;
@@ -680,25 +674,28 @@ using Debug::EventTypeIndex_;
 using Debug::EventLevelIndex_;
 
 // -----------------------------------------------------------------------------
-// ---- Wrappers
+// ---- Entry points
 // -----------------------------------------------------------------------------
 
+// Silent exception entry point
 FXLIB_API int dosilentthrow (Debug::ObjectParameters object,
 							 size_t error_code);
 
+// Exception entry point
 FXLIB_API int dothrow (Debug::ObjectParameters object,
 					   Debug::SourceDescriptor place,
 					   Debug::ExceptionType_ ex_type,
 					   const char* expr,
 					   const char* fmt, ...);
 
-// printf()-like DoLogging() wrapper (prepares va_args list)
+// Logger entry point
 FXLIB_API int call_log (Debug::ObjectParameters object,
 						Debug::SourceDescriptor place,
 						Debug::EventTypeIndex_ event_type,
 						Debug::EventLevelIndex_ event_level,
 						const char* fmt, ...);
 
+// Verification failure handler
 FXLIB_API int seterror (Debug::ObjectParameters object,
 						const char* fmt, ...);
 
@@ -733,15 +730,15 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 
 
 // -----------------------------------------------------------------------------
-// ---- Assertions
+// ---- Verifier implementation
 // -----------------------------------------------------------------------------
+
+#ifndef NDEBUG
 
 inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor place) const
 {
-#ifndef NDEBUG
 	// eliminate successive _Verify() calls in case of bad object to reduce log clutter
-	if (dbg_params_.flags & MASK (OF_USEVERIFY) &&
-		dbg_params_.object_status != Debug::OS_BAD)
+	if ((dbg_params_.flags & MASK (OF_USEVERIFY)) && (dbg_params_.object_status != Debug::OS_BAD))
 	{
 		dbg_params_.object_status = Debug::OS_BAD; // eliminate recursive calls from verify_statement statements
 
@@ -752,17 +749,19 @@ inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor plac
 			call_log (dbg_params_, place, Debug::E_CRITICAL, Debug::E_USER,
 					  "Verification error: %s", dbg_params_.error_string);
 	}
-#else
 	dbg_params_.object_status = OS_UNCHECKED;
-#endif
 }
 
-#endif // _FXASSERT_H_
+#else
 
-// -----------------------------------------------------------------------------
-// ---- Encapsulation
-// -----------------------------------------------------------------------------
-#include "encap.h"
+inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor) const
+{
+	dbg_params_.object_status = OS_UNCHECKED;
+}
+
+#endif // NDEBUG
+
+#endif // _FXASSERT_H_
 
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
 

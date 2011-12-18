@@ -39,6 +39,20 @@ size_t hasher_sum (const void* ptr, size_t length)
 	return sum;
 }
 
+size_t hasher_bsd (const void* ptr, size_t length)
+{
+	unsigned short sum = 0;
+	const char* cptr = reinterpret_cast<const char*> (ptr);
+
+	while (length--)
+	{
+		sum  = rotr (sum, 1);
+		sum += *cptr++;
+	}
+
+	return sum;
+}
+
 size_t hasher_stl (const void* ptr, size_t length)
 {
 	return std::_Hash_impl::hash (ptr, length);

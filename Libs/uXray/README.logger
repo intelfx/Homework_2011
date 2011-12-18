@@ -1,0 +1,132 @@
+* Files and build process
+	The debug system consists of six files, of which two are API, three are internal and one is build-related.
+	API file:		fxassert.h; fxlog_console.h
+	Internal files:	debugmacros.h; fxassert.cpp; fxlog_console.cpp
+	Build files:	build.h
+
+* Structural parts
+	Whole debug system is enclosed in Debug namespace.
+	On logic level, debug system is split into three parts: logger, exceptions and verifier.
+
+* Verifier
+	Verifier's purpose is to provide means for easy runtime verification of objects' state.
+	To use it, you need to derive your classes (not necessarily everything) from a special base class.
+
+	1) Initialisation API
+
+	--- Before class declaration (*.h)
+	DeclareDescriptor(arbitrary_name>);
+	---
+
+	--- In class declaration (*.h)
+	class UserType : LogBase(arbitrary_name)
+	{
+	...
+	};
+	---
+
+	--- In class implementation (*.cxx)
+	ImplementDescriptor (arbitrary_name, "type description", type_specifier, <fully qualified class name>);
+	--- or
+	ImplementDescriptorNoid (arbitrary_name, "type_descriptor", type_specifier);
+	---
+
+	In DeclareDescriptor, you give an arbitrary string (which can be the class name).
+	In LogBase, you give the same arbitrary string that in DeclareDescriptor.
+	In ImplementDescriptor, you give:
+		1) the same arbitrary string you gave in previous steps
+		2) quoted user-readable class name (for example, "double-linked list")
+		3) module type, which could be one of MOD_APPMODULE, MOD_OBJECT or MOD_INTERNAL.
+		   This controls how object creation/destruction will be logged.
+		4) (only in first form) a fully-qualified class name, for example, YourNameSpace::ClassName.
+
+	Second form (ImplementDescriptorNoid) is intended for template classes.
+
+	2) Control API
+	* Define NDEBUG to completely disable the verifier.
+	* Use dynamically-set flags that control the behavior of Verifier.
+		Debug::OF_USEVERIFY : enable verification for specified object/type.
+		Debug::OF_FATALVERIFY : halt program if verification fails.
+
+	Use Debug::API::SetObjectFlag() / Debug::API::ClrObjectFlag() to switch verifier flags
+	on per-object basis.
+
+	Use Debug::API::SetStaticTypeFlag() / Debug::API::ClrStaticTypeFlag() to switch verifier flags
+	on per-type basis (will take effect only for objects created after setting).
+
+	3) Writing verification routines for classes
+	You need to declare a protected function with proto "virtual bool Verify_() const"
+	in each verified class.
+
+	Implementation of Verify_() must call verify_statement (expression, format, ...)
+	to verify class state. If expression is false, verification is treated as failed.
+
+	Verify_() must return 1.
+
+	4) Using verifier
+	Use verify_method parameterless macro to forcedly call verification in beginning of
+	each method.
+
+	Use verify_foreign(object) parameterless macro to verify another object's state.
+
+	Object state is also automatically verified at logger calls.
+
+	Use Debug::API::GetClassName() to retrieve object name (provided to ImplementDescriptor).
+
+* Logger
+	1) Usage
+
+	--- Usage (in classes with Verifier)
+	msg (MESSAGE_TYPE, MESSAGE_LEVEL, format, ...);
+	---
+
+	--- Usage (in global scope, in static functions, in classes without Verifier)
+	smsg (MESSAGE_TYPE, MESSAGE_LEVEL, format, ...);
+	---
+
+	MESSAGE_TYPE: one of
+		E_INFO
+		E_WARNING
+		E_CRITICAL
+
+	MESSAGE_LEVEL: one of
+		E_USER
+		E_VERBOSE
+		E_DEBUG
+
+	2) Dynamic control
+	Use Debug::API::SetStaticTypeVerbosity (MESSAGE_LEVEL) / Debug::API::SetStaticTypeEvtFilter (MESSAGE_TYPE)
+	to set maximal message level / minimal message importancy on type-wide basis.
+
+	Use them on type "void" to set these parameters for global logging.
+
+	3) Initialisation
+	In beginning of main(), write following:
+	---
+	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr",
+																		MASK (Debug::E_INFO) | MASK (Debug::E_VERBOSE),
+																		EVERYTHING & ~MASK (Debug::E_DEBUG)),
+												   &FXConLog::Instance());
+	---
+
+	In end of main(), write following:
+	---
+	Debug::System::Instance().CloseTargets();
+	---
+
+* Exceptions
+	--- Usage (in classes with Verifier)
+	__assert (expression, format, ...);
+	__verify (expression, format, ...);
+	__asshole (format, ...); // equivalent to __assert (0, format, ...)
+	---
+
+	--- Usage (in global scope, in static functions, in classes without Verifier)
+	__sassert (expression, format, ...);
+	__sverify (expression, format, ...);
+	__sasshole (format, ...); // equivalent to __sassert (0, format, ...)
+	---
+
+	These defines throw Debug::Exception if statement is false.
+	__verify() is intended for user-level messages (e. g. invalid input).
+	__assert() is intended for internal analysis (e. g. NULL pointers).
