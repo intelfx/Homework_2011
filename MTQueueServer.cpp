@@ -14,8 +14,8 @@
 // Description	Multithreaded application server, as per hometask assignment #2.b.
 // -----------------------------------------------------------------------------
 
-ImplementDescriptor (IReader, "reader module", MOD_APPMODULE, IReader);
-ImplementDescriptor (ITransmitter, "transmitter module", MOD_APPMODULE, ITransmitter);
+ImplementDescriptor (IReader, "reader module", MOD_APPMODULE);
+ImplementDescriptor (ITransmitter, "transmitter module", MOD_APPMODULE);
 
 PluginSystem pluginsystem;
 

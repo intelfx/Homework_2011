@@ -196,8 +196,9 @@ int main (int argc, char** argv)
 
 
 	Debug::API::SetDefaultVerbosity (Debug::E_USER);
-	Debug::API::SetStaticTypeVerbosity< void > (Debug::E_VERBOSE);
- 	Debug::API::ClrStaticTypeFlag< LinkedList<int> > (Debug::OF_USEVERIFY);
+	Debug::API::SetTypewideVerbosity (0, Debug::E_VERBOSE);
+	Debug::API::ClrTypewideFlag ("LinkedList", Debug::OF_USEVERIFY);
+	Debug::API::ClrTypewideFlag ("LinkedListIterator", Debug::OF_USEVERIFY);
 
 	const char* filename = "dictionary.txt";
 	const char* outfile = "stats.csv";

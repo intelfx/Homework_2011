@@ -8,7 +8,7 @@
 // Description	Console (stdio) logger backend for debug system
 // -----------------------------------------------------------------------------
 
-ImplementDescriptor(FXConLog, "console logger backend", MOD_INTERNAL, FXConLog);
+ImplementDescriptor(FXConLog, "console logger backend", MOD_INTERNAL);
 
 FILE* const FXConLog::FALLBACK_FILE = stderr;
 
@@ -221,6 +221,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 		switch (event.event_level)
 		{
+		default:
 		case EventLevelIndex_::E_USER:
 			msgspec = "INFO\t";
 			data.brightness = 0;
@@ -234,7 +235,6 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 			msgspec = "DEBUG\t";
 			break;
 
-		default:
 		case EventLevelIndex_::E_UNDEFINED_VERBOSITY:
 			msgspec = "UNKNOWN\n";
 			break;

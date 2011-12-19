@@ -8,6 +8,15 @@
 // Description	Miscellaneous functions
 // -----------------------------------------------------------------------------
 
+char* multibyte (wchar_t* wstr)
+{
+	static char output_buffer[STATIC_LENGTH];
+	wcstombs (output_buffer, wstr, STATIC_LENGTH);
+
+	return output_buffer;
+}
+
+
 FXLIB_API int fsize (FILE* file)
 {
 	fseek (file, 0, SEEK_END);

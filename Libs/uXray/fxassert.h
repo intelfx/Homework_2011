@@ -190,6 +190,7 @@ namespace Debug
 		OF_USEVERIFY = 2 // Whether to call Verify_() at all
 	};
 
+	static const size_t GLOBAL_OID = -1; // object_id for global scope
 
 	// ---------------------------------------
 	// Predefinitions
@@ -223,12 +224,9 @@ namespace Debug
 		EventTypeIndex_ event_type;
 		EventLevelIndex_ event_level;
 		const char* message_format_string;
-		mutable va_list message_args; // Yes, since v*printf() does not accept "const va_list"
+		mutable va_list message_args; // mutable, since v*printf() does not accept "const va_list"
 	};
 	typedef const EventDescriptor_& EventDescriptor;
-
-
-	static const size_t GLOBAL_OID = -1; // object_id for global scope
 
 	// Static object information
 	struct ObjectDescriptor_
@@ -252,6 +250,7 @@ namespace Debug
 
 	};
 	typedef const ObjectDescriptor_& ObjectDescriptor;
+	FXLIB_API extern const ObjectDescriptor_ _default_dbg_info;
 
 	// Changeable (dynamic) object data (incapsulates static descriptor)
 	struct ObjectParameters_
@@ -271,7 +270,6 @@ namespace Debug
 	};
 	typedef const ObjectParameters_& ObjectParameters;
 
-
 	// Macro-filled: event source position (file/line)
 	struct SourceDescriptor_
 	{
@@ -280,7 +278,6 @@ namespace Debug
 		unsigned source_line;
 	};
 	typedef const SourceDescriptor_& SourceDescriptor;
-
 
 	struct LogAtom_
 	{
@@ -298,8 +295,6 @@ namespace Debug
 		TargetDescriptor target;
 	};
 	typedef const DumpEntity_& DumpEntity;
-
-	FXLIB_API extern const ObjectDescriptor_ _default_dbg_info;
 
 	// ---------------------------------------
 	// C-style functions
@@ -351,10 +346,15 @@ namespace Debug
 		return place;
 	}
 
-	inline ObjectDescriptor_ CreateObject (const char* name, Debug::ModuleType_ type,
-										   const std::type_info* info)
+	inline size_t DebugHash (const char* string)
 	{
-		ObjectDescriptor_ object = {info ? info ->hash_code() : 0, name, type,
+		return std::_Hash_impl::hash (string, strlen (string));
+	}
+
+	inline ObjectDescriptor_ CreateObject (const char* name, Debug::ModuleType_ type,
+										   const char* desc_name)
+	{
+		ObjectDescriptor_ object = {DebugHash (desc_name), name, type,
 									/* these parameters aren't going to be used in real objects
 									 * see _SetStaticDbgInfo()
 									 *
@@ -416,10 +416,6 @@ namespace Debug
 	// Internal virtual base for Debug::BaseClass.
 	class FXLIB_API _InsideBase
 	{
-		// For assertions and logging facility. Dynamically filled at runtime.
-		// Designed as aid from multiple inheritance.
-		const ObjectDescriptor_* dbg_info_;
-
 		// Specific object state.
 		ObjectParameters_ dbg_params_;
 
@@ -449,9 +445,10 @@ namespace Debug
 		// first fed descriptor is saved, others discarded.
 		void _SetDynamicDbgInfo (const ObjectDescriptor_* info);
 
-	public:
 		_InsideBase(); // defined after everything in "fxassert.h"
 		virtual ~_InsideBase();
+
+	public:
 
 		// Checks object for errors and returns its actual state.
 		inline ObjectParameters _GetDynamicDbgInfo (SourceDescriptor place) const
@@ -490,27 +487,15 @@ namespace Debug
 	template <typename InfoHolderType>
 	class BaseClass : virtual public _InsideBase_DefaultVerify
 	{
-		static ObjectDescriptor_ type_dbginfo;
+	protected:
+		static const ObjectDescriptor_* _specific_dbg_info; /* API pointer */
 
-	public:
-		static const ObjectDescriptor_* const _specific_dbg_info; /* API pointer */
-
+	private:
 		static void _SetStaticDbgInfo()
 		{
 			// Initialize the static data if it hasn't been done already (once per type).
-			if (type_dbginfo.object_id == GLOBAL_OID)
-			{
-				const ObjectDescriptor_* canonical_dbginfo = InfoHolderType() ();
-
-				type_dbginfo.object_id = canonical_dbginfo ->object_id;
-				type_dbginfo.object_name = canonical_dbginfo ->object_name;
-				type_dbginfo.object_type = canonical_dbginfo ->object_type;
-
-				/*
-				 * We do not assign type flags and debug settings since they may
-				 * have been altered by static type-wide functions in Debug::API
-				 */
-			}
+			if (_specific_dbg_info ->object_id == GLOBAL_OID)
+				_specific_dbg_info = InfoHolderType() ();
 		}
 
 	protected:
@@ -641,17 +626,15 @@ namespace Debug
 		inline void SetObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_SetFlag (flag); }
 		inline void ClrObjectFlag (_InsideBase* obj, ObjectFlags_ flag) { obj ->_ClrFlag (flag); }
 
-		template <typename T> inline void SetStaticTypeVerbosity (EventLevelIndex_ max) { T::_specific_dbg_info ->maximum_accepted_level = max; }
-		template <typename T> inline void SetStaticTypeEvtFilter (EventTypeIndex_ min)  { T::_specific_dbg_info ->minimum_accepted_type = min; }
-
-		template<> inline void SetStaticTypeVerbosity<void> (EventLevelIndex_ max)      { ::_specific_dbg_info ->maximum_accepted_level = max; }
-		template<> inline void SetStaticTypeEvtFilter<void> (EventTypeIndex_ min)       { ::_specific_dbg_info ->minimum_accepted_type = min; }
-
-		template <typename T> inline void SetStaticTypeFlag (ObjectFlags_ flag)         { T::_specific_dbg_info ->type_flags |=  MASK (flag); }
-		template <typename T> inline void ClrStaticTypeFlag (ObjectFlags_ flag)         { T::_specific_dbg_info ->type_flags &= ~MASK (flag); }
-
 		inline void SetDefaultVerbosity (EventLevelIndex_ max) { _default_dbg_info.maximum_accepted_level = max; }
 		inline void SetDefaultEvtFilter (EventTypeIndex_ min)  { _default_dbg_info.minimum_accepted_type = min; }
+
+		FXLIB_API const ObjectDescriptor_* RegisterMetaType (Debug::ObjectDescriptor_ type);
+
+		FXLIB_API void SetTypewideVerbosity (const char* desc_name, EventLevelIndex_ max);
+		FXLIB_API void SetTypewideEvtFilter (const char* desc_name, EventTypeIndex_ min);
+		FXLIB_API void SetTypewideFlag (const char* desc_name, ObjectFlags_ flag);
+		FXLIB_API void ClrTypewideFlag (const char* desc_name, ObjectFlags_ flag);
 	}
 
 	// ---------------------------------------
@@ -659,10 +642,7 @@ namespace Debug
 	// ---------------------------------------
 
 	template <typename InfoHolderType>
-	ObjectDescriptor_ BaseClass<InfoHolderType>::type_dbginfo = _default_dbg_info;
-
-	template <typename InfoHolderType>
-	const ObjectDescriptor_* const BaseClass<InfoHolderType>::_specific_dbg_info = &type_dbginfo;
+	const ObjectDescriptor_* BaseClass<InfoHolderType>::_specific_dbg_info = &_default_dbg_info;
 
 	template <typename InfoHolderType>
 	BaseClass<InfoHolderType>::~BaseClass() = default;
@@ -749,7 +729,6 @@ inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor plac
 			call_log (dbg_params_, place, Debug::E_CRITICAL, Debug::E_USER,
 					  "Verification error: %s", dbg_params_.error_string);
 	}
-	dbg_params_.object_status = OS_UNCHECKED;
 }
 
 #else

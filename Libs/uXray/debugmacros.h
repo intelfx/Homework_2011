@@ -20,18 +20,15 @@
 #define DoExternBaseClass(var_name) extern template class DBC_VISIBILITY ::Debug::BaseClass<_ObjectDescName(var_name)>
 #define DoExternDescriptor(var_name) struct DBC_VISIBILITY _ObjectDescName(var_name) 	\
 	{																					\
-	static const ::Debug::ObjectDescriptor_ desc;										\
-	const ::Debug::ObjectDescriptor_* operator()() { return &desc;}						\
+	static const ::Debug::ObjectDescriptor_* desc;										\
+	const ::Debug::ObjectDescriptor_* operator()() { return desc;}						\
 	}
 
 
 #define DoImplementBaseClass(var_name) template class ::Debug::BaseClass<_ObjectDescName(var_name)>
 
-#define DoImplementDescriptor(var_name, object_name, object_type, class_name)			\
-	const Debug::ObjectDescriptor_ _ObjectDescName(var_name)::desc = ::Debug::CreateObject (object_name, object_type, &typeid (class_name))
-
-#define DoImplementDescriptorNoid(var_name, object_name, object_type)					\
-	const Debug::ObjectDescriptor_ _ObjectDescName(var_name)::desc = ::Debug::CreateObject (object_name, object_type, 0)
+#define DoImplementDescriptor(var_name, object_name, object_type)						\
+	const Debug::ObjectDescriptor_* _ObjectDescName(var_name)::desc = ::Debug::API::RegisterMetaType (::Debug::CreateObject (object_name, object_type, #var_name))
 
 // Derives the logged class from base helper
 #define LogBase(var_name) public ::Debug::BaseClass<_ObjectDescName(var_name)>
@@ -42,12 +39,9 @@ DoExternDescriptor(var_name);															\
 DoExternBaseClass(var_name)
 
 // Descriptor definition
-#define ImplementDescriptor(var_name, object_name, object_type, class_name)				\
-DoImplementDescriptor(var_name, object_name, ModuleType_::object_type, class_name);	\
-DoImplementBaseClass(var_name)
 
-#define ImplementDescriptorNoid(var_name, object_name, object_type)						\
-DoImplementDescriptorNoid(var_name, object_name, ModuleType_::object_type);				\
+#define ImplementDescriptor(var_name, object_name, object_type)							\
+DoImplementDescriptor(var_name, object_name, ModuleType_::object_type);					\
 DoImplementBaseClass(var_name)
 
 // -----------------------------------------------------------------------------

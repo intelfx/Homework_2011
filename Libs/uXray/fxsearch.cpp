@@ -289,4 +289,4 @@ searchEngine::trieNode::~trieNode()
 		delete i ->second;
 }
 
-ImplementDescriptor(searchEngine, "string search engine", MOD_APPMODULE, searchEngine);
+ImplementDescriptor(searchEngine, "string search engine", MOD_APPMODULE);

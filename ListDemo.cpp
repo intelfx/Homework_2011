@@ -16,6 +16,13 @@ int main (int, char**)
 	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr", EVERYTHING, EVERYTHING),
 												   &FXConLog::Instance());
 
+
+	Debug::API::SetTypewideVerbosity ("DoubleLinkedList", Debug::E_USER);
+	Debug::API::SetTypewideVerbosity ("DoubleLinkedListIterator", Debug::E_USER);
+
+	Debug::API::SetTypewideVerbosity ("LinkedList", Debug::E_USER);
+	Debug::API::SetTypewideVerbosity ("LinkedListIterator", Debug::E_USER);
+
 	LinkedList<int> l;
 	l.PushFront (1);
 	l.PushFront (2);
@@ -30,7 +37,7 @@ int main (int, char**)
 
     for (auto i = l.Begin(); !i.End(); ++i)
     {
-        smsg (E_INFO, E_USER, "Single-linked list: Data: %d", *i);
+        smsg (E_INFO, E_DEBUG, "Single-linked list: Data: %d", *i);
     }
 
 	l.PopFront();
@@ -50,7 +57,7 @@ int main (int, char**)
 
 	for (auto i = dl.Begin(); !i.End(); ++i)
 	{
-		smsg (E_INFO, E_USER, "Double-linked list: Forward iteration: Data: %d", *i);
+		smsg (E_INFO, E_DEBUG, "Double-linked list: Forward iteration: Data: %d", *i);
 	}
 
 	dl.PopFront();

@@ -279,5 +279,5 @@ fxla::token& fxla::token::operator= (const fxla::token& that)
 	return *this;
 }
 
-ImplementDescriptor(fxla, "lexic analyzer", MOD_APPMODULE, fxla);
-ImplementDescriptor(fxla_token, "token", MOD_OBJECT, fxla::token);
+ImplementDescriptor(fxla, "lexic analyzer", MOD_APPMODULE);
+ImplementDescriptor(fxla_token, "token", MOD_OBJECT);

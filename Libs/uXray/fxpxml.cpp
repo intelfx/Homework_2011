@@ -446,4 +446,4 @@ void fxpxml::hsc_strcpy (char* dest_, const char* src_, unsigned src_len_)
 	strsub (dest_, src_, src_len_ - (src_ - src_begin));
 }
 
-ImplementDescriptor(fxpxml, "XML parser", MOD_APPMODULE, fxpxml);
+ImplementDescriptor(fxpxml, "XML parser", MOD_APPMODULE);

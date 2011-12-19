@@ -28,6 +28,10 @@ const char* tr_op_names[S_SCOUNT] =
 
 typedef bool(*norm_op)(wchar_t*);
 
+norm_op operations[S_SCOUNT] =
+{
+	0
+};
 
 
 #endif // _DICT_OPERATIONS_H

@@ -13,6 +13,9 @@
 // Description	Miscellaneous functions
 // -----------------------------------------------------------------------------
 
+// Copies wstr to some internal buffer and returns pointer to it.
+FXLIB_API char* multibyte (wchar_t* wstr);
+
 // -------------void setflag (unsigned& data, unsigned flags)-------------------
 // Sets flags specified by 'flags' in 'data'.
 // -----------------------------------------------------------------------------
