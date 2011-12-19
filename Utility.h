@@ -1,4 +1,4 @@
-#ifndef _UTILITY_H
+﻿#ifndef _UTILITY_H
 #define _UTILITY_H
 
 #include "build.h"
@@ -21,147 +21,186 @@
 	 (static_cast <unsigned long long> ( str[6]) << 48) |								\
 	 (static_cast <unsigned long long> ( str[7]) << 56))
 
+#define init(x) memset (&x, 0xDEADBEEF, sizeof (x));
+
 
 namespace Processor
 {
+	typedef double calc_t;
+	typedef float abiprep_t;
+	typedef unsigned abiret_t;
 
-typedef double calc_t;
+	static_assert (sizeof (abiprep_t) == sizeof (abiret_t),
+				   "ABI data type size does not equal ABI return type size");
 
-static const size_t BUFFER_NUM = 4;
-static const size_t line_length = 256;
+	static const size_t BUFFER_NUM = 4;
+	static const size_t line_length = 256;
 
 
-enum ProcessorFlags
-{
-	F_EIP = 1, // Execute In Place
-	F_EXIT, // Context exit condition
-	F_NFC, // No Flag Change - prohibits flag file from being changed as side-effect
-	F_ZERO, // Zero Flag - set if last result was zero (or equal)
-	F_NEGATIVE, // Negative Flag - set if last result was negative (or below)
-};
-
-enum Register
-{
-	R_A = 0,
-	R_B,
-	R_C,
-	R_D,
-	R_E,
-	R_F,
-	R_MAX
-};
-
-enum ArgumentType
-{
-	A_NONE = 0,
-	A_VALUE,
-	A_REFERENCE
-};
-
-enum AddrType
-{
-	S_NONE = 0,
-	S_CODE,
-	S_DATA,
-	S_REGISTER,
-	S_FRAME,
-	S_FRAME_BACK // Parameters to function
-};
-
-struct Reference
-{
-	struct Direct
+	enum ProcessorFlags
 	{
-		size_t address;
-		AddrType type;
+		F_EIP = 1, // Execute In Place
+		F_EXIT, // Context exit condition
+		F_NFC, // No Flag Change - prohibits flag file from being changed as side-effect
+		F_ZERO, // Zero Flag - set if last result was zero (or equal)
+		F_NEGATIVE, // Negative Flag - set if last result was negative (or below)
+		F_INVALIDFP // Invalid Floating-Point Flag - set if last result was infinite or NAN
 	};
 
-
-	union
+	enum Register
 	{
-		Direct direct;
-		size_t symbol_hash;
+		R_A = 0,
+		R_B,
+		R_C,
+		R_D,
+		R_E,
+		R_F,
+		R_MAX
 	};
 
-	bool is_symbol;
-};
-
-struct Symbol
-{
-	size_t hash; // Yes, redundant - but failsafe
-	Reference ref;
-	bool is_resolved; // When returning from decode, this means "is defined"
-};
-
-struct DecodedCommand
-{
-	union Argument
+	enum ArgumentType
 	{
-		calc_t value;
-		Reference ref;
-	} arg;
+		A_NONE = 0,
+		A_VALUE,
+		A_REFERENCE
+	};
 
-	unsigned char command;
-};
-
-// This is something like TR1's std::unordered_map with manual hashing,
-// since we need to have direct access to hashes themselves.
-typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
-typedef symbol_map::value_type::second_type symbol_type;
-
-struct DecodedSet
-{
-	DecodedCommand cmd;
-	symbol_map symbols;
-};
-
-struct VersionSignature
-{
-	unsigned long long magic;
-
-	union
+	enum AddrType
 	{
-		struct
+		S_NONE = 0,
+		S_CODE,
+		S_DATA,
+		S_REGISTER,
+		S_FRAME,
+		S_FRAME_BACK, // Parameters to function
+		S_MAX
+	};
+
+	enum FileSectionType
+	{
+		SEC_NON_UNIFORM = 0,
+		SEC_SYMBOL_MAP,
+		SEC_CODE_IMAGE,
+		SEC_DATA_IMAGE,
+		SEC_STACK_IMAGE,
+		SEC_MAX
+	};
+
+	struct Reference
+	{
+		struct Direct
 		{
-			unsigned char minor;
-			unsigned char major;
-		} version;
+			size_t address;
+			AddrType type;
+		};
 
-		unsigned short ver_raw;
+		union
+		{
+			Direct direct;
+			size_t symbol_hash;
+		};
+
+		bool is_symbol;
 	};
 
-	bool is_sparse;
-} PACKED;
+	struct Symbol
+	{
+		size_t hash; // Yes, redundant - but failsafe
+		Reference ref;
+		bool is_resolved; // When returning from decode, this means "is defined"
+	};
 
-struct Context
-{
-	mask_t flags;
-	size_t ip;
-	size_t buffer;
-	size_t depth;
-	size_t frame;
-};
+	struct Command
+	{
+		union Argument
+		{
+			calc_t value;
+			Reference ref;
+		} arg;
 
-struct CommandTraits
-{
-	size_t id;
-	const char* mnemonic;
-	const char* description;
-	ArgumentType arg_type;
+		unsigned char id;
+	};
 
-	std::map<size_t, void*> execution_handles;
-};
+	// This is something like TR1's std::unordered_map with manual hashing,
+	// since we need to have direct access to hashes themselves.
+	typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
+	typedef symbol_map::value_type::second_type symbol_type;
 
-size_t InsertSymbol (symbol_map* map, Symbol& symbol, const char* label, bool update_hash);
+	symbol_map::value_type PrepareSymbol (const char* label, Symbol sym, size_t* hash = 0);
 
-class IReader;
-class IWriter;
-class IMMU;
-class ILinker;
-class IExecutor;
+	struct VersionSignature
+	{
+		unsigned long long magic;
+
+		union
+		{
+			struct
+			{
+				unsigned char minor;
+				unsigned char major;
+			} version;
+
+			unsigned short ver_raw;
+		};
+
+		bool is_sparse;
+	} PACKED;
+
+	struct Context
+	{
+		mask_t flags;
+		size_t ip;
+		size_t buffer;
+		size_t depth;
+		size_t frame;
+	};
+
+	struct CommandTraits
+	{
+		const char* mnemonic;
+		const char* description;
+		ArgumentType arg_type;
+
+		unsigned char id; // assigned by command set
+		bool executed_at_decode;
+
+		std::map<size_t, void*> execution_handles;
+	};
+
+	struct FileProperties
+	{
+		std::list< std::pair<FileSectionType, size_t> > file_description;
+		FILE* file;
+	};
+
+	struct DecodeResult
+	{
+		Command command;
+		symbol_map mentioned_symbols;
+	};
+
+	namespace ProcDebug
+	{
+		extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
+		extern const char* AddrType_ids[S_MAX]; // debug address type IDs
+
+		extern char debug_buffer[line_length];
+
+		void PrintReference (const Reference& ref);
+	}
+
+	class IReader;
+	class IWriter;
+	class IMMU;
+	class ILinker;
+	class IExecutor;
+	class IBackend;
+	class ICommandSet;
+	class ILogic;
+	class IModuleBase;
 
 } // namespace Processor
 
 #endif // _UTILITY_H
 
-// kate: indent-mode cstyle; replace-tabs off; tab-width 4;
+// kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;

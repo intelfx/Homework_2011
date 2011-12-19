@@ -1,4 +1,4 @@
-#ifndef _INTERFACES_H
+﻿#ifndef _INTERFACES_H
 #define _INTERFACES_H
 
 // -----------------------------------------------------------------------------
@@ -11,180 +11,302 @@
 #include "build.h"
 #include "Utility.h"
 
+DeclareDescriptor (ICommandSet);
 DeclareDescriptor (IReader);
 DeclareDescriptor (IWriter);
 DeclareDescriptor (IMMU);
 DeclareDescriptor (IExecutor);
 DeclareDescriptor (ILinker);
-DeclareDescriptor (IProcessor);
+DeclareDescriptor (ProcessorAPI);
+DeclareDescriptor (IBackend);
+DeclareDescriptor (IInternalLogic);
 
 namespace Processor
 {
 
-class IProcessor : LogBase (IProcessor)
-{
-	IReader* reader_;
-	IWriter* writer_;
-	IMMU* mmu_;
-	IExecutor* executor_;
-	ILinker* linker_;
+	class ProcessorAPI : LogBase (ProcessorAPI)
+	{
+		IReader* reader_;
+		IWriter* writer_;
+		IMMU* mmu_;
+		IExecutor* executor_;
+		IBackend* backend_;
+		ILinker* linker_;
+		ICommandSet* cset_;
+		ILogic* internal_logic_;
+		bool initialise_completed;
 
-protected:
-	virtual ~IProcessor();
+		void Attach_ (IReader* reader);
+		void Attach_ (IWriter* writer);
+		void Attach_ (IMMU* mmu);
+		void Attach_ (IExecutor* executor);
+		void Attach_ (ILinker* linker);
+		void Attach_ (ICommandSet* cset);
+		void Attach_ (IBackend* backend);
+		void Attach_ (ILogic* logic);
 
-public:
-	virtual void AttachReader (IReader* reader) = 0;
-	virtual void AttachWriter (IWriter* writer) = 0;
-	virtual void AttachMMU (IMMU* mmu) = 0;
-	virtual void AttachExecutor (IExecutor* executor) = 0;
-	virtual void AttachLinker (ILinker* linker) = 0;
+	protected:
+		virtual bool _Verify() const;
 
-	IReader* Reader() { return reader_; }
-	IWriter* Writer() { return writer_; }
-	IMMU* MMU() { return mmu_; }
-	IExecutor* Executor() { return executor_; }
-	ILinker* Linker() { return linker_; }
+	public:
+		virtual ~ProcessorAPI();
+		ProcessorAPI();
 
-	virtual void DumpContext (size_t ctx) = 0;
+		void Attach (IModuleBase* module);
+		void Detach (const IModuleBase* module);
+		void Initialise();
 
-	virtual Register DecodeRegister (const char* reg) = 0;
-	virtual const char* EncodeRegister (Register reg) = 0;
+		IReader*	Reader() { verify_method; return reader_; }
+		IWriter*	Writer() { verify_method; return writer_; }
+		IMMU*		MMU() { verify_method; return mmu_; }
+		IBackend*	Backend() { verify_method; return backend_; }
+		IExecutor*	Executor() { verify_method; return executor_; }
+		ILinker*	Linker() { verify_method; return linker_; }
+		ICommandSet*CommandSet() { verify_method; return cset_; }
+		ILogic*		LogicProvider() { verify_method; return internal_logic_; }
 
-	virtual void	Jump (size_t ip) = 0; // Use CODE reference to jump
-	virtual void	Analyze (calc_t value) = 0; // Analyze an arbitrary value
 
-	virtual calc_t	Read (Reference& ref) = 0; // Use DATA reference to read
-	virtual void	Write (Reference& ref, calc_t value) = 0; // Use DATA reference to write
+		void	Flush(); // Completely reset and reinitialise the system
+		void	Reset(); // Reset current execution context
+		void	Clear(); // Clear current execution buffers
+		void	Load (FILE* file, bool execute_stream = 0); // Load into a new context/buffer
+		void	Dump (FILE* file); // Dump current context/buffer
+		void	Delete(); // Return to previous context/buffer
+		void	Compile(); // Invoke backend to compile the bytecode
+		calc_t	Exec(); // Execute current system state whatever it is now
+	};
 
-	virtual calc_t	StackTop() = 0; // Calculation stack "top" operation
-	virtual calc_t	StackPop() = 0; // Calculation stack "pop" operation
-	virtual void	StackPush (calc_t value) = 0; // Calculation stack "push" operation
+	class IModuleBase
+	{
+	protected:
+		ProcessorAPI* proc_;
+		virtual ~IModuleBase();
 
-	virtual void	Syscall (size_t index) = 0; // Execute the processor syscall
-};
+	public:
+		virtual ProcessorAPI* GetProcessor()
+		{
+			return proc_;
+		}
 
-class IModuleBase
-{
-protected:
-	IProcessor* proc_;
+		void SetProcessor (ProcessorAPI* proc)
+		{
+			__sassert (proc, "Attaching to NULL processor");
+			proc_ = proc;
+		}
 
-public:
-	virtual void AttachProcessor (IProcessor* proc);
-	virtual void DetachProcessor();
-};
+		void DetachSelf()
+		{
+			if (proc_)
+			{
+				proc_ ->Detach (this);
+				proc_ = 0;
+			}
+		}
+	};
 
-class IReader : LogBase (IReader), public IModuleBase
-{
-protected:
-	virtual ~IReader();
+	class ILogic : LogBase (IInternalLogic), public IModuleBase
+	{
+	protected:
+		virtual ~ILogic();
 
-public:
-	virtual void AttachProcessor (IProcessor* proc);
-	virtual void DetachProcessor();
+	public:
+		virtual Register	DecodeRegister (const char* reg) = 0;
+		virtual const char*	EncodeRegister (Register reg) = 0;
 
-	virtual void Setup (FILE* file) = 0;
-	virtual void Reset() = 0;
-	virtual DecodedSet Read (size_t ctx_id) = 0;
-};
+		virtual size_t	ChecksumState() = 0; // Returns a "check sum" of context/buffer and main logic module IDs
 
-class IWriter : LogBase (IWriter), public IModuleBase
-{
-protected:
-	virtual ~IWriter();
+		virtual void	Syscall (size_t index) = 0; // Execute the processor syscall
+		virtual void	Analyze (calc_t value) = 0; // Analyze an arbitrary value
 
-public:
-	virtual void AttachProcessor (IProcessor* proc);
-	virtual void DetachProcessor();
+		virtual void	Jump (Reference& ref) = 0; // Use CODE reference to jump
+		virtual calc_t	Read (Reference& ref) = 0; // Use DATA reference to read
+		virtual void	Write (Reference& ref, calc_t value) = 0; // Use DATA reference to write
 
-	virtual void Setup (FILE* file) = 0;
-	virtual void Reset() = 0;
-	virtual void Write (size_t ctx_id) = 0;
-};
+		virtual calc_t	StackTop() = 0; // Calculation stack "top" operation
+		virtual calc_t	StackPop() = 0; // Calculation stack "pop" operation
+		virtual void	StackPush (calc_t value) = 0; // Calculation stack "push" operation
+	};
 
-class IMMU : LogBase (IMMU), public IModuleBase
-{
-protected:
-	virtual ~IMMU();
+	class ICommandSet : LogBase (ICommandSet), public IModuleBase
+	{
+		static IExecutor* default_exec_;
 
-public:
-	virtual void AttachProcessor (IProcessor* proc);
-	virtual void DetachProcessor();
+	protected:
+		virtual ~ICommandSet();
 
-	virtual Context&		GetContext	() = 0; // Get current context data
+	public:
+		static void SetFallbackExecutor (IExecutor* exec);
+		abiret_t ExecFallbackCallback (Processor::Command* cmd); // look, what a great name!
 
-	virtual calc_t&			AStackFrame	(int offset) = 0; // Access calculation stack relative to context's stack frame pointer
-	virtual calc_t&			AStackTop	(size_t offset) = 0; // Access calculation stack relative to its top
-	virtual calc_t&			ARegister	(Register reg_id) = 0; // Access register
-	virtual DecodedCommand&	ACommand	(size_t ip) = 0; // Access CODE section
-	DecodedCommand&			ACommand	() { return ACommand (GetContext().ip); }
-	virtual calc_t&			AData		(size_t addr) = 0;  // Access DATA section
-	virtual symbol_type&	ASymbol		(size_t hash) = 0;  // Access symbol buffer
 
-	virtual void			ReadStack	(calc_t* image, size_t size) = 0; // Read stack data (image end is top)
-	virtual void			ReadData	(calc_t* image, size_t size) = 0; // Read data buffer
-	virtual void			ReadText	(DecodedCommand* image, size_t size) = 0; // Read code buffer
-	virtual void			ReadSyms	(symbol_map* image) = 0; // Read symbol buffer
+		// Remove all registered handlers and user commands.
+		virtual void ResetCommandSet() = 0;
 
-	virtual size_t			GetTextSize	() = 0;
-	virtual size_t			GetDataSize	() = 0;
-	virtual size_t			GetStackTop () = 0;
+		// Dynamically registers a command. id field is non-significant; a random id is assigned.
+		virtual void AddCommand (CommandTraits&& command) = 0;
 
-	virtual void ResetBuffers (size_t ctx_id) = 0; // Reset specified context buffer
-	virtual void ResetEverything() = 0; // Reset MMU to its initial state, clearing all stacks.
+		// Dynamically registers an implementation for a specific command.
+		// In case of not found command, exception is thrown.
+		virtual void AddCommandImplementation (const char* mnemonic, size_t module, void* handle) = 0;
 
-	virtual void SaveContext() = 0; // Push context on call stack
-	virtual void ClearContext() = 0; // Clear all context data but context ID
-	virtual void RestoreContext() = 0; // Load context from call stack
+		virtual const CommandTraits& DecodeCommand (const char* mnemonic) const = 0;
+		virtual const CommandTraits& DecodeCommand (unsigned char id) const = 0;
 
-	virtual void NextContextBuffer() = 0; // Push context on call stack; clear all and increment context ID
-	virtual void AllocContextBuffer() = 0; // Switch to next context buffer; reset the buffer
+		virtual void* GetExecutionHandle (unsigned char id, size_t module) = 0;
+	};
 
-};
+	// many would want to do a shared R/W handler to share some routines
+	class IReader : LogBase (IReader), virtual public IModuleBase
+	{
+	protected:
+		virtual ~IReader();
 
-class IExecutor : LogBase (IExecutor), public IModuleBase
-{
-protected:
-	virtual ~IExecutor();
+	public:
+		// Sections in list are in file appearance order.
+		virtual FileProperties RdSetup (FILE* file) = 0;
+		virtual void RdReset (FileProperties* prop) = 0;
 
-public:
-	virtual void AttachProcessor (IProcessor* proc);
-	virtual void DetachProcessor();
+		// Advance file to the next section and return information about the new section.
+		// Successive calls to read functions should then read from this section.
+		// Returns if the section switch has been performed (0 in case of last section).
+		virtual size_t NextSection (FileProperties* prop, FileSectionType* type, size_t* count, size_t* bytes, bool force = 0) = 0;
 
-	virtual void Execute (void* handle, DecodedCommand::Argument& argument) = 0;
-};
+		// Reads next element from current section into "destination", writing no more
+		// than "max" bytes.
+		// Returns count of successfully read elements (0 or 1).
+		virtual size_t ReadNextElement (FileProperties* prop, void* destination, size_t max) = 0;
 
-class ILinker : LogBase (ILinker), public IModuleBase
-{
-protected:
-	virtual ~ILinker();
+		// Reads current section image (that is, which is described by section list front element)
+		// into "destination", writing no more than "max" bytes.
+		// Returns count of successfully read elements.
+		virtual size_t ReadSectionImage (FileProperties* prop, void* destination, size_t max) = 0;
 
-public:
-	static const size_t symbol_auto_placement_addr = static_cast<size_t> (-1);
+		// Reads and decodes next element of non-uniform stream section.
+		// Returns count of successfully read stream units (0 or 1).
+		virtual size_t ReadStream (FileProperties* prop, DecodeResult* destination) = 0;
+	};
 
-	virtual void AttachProcessor (IProcessor* proc);
-	virtual void DetachProcessor();
+	// many would want to do a shared R/W handler to share some routines
+	class IWriter : LogBase (IWriter), virtual public IModuleBase
+	{
+	protected:
+		virtual ~IWriter();
 
-	// Clear internal buffer symbol tables.
-	virtual void InitLinkSession() = 0;
+	public:
+		virtual void WrSetup (FILE* file) = 0;
+		virtual void WrReset() = 0;
 
-	// Commit internal buffers to the MMU.
-	// Function expects MMU to be set up to desired context and everything else except symbols
-	// already committed and interpreted by MMU.
-	virtual void Finalize() = 0;
+		virtual void Write (size_t ctx_id) = 0;
+	};
 
-	// Link symbols created by partial decoding.
-	// Function expects MMU to be set up to desired context
-	// and last instruction not yet stored onto the TEXT top.
-	// Function expects symbols to be auto-addressed (labels) to have address equal to
-	// "symbol_auto_placement_addr".
-	// If there is a full symbol image (read from binary file), push it to MMU directly.
-	virtual void LinkSymbols (DecodedSet& input) = 0;
+	class IMMU : LogBase (IMMU), public IModuleBase
+	{
+	protected:
+		virtual ~IMMU();
 
-	// Retrieve a direct reference for given arbitary reference.
-	virtual Reference::Direct& Resolve (Reference& reference) = 0; // or get an unresolved symbol error
-};
+	public:
+		virtual Context&		GetContext	() = 0; // Get current context data
+
+		virtual calc_t&			AStackFrame	(int offset) = 0; // Access calculation stack relative to context's stack frame pointer
+		virtual calc_t&			AStackTop	(size_t offset) = 0; // Access calculation stack relative to its top
+		virtual calc_t&			ARegister	(Register reg_id) = 0; // Access register
+		virtual Command&		ACommand	(size_t ip) = 0; // Access CODE section
+		Command&				ACommand	() { return ACommand (GetContext().ip); }
+		virtual calc_t&			AData		(size_t addr) = 0;   // Access DATA section
+		virtual symbol_type&	ASymbol		(size_t hash) = 0;   // Access symbol buffer
+
+		virtual void			ReadStack	(calc_t* image, size_t size) = 0; // Read stack data (image end is top)
+		virtual void			ReadData	(calc_t* image, size_t size) = 0; // Read data buffer
+		virtual void			ReadText	(Command* image, size_t size) = 0; // Read code buffer
+		virtual void			ReadSyms	(void* image, size_t size) = 0; // read symbol buffer (deserialize)
+
+		virtual void			InsertData	(calc_t value) = 0; // add a data entry to the buffer end
+		virtual void			InsertText	(const Command& command) = 0; // add a code entry to the buffer end
+		virtual void			InsertSyms	(symbol_map&& syms) = 0; // Read prepared symbol buffer
+
+		virtual void			WriteStack	(calc_t* image) const = 0; // write stack data (image end is top)
+		virtual void			WriteData	(calc_t* image) const = 0; // write data buffer
+		virtual void			WriteText	(Command* image) const = 0; // write code buffer
+		virtual void			WriteSyms	(void** image, size_t* bytes, size_t* count) const = 0; // serialize symbol map
+
+		virtual size_t			GetTextSize	() const = 0;
+		virtual size_t			GetDataSize	() const = 0;
+		virtual size_t			GetStackTop () const = 0;
+
+		virtual void			AlterStackTop (short offset) = 0; // Change stack top relatively (-1 is pop).
+
+		virtual void ResetBuffers (size_t ctx_id) = 0; // Reset specified context buffer
+		virtual void ResetEverything() = 0; // Reset MMU to its initial state, clearing all stacks.
+
+		virtual void SaveContext() = 0; // Push context on call stack
+		virtual void ClearContext() = 0; // Clear all context data but context ID
+		virtual void RestoreContext() = 0; // Load context from call stack
+
+		virtual void NextContextBuffer() = 0; // Push context on call stack; clear all and increment context ID
+		virtual void AllocContextBuffer() = 0; // Switch to next context buffer; reset the buffer
+
+        // Helper function for in-place decoder/executor.
+        // Returns whether they should exit decode/read loop.
+        inline bool DecodeLoopCondition (size_t initial_context)
+        {
+			return static_cast<long> (GetContext().buffer) >= static_cast<long> (initial_context);
+        }
+
+        void SetTemporaryContext (size_t ctx_id);
+	};
+
+	class IExecutor : LogBase (IExecutor), public IModuleBase
+	{
+	protected:
+		virtual ~IExecutor();
+
+	public:
+		virtual size_t ID() { return typeid (*this).hash_code(); }
+
+		// Executes a single command.
+		virtual void Execute (void* handle, Command::Argument& argument) = 0;
+	};
+
+	class IBackend : LogBase (IBackend), public IModuleBase
+	{
+	protected:
+		virtual ~IBackend();
+
+	public:
+		virtual void		CompileBuffer (size_t chk) = 0;
+		virtual bool		ImageIsOK (size_t chk) = 0;
+		virtual abiprep_t	ExecuteImage (size_t chk) = 0;
+	};
+
+	class ILinker : LogBase (ILinker), public IModuleBase
+	{
+	protected:
+		virtual ~ILinker();
+
+	public:
+		static const size_t symbol_auto_placement_addr = static_cast<size_t> (-1);
+
+		// Clear internal buffer symbol tables.
+		virtual void InitLinkSession() = 0;
+
+		// Commit internal buffers to the MMU.
+		// Function expects MMU to be set up to desired context and everything else except symbols
+		// already committed and interpreted by MMU.
+		virtual void Finalize() = 0;
+
+		// Link symbols created by partial decoding.
+		// Function expects MMU to be set up to desired context
+		// and last instruction not yet stored onto the TEXT top.
+		// Function expects symbols to be auto-addressed (labels) to have address equal to
+		// "symbol_auto_placement_addr".
+		// If there is a full symbol image (read from binary file), push it to MMU directly.
+		virtual void LinkSymbols (DecodeResult& input) = 0;
+
+		// Retrieve a direct reference for given arbitary reference.
+		virtual Reference::Direct& Resolve (Reference& reference) = 0; // or get an unresolved symbol error
+	};
 
 }
 
 #endif // _INTERFACES_H
-// kate: indent-mode cstyle; replace-tabs off; tab-width 4;
+// kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;
