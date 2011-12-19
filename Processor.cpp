@@ -613,10 +613,7 @@ size_t OLD_Processor::InsertSymbolPrepare (symbol_map* map, const char* label, S
 
 void OLD_Processor::InsertSymbolRaw (symbol_map* map, const char* label, Symbol symbol)
 {
-	std::string prep_label (label);
-	size_t prep_hash = symbol.hash;
-
-	map ->insert (std::make_pair (prep_hash, std::make_pair (std::move (prep_label), symbol)));
+	map ->insert (std::make_pair (symbol.hash, std::make_pair (std::string (label), symbol)));
 }
 
 void OLD_Processor::DecodeLinkSymbols (OLD_Processor::DecodedSet& set)
@@ -713,7 +710,7 @@ OLD_Processor::Reference OLD_Processor::DecodeReference (const char* ref, Decode
 
 	char reg[line_length], segment;
 
-	if (sscanf (ref, "%c:%ld", &segment, &target_ref.direct.address) == 2)
+	if (sscanf (ref, "%c:%zu", &segment, &target_ref.direct.address) == 2)
 	{
 		const char* _reftype = 0;
 
@@ -1232,19 +1229,19 @@ void OLD_Processor::DumpAsm (FILE* stream, size_t which_buffer)
 			else switch (cmd.ref.direct.type)
 				{
 				case S_CODE:
-					fprintf (stream, "%s c:%ld", cmd_str, cmd.ref.direct.address);
+					fprintf (stream, "%s c:%zu", cmd_str, cmd.ref.direct.address);
 					break;
 
 				case S_DATA:
-					fprintf (stream, "%s d:%ld", cmd_str, cmd.ref.direct.address);
+					fprintf (stream, "%s d:%zu", cmd_str, cmd.ref.direct.address);
 					break;
 
 				case S_FRAME:
-					fprintf (stream, "%s s:%ld", cmd_str, cmd.ref.direct.address);
+					fprintf (stream, "%s s:%zu", cmd_str, cmd.ref.direct.address);
 					break;
 
 				case S_FRAME_BACK:
-					fprintf (stream, "%s p:%ld", cmd_str, cmd.ref.direct.address);
+					fprintf (stream, "%s p:%zu", cmd_str, cmd.ref.direct.address);
 					break;
 
 				case S_REGISTER:

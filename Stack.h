@@ -15,7 +15,7 @@ class Stack : LogBase(Stack)
 	size_t stack_top;
 
 protected:
-	virtual bool Verify_() const
+	virtual bool _Verify() const
 	{
 		if (stack_top > storage.Capacity())
 			return 0;

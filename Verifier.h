@@ -21,7 +21,7 @@ protected:
 	virtual T& _Access (size_t subscript) = 0;
 	virtual const T& _Access (size_t subscript) const = 0;
 
-	virtual bool Verify_() const;
+	virtual bool _Verify() const;
 	virtual void _Realloc (size_t capacity) = 0;
 
 public:
@@ -72,7 +72,7 @@ const T& AllocBase<T>::Access (size_t subscript) const
 }
 
 template <typename T>
-bool AllocBase<T>::Verify_() const
+bool AllocBase<T>::_Verify() const
 {
 	if (!Capacity())
 		return 0;
@@ -88,7 +88,7 @@ class MallocAllocator : LogBase(MallocAllocator), public AllocBase<T>
 	T* array_;
 
 protected:
-	virtual bool Verify_() const
+	virtual bool _Verify() const
 	{
 		if (!capacity_)
 			return 0;
@@ -96,7 +96,7 @@ protected:
 		if (!array_)
 			return 0;
 
-		return AllocBase<T>::Verify_();
+		return AllocBase<T>::_Verify();
 	}
 
 	virtual void _Realloc (size_t cap)
@@ -157,9 +157,9 @@ class StaticAllocator : LogBase(StaticAllocator), public AllocBase<T>
 	T array_ [capacity];
 
 protected:
-	virtual bool Verify_() const
+	virtual bool _Verify() const
 	{
-		return AllocBase<T>::Verify_(); // Nothing to verify
+		return AllocBase<T>::_Verify(); // Nothing to verify
 	}
 
 	virtual void _Realloc (size_t)
