@@ -1,4 +1,4 @@
-#ifndef _MMU_H
+﻿#ifndef _MMU_H
 #define _MMU_H
 
 // -----------------------------------------------------------------------------
@@ -16,11 +16,10 @@ namespace ProcessorImplementation
 	using namespace Processor;
 	class MMU : public Processor::IMMU
 	{
-
 		struct InternalContextBuffer
 		{
 			std::vector<calc_t> data;
-			std::vector<DecodedCommand> commands;
+			std::vector<Command> commands;
 			symbol_map sym_table;
 
 			calc_t registers[R_MAX];
@@ -32,30 +31,45 @@ namespace ProcessorImplementation
 		Context context;
 
 		InternalContextBuffer& CurrentBuffer();
+		const InternalContextBuffer& CurrentBuffer() const;
 
-		void DumpContext (Context& w_context);
+		void InternalDumpCtx (const Context& w_context) const;
 
 	protected:
-		virtual bool Verify_() const;
+		virtual bool _Verify() const;
 
 	public:
+		MMU();
+
 		virtual calc_t&			AStackFrame	(int offset);
 		virtual calc_t&			AStackTop	(size_t offset);
 		virtual calc_t&			ARegister	(Register reg_id);
-		virtual DecodedCommand&	ACommand	(size_t ip);
+		virtual Command&		ACommand	(size_t ip);
 		virtual calc_t&			AData		(size_t addr);
 		virtual symbol_type&	ASymbol		(size_t hash);
 
 		virtual void			ReadStack	(calc_t* image, size_t size);
 		virtual void			ReadData	(calc_t* image, size_t size);
-		virtual void			ReadText	(DecodedCommand* image, size_t size);
-		virtual void			ReadSyms	(symbol_map* image);
+		virtual void			ReadText	(Command* image, size_t size);
+		virtual void			ReadSyms	(void* image, size_t size);
 
-		virtual size_t			GetTextSize	();
-		virtual size_t			GetDataSize	();
-		virtual size_t			GetStackTop	();
+		virtual void			InsertData	(calc_t value);
+		virtual void			InsertText	(const Command& command);
+		virtual void			InsertSyms	(symbol_map&& syms);
+
+		virtual void			WriteStack	(Processor::calc_t* image) const;
+		virtual void			WriteData	(calc_t* image) const;
+		virtual void 			WriteText	(Command* image) const;
+		virtual void			WriteSyms	(void** image, size_t* bytes, size_t* count) const;
+
+		virtual size_t			GetTextSize	() const;
+		virtual size_t			GetDataSize	() const;
+		virtual size_t			GetStackTop	() const;
+
+		virtual void			AlterStackTop (short int offset);
 
 		virtual Context&		GetContext	();
+		virtual void			DumpContext	() const;
 
 		virtual void ResetBuffers (size_t ctx_id);
 		virtual void ResetEverything();
@@ -70,3 +84,4 @@ namespace ProcessorImplementation
 }
 
 #endif // _MMU_H
+// kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;
