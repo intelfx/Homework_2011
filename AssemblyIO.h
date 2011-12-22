@@ -15,15 +15,16 @@ namespace ProcessorImplementation
 	{
 		FILE* writing_file_;
 
-		calc_t			ReadSingleValue (const char* input);
-		Reference		ReadSingleReference (Processor::symbol_map& symbols, const char* arg);
+		calc_t			ParseValue (const char* input);
+		Reference		ParseReference (Processor::symbol_map& symbols, const char* arg);
 
 		void	ReadSingleStatement (size_t line_num, char* input, Processor::DecodeResult& output);
-		bool			ReadSingleDeclaration (size_t line_num, const char* input, Processor::DecodeResult& output);
+		bool			ReadSingleDeclaration (const char* input, Processor::DecodeResult& output);
 		bool			ReadSingleCommand (size_t line_num, const char* input, Processor::DecodeResult& output);
 
 		void InternalWriteFile();
 		char* PrepLine (char* read_buffer);
+		char* ParseLabel (char* current_position);
 
 	protected:
 		virtual bool _Verify() const;

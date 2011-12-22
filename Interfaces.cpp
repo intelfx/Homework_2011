@@ -77,59 +77,55 @@ namespace Processor
 		if (!was_attach)
 			msg (E_CRITICAL, E_USER, "Could not attach module \"%s\" (%p) - unrecognized module type",
 				 Debug::API::GetClassName (module), module);
-
-		else
-			msg (E_INFO, E_USER, "Attached module \"%s\" (%p)",
-				 Debug::API::GetClassName (module), module);
 	}
 
 	void ProcessorAPI::Detach (const IModuleBase* module)
 	{
 		bool was_detach = 0;
 
-		if (module == backend_)
+		if (dynamic_cast<const IBackend*> (module) == backend_)
 		{
 			backend_ = 0;
 			was_detach = 1;
 		}
 
-		if (module == executor_)
+		if (dynamic_cast<const IExecutor*> (module) == executor_)
 		{
 			executor_ = 0;
 			was_detach = 1;
 		}
 
-		if (module == reader_)
+		if (dynamic_cast<const IReader*> (module) == reader_)
 		{
 			reader_ = 0;
 			was_detach = 1;
 		}
 
-		if (module == writer_)
+		if (dynamic_cast<const IWriter*> (module) == writer_)
 		{
 			writer_ = 0;
 			was_detach = 1;
 		}
 
-		if (module == cset_)
+		if (dynamic_cast<const ICommandSet*> (module) == cset_)
 		{
 			cset_ = 0;
 			was_detach = 1;
 		}
 
-		if (module == internal_logic_)
+		if (dynamic_cast<const ILogic*> (module) == internal_logic_)
 		{
 			internal_logic_ = 0;
 			was_detach = 1;
 		}
 
-		if (module == linker_)
+		if (dynamic_cast<const ILinker*> (module) == linker_)
 		{
 			linker_ = 0;
 			was_detach = 1;
 		}
 
-		if (module == mmu_)
+		if (dynamic_cast<const IMMU*> (module) == mmu_)
 		{
 			mmu_ = 0;
 			was_detach = 1;

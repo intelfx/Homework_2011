@@ -164,19 +164,21 @@ namespace Processor
 
 					while (reader_ ->ReadStream (&rd_prop, &decode_result))
 					{
-						msg (E_INFO, E_DEBUG, "Decoded: ID %zu -> [%zu]",
-							 decode_result.command.id, mmu_ ->GetTextSize());
-
 						if (!decode_result.mentioned_symbols.empty())
+						{
+							msg (E_INFO, E_DEBUG, "Adding symbols");
 							linker_ ->LinkSymbols (decode_result);
+						}
 
 						switch (decode_result.type)
 						{
 							case DecodeResult::DEC_COMMAND:
+								msg (E_INFO, E_DEBUG, "Adding command");
 								mmu_ ->InsertText (decode_result.command);
 								break;
 
 							case DecodeResult::DEC_DATA:
+								msg (E_INFO, E_DEBUG, "Adding data");
 								mmu_ ->InsertData (decode_result.data);
 								break;
 
@@ -276,9 +278,11 @@ namespace Processor
 		{
 			Command& now_cmd = mmu_ ->ACommand();
 
-			msg (E_INFO, E_DEBUG, "Executing : [PC=%zu] : %zu", mmu_ ->GetContext().ip, now_cmd.id);
+			msg (E_INFO, E_DEBUG, "Executing : [PC=%zu] : \"%s\"",
+				 mmu_ ->GetContext().ip, cset_ ->DecodeCommand(now_cmd.id).mnemonic);
 
-			++mmu_ ->GetContext().ip;
+			if (mmu_ ->GetContext().ip + 1 < mmu_ ->GetTextSize())
+				++mmu_ ->GetContext().ip;
 
 			void* handle = cset_ ->GetExecutionHandle (now_cmd.id, execid);
 			__assert (handle, "Invalid handle for command \"%s\"",
@@ -286,8 +290,6 @@ namespace Processor
 
 			executor_ ->Execute (handle, now_cmd.arg);
 			now_ctx = mmu_ ->GetContext().buffer;
-
-			msg (E_INFO, E_DEBUG, "Stack top after command: %lg", internal_logic_ ->StackTop());
 
 			if (mmu_ ->GetContext().flags & MASK (F_EXIT))
 			{

@@ -112,7 +112,7 @@ namespace ProcessorImplementation
 		return 0;
 	}
 
-	Reference AsmHandler::ReadSingleReference (Processor::symbol_map& symbols, const char* arg)
+	Reference AsmHandler::ParseReference (Processor::symbol_map& symbols, const char* arg)
 	{
 		verify_method;
 
@@ -204,7 +204,7 @@ namespace ProcessorImplementation
 		return begin;
 	}
 
-	calc_t AsmHandler::ReadSingleValue (const char* input)
+	calc_t AsmHandler::ParseValue (const char* input)
 	{
 		char* endptr;
 		long double decoded_a = strtold (input, &endptr);
@@ -218,7 +218,7 @@ namespace ProcessorImplementation
 		return static_cast<calc_t> (decoded_a);
 	}
 
-	bool AsmHandler::ReadSingleDeclaration (size_t line_num, const char* input, DecodeResult& output)
+	bool AsmHandler::ReadSingleDeclaration (const char* input, DecodeResult& output)
 	{
 		char name[STATIC_LENGTH], init[STATIC_LENGTH], type;
 		Symbol declaration;
@@ -233,20 +233,24 @@ namespace ProcessorImplementation
 				switch (type)
 				{
 					case '=':
-						output.data = ReadSingleValue (init);
+						output.data = ParseValue (init);
 
 						declaration.ref.is_symbol = 0;
 						declaration.ref.direct.type = S_DATA;
 						declaration.ref.direct.address = ILinker::symbol_auto_placement_addr;
 
 						msg (E_INFO, E_DEBUG, "Declaration: DATA entry, initialiser <%lg>", output.data);
+
+						output.type = DecodeResult::DEC_DATA;
 						break;
 
 					case ':':
-						declaration.ref = ReadSingleReference (output.mentioned_symbols, init);
+						declaration.ref = ParseReference (output.mentioned_symbols, init);
 
 						ProcDebug::PrintReference (declaration.ref);
 						msg (E_INFO, E_DEBUG, "Declaration: alias to %s", ProcDebug::debug_buffer);
+
+						output.type = DecodeResult::DEC_NOTHING;
 						break;
 
 					default:
@@ -254,7 +258,6 @@ namespace ProcessorImplementation
 						break;
 				}
 
-				output.type = DecodeResult::DEC_NOTHING;
 				output.mentioned_symbols.insert (PrepareSymbol (name, declaration));
 				break;
 
@@ -321,7 +324,7 @@ namespace ProcessorImplementation
 			{
 			case A_REFERENCE:
 			{
-				output.command.arg.ref = ReadSingleReference (output.mentioned_symbols, arg);
+				output.command.arg.ref = ParseReference (output.mentioned_symbols, arg);
 
 				ProcDebug::PrintReference (output.command.arg.ref);
 				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu] reference to %s",
@@ -332,8 +335,8 @@ namespace ProcessorImplementation
 
 			case A_VALUE:
 			{
-				output.command.arg.value = ReadSingleValue (arg);
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu] argument %llg",
+				output.command.arg.value = ParseValue (arg);
+				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu] argument %lg",
 					 desc.mnemonic, desc.id, output.command.arg.value);
 
 				break;
@@ -367,12 +370,28 @@ namespace ProcessorImplementation
 		return (arguments > 0);
 	}
 
+	char* AsmHandler::ParseLabel (char* string)
+	{
+		do
+		{
+			if (*string == ' ' || *string == '\0')
+				return 0; // no label
+
+			if (*string == ':')
+			{
+				*string = '\0';
+				return string + 1; // found label
+			}
+		} while (*string++);
+
+		return 0;
+	}
+
 	void AsmHandler::ReadSingleStatement (size_t line_num, char* input, DecodeResult& output)
 	{
 		verify_method;
 		size_t labels = 0;
 		Symbol label_symbol;
-		char label_name_buf[STATIC_LENGTH];
 		char* current_position = PrepLine (input);
 
 		init (label_symbol);
@@ -392,25 +411,26 @@ namespace ProcessorImplementation
 		 * Don't touch, it is supposed to work.
 		 */
 
-		int tmp_index = 0;
-		while ((tmp_index = 0, sscanf (current_position, "%[^ ]:%n", label_name_buf, &tmp_index), tmp_index))
+		while (char* next_chunk = ParseLabel (current_position))
 		{
-			current_position += tmp_index;
-
 			label_symbol.is_resolved = 1; /* defined here */
 			label_symbol.ref.is_symbol = 0; /* it does not reference another symbol */
 			label_symbol.ref.direct.type = S_CODE; /* it points to text */
 			label_symbol.ref.direct.address = ILinker::symbol_auto_placement_addr; /* its address must be determined later */
 
-			output.mentioned_symbols.insert (PrepareSymbol (label_name_buf, label_symbol));
+			output.mentioned_symbols.insert (PrepareSymbol (current_position, label_symbol));
 
-			msg (E_INFO, E_DEBUG, "Label: \"%s\"", label_name_buf);
+			msg (E_INFO, E_DEBUG, "Label: \"%s\"", current_position);
+
 			++labels;
+
+			current_position = next_chunk;
+			while (isspace (*current_position)) ++current_position;
 		}
 		msg (E_INFO, E_DEBUG, "Labels: %zu", labels);
 
 
-		if (ReadSingleDeclaration (line_num, current_position, output)) return;
+		if (ReadSingleDeclaration (current_position, output)) return;
 		if (ReadSingleCommand (line_num, current_position, output)) return;
 	}
 
@@ -427,10 +447,9 @@ namespace ProcessorImplementation
 
 		do
 		{
-			if (feof (prop ->file))
+			if (!fgets (read_buffer, STATIC_LENGTH, prop ->file))
 				return 0;
 
-			fgets (read_buffer, STATIC_LENGTH, prop ->file);
 			ReadSingleStatement (prop ->file_description.front().second++, read_buffer, *destination);
 
 		} while (destination ->type == DecodeResult::DEC_NOTHING);
