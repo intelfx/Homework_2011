@@ -11,6 +11,7 @@
 #include "build.h"
 #include "Utility.h"
 
+DeclareDescriptor (IModuleBase);
 DeclareDescriptor (ICommandSet);
 DeclareDescriptor (IReader);
 DeclareDescriptor (IWriter);
@@ -76,11 +77,14 @@ namespace Processor
 		calc_t	Exec(); // Execute current system state whatever it is now
 	};
 
-	class IModuleBase
+	class IModuleBase : LogBase (IModuleBase)
 	{
 	protected:
 		ProcessorAPI* proc_;
 		virtual ~IModuleBase();
+
+		virtual void OnAttach() {}
+		virtual void OnDetach() {}
 
 	public:
 		virtual ProcessorAPI* GetProcessor()
@@ -92,6 +96,7 @@ namespace Processor
 		{
 			__sassert (proc, "Attaching to NULL processor");
 			proc_ = proc;
+			OnAttach();
 		}
 
 		void DetachSelf()
@@ -99,6 +104,7 @@ namespace Processor
 			if (proc_)
 			{
 				proc_ ->Detach (this);
+				OnDetach();
 				proc_ = 0;
 			}
 		}
@@ -106,10 +112,9 @@ namespace Processor
 
 	class ILogic : LogBase (IInternalLogic), public IModuleBase
 	{
-	protected:
+	public:
 		virtual ~ILogic();
 
-	public:
 		virtual Register	DecodeRegister (const char* reg) = 0;
 		virtual const char*	EncodeRegister (Register reg) = 0;
 
@@ -131,10 +136,9 @@ namespace Processor
 	{
 		static IExecutor* default_exec_;
 
-	protected:
+	public:
 		virtual ~ICommandSet();
 
-	public:
 		static void SetFallbackExecutor (IExecutor* exec);
 		abiret_t ExecFallbackCallback (Processor::Command* cmd); // look, what a great name!
 
@@ -150,18 +154,17 @@ namespace Processor
 		virtual void AddCommandImplementation (const char* mnemonic, size_t module, void* handle) = 0;
 
 		virtual const CommandTraits& DecodeCommand (const char* mnemonic) const = 0;
-		virtual const CommandTraits& DecodeCommand (unsigned char id) const = 0;
+		virtual const CommandTraits& DecodeCommand (cid_t id) const = 0;
 
-		virtual void* GetExecutionHandle (unsigned char id, size_t module) = 0;
+		virtual void* GetExecutionHandle (cid_t id, size_t module) = 0;
 	};
 
 	// many would want to do a shared R/W handler to share some routines
 	class IReader : LogBase (IReader), virtual public IModuleBase
 	{
-	protected:
+	public:
 		virtual ~IReader();
 
-	public:
 		// Sections in list are in file appearance order.
 		virtual FileProperties RdSetup (FILE* file) = 0;
 		virtual void RdReset (FileProperties* prop) = 0;
@@ -189,10 +192,9 @@ namespace Processor
 	// many would want to do a shared R/W handler to share some routines
 	class IWriter : LogBase (IWriter), virtual public IModuleBase
 	{
-	protected:
+	public:
 		virtual ~IWriter();
 
-	public:
 		virtual void WrSetup (FILE* file) = 0;
 		virtual void WrReset() = 0;
 
@@ -201,11 +203,11 @@ namespace Processor
 
 	class IMMU : LogBase (IMMU), public IModuleBase
 	{
-	protected:
+	public:
 		virtual ~IMMU();
 
-	public:
 		virtual Context&		GetContext	() = 0; // Get current context data
+		virtual void			DumpContext	() const = 0; // Print context data to the log
 
 		virtual calc_t&			AStackFrame	(int offset) = 0; // Access calculation stack relative to context's stack frame pointer
 		virtual calc_t&			AStackTop	(size_t offset) = 0; // Access calculation stack relative to its top
@@ -235,6 +237,8 @@ namespace Processor
 
 		virtual void			AlterStackTop (short offset) = 0; // Change stack top relatively (-1 is pop).
 
+		virtual void VerifyReference (const Reference::Direct& ref) const = 0;
+
 		virtual void ResetBuffers (size_t ctx_id) = 0; // Reset specified context buffer
 		virtual void ResetEverything() = 0; // Reset MMU to its initial state, clearing all stacks.
 
@@ -245,23 +249,18 @@ namespace Processor
 		virtual void NextContextBuffer() = 0; // Push context on call stack; clear all and increment context ID
 		virtual void AllocContextBuffer() = 0; // Switch to next context buffer; reset the buffer
 
-        // Helper function for in-place decoder/executor.
-        // Returns whether they should exit decode/read loop.
-        inline bool DecodeLoopCondition (size_t initial_context)
-        {
-			return static_cast<long> (GetContext().buffer) >= static_cast<long> (initial_context);
-        }
-
         void SetTemporaryContext (size_t ctx_id);
 	};
 
 	class IExecutor : LogBase (IExecutor), public IModuleBase
 	{
-	protected:
+	public:
 		virtual ~IExecutor();
 
-	public:
 		virtual size_t ID() { return typeid (*this).hash_code(); }
+
+		// Re-registers all supported implementations.
+		virtual void ResetImplementations() = 0;
 
 		// Executes a single command.
 		virtual void Execute (void* handle, Command::Argument& argument) = 0;
@@ -269,10 +268,9 @@ namespace Processor
 
 	class IBackend : LogBase (IBackend), public IModuleBase
 	{
-	protected:
+	public:
 		virtual ~IBackend();
 
-	public:
 		virtual void		CompileBuffer (size_t chk) = 0;
 		virtual bool		ImageIsOK (size_t chk) = 0;
 		virtual abiprep_t	ExecuteImage (size_t chk) = 0;
@@ -280,10 +278,9 @@ namespace Processor
 
 	class ILinker : LogBase (ILinker), public IModuleBase
 	{
-	protected:
+	public:
 		virtual ~ILinker();
 
-	public:
 		static const size_t symbol_auto_placement_addr = static_cast<size_t> (-1);
 
 		// Clear internal buffer symbol tables.

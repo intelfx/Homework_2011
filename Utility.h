@@ -30,11 +30,12 @@ namespace Processor
 	typedef float abiprep_t;
 	typedef unsigned abiret_t;
 
+	typedef unsigned short cid_t;
+
 	static_assert (sizeof (abiprep_t) == sizeof (abiret_t),
 				   "ABI data type size does not equal ABI return type size");
 
 	static const size_t BUFFER_NUM = 4;
-	static const size_t line_length = 256;
 
 
 	enum ProcessorFlags
@@ -118,7 +119,7 @@ namespace Processor
 			Reference ref;
 		} arg;
 
-		unsigned char id;
+		cid_t id;
 	};
 
 	// This is something like TR1's std::unordered_map with manual hashing,
@@ -161,7 +162,7 @@ namespace Processor
 		const char* description;
 		ArgumentType arg_type;
 
-		unsigned char id; // assigned by command set
+		cid_t id; // assigned by command set
 		bool executed_at_decode;
 
 		std::map<size_t, void*> execution_handles;
@@ -175,8 +176,22 @@ namespace Processor
 
 	struct DecodeResult
 	{
-		Command command;
+		union
+		{
+			Command command;
+			calc_t data;
+		};
+
+		enum
+		{
+			DEC_COMMAND,
+			DEC_DATA,
+			DEC_NOTHING
+		} type;
+
 		symbol_map mentioned_symbols;
+
+		DecodeResult() : type (DEC_NOTHING) {}
 	};
 
 	namespace ProcDebug
@@ -184,7 +199,7 @@ namespace Processor
 		extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
 		extern const char* AddrType_ids[S_MAX]; // debug address type IDs
 
-		extern char debug_buffer[line_length];
+		extern char debug_buffer[STATIC_LENGTH];
 
 		void PrintReference (const Reference& ref);
 	}

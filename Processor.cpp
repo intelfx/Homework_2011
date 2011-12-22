@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "Processor.h"
 
-ImplementDescriptor (OLD_Processor, "dumb processor", MOD_APPMODULE, OLD_Processor);
+ImplementDescriptor (OLD_Processor, "dumb processor", MOD_APPMODULE);
 
 
 enum COMMANDS

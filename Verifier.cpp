@@ -8,6 +8,6 @@
 // Description	Verifier and allocator classes for containers.
 // -----------------------------------------------------------------------------
 
-ImplementDescriptorNoid(AllocBase, "allocator", MOD_OBJECT);
-ImplementDescriptorNoid(StaticAllocator, "static allocator", MOD_OBJECT);
-ImplementDescriptorNoid(MallocAllocator, "malloc-pwrd allocator", MOD_OBJECT);
+ImplementDescriptor(AllocBase, "allocator", MOD_OBJECT);
+ImplementDescriptor(StaticAllocator, "static allocator", MOD_OBJECT);
+ImplementDescriptor(MallocAllocator, "malloc-pwrd allocator", MOD_OBJECT);

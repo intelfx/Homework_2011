@@ -77,6 +77,10 @@ namespace Processor
 		if (!was_attach)
 			msg (E_CRITICAL, E_USER, "Could not attach module \"%s\" (%p) - unrecognized module type",
 				 Debug::API::GetClassName (module), module);
+
+		else
+			msg (E_INFO, E_USER, "Attached module \"%s\" (%p)",
+				 Debug::API::GetClassName (module), module);
 	}
 
 	void ProcessorAPI::Detach (const IModuleBase* module)
@@ -134,22 +138,22 @@ namespace Processor
 		if (!was_detach)
 			msg (E_WARNING, E_VERBOSE, "Not detaching \"%s\" (%p) - has not been attached",
 				 Debug::API::GetClassName (module), module);
+
+		else
+			msg (E_WARNING, E_VERBOSE, "Detached module \"%s\" (%p)",
+				 Debug::API::GetClassName (module), module);
 	}
 
 	void ProcessorAPI::Attach_ (IBackend* backend)
 	{
 		if (!backend)
-		{
-			msg (E_WARNING, E_VERBOSE, "Unregistered backend compiler module");
 			backend_ = 0;
-		}
 
 		else
 		{
 			if (backend_)
 				backend_ ->DetachSelf();
 
-			msg (E_INFO, E_DEBUG, "Attaching backend compiler module");
 			backend_ = backend;
 			backend_ ->SetProcessor (this);
 		}
@@ -158,17 +162,13 @@ namespace Processor
 	void ProcessorAPI::Attach_ (ICommandSet* cset)
 	{
 		if (!cset)
-		{
-			msg (E_WARNING, E_VERBOSE, "Unregistered command set provider");
 			cset_ = 0;
-		}
 
 		else
 		{
 			if (cset_)
 				cset_ ->DetachSelf();
 
-			msg (E_INFO, E_DEBUG, "Attaching command set provider");
 			cset_ = cset;
 			cset_ ->SetProcessor (this);
 		}
@@ -177,17 +177,13 @@ namespace Processor
 	void ProcessorAPI::Attach_ (IExecutor* executor)
 	{
 		if (!executor)
-		{
-			msg (E_WARNING, E_VERBOSE, "Unregistered executor");
 			executor_ = 0;
-		}
 
 		else
 		{
 			if (executor_)
 				executor_ ->DetachSelf();
 
-			msg (E_INFO, E_DEBUG, "Attaching executor");
 			executor_ = executor;
 			executor_ ->SetProcessor (this);
 		}
@@ -196,17 +192,13 @@ namespace Processor
 	void ProcessorAPI::Attach_ (ILinker* linker)
 	{
 		if (!linker)
-		{
-			msg (E_WARNING, E_VERBOSE, "Unregistered linker");
 			linker_ = 0;
-		}
 
 		else
 		{
 			if (linker_)
 				linker_ ->DetachSelf();
 
-			msg (E_INFO, E_DEBUG, "Attaching linker");
 			linker_ = linker;
 			linker_ ->SetProcessor (this);
 		}
@@ -215,17 +207,13 @@ namespace Processor
 	void ProcessorAPI::Attach_ (ILogic* logic)
 	{
 		if (!logic)
-		{
 			internal_logic_ = 0;
-			msg (E_WARNING, E_VERBOSE, "Unregistered internal logic engine");
-		}
 
 		else
 		{
 			if (internal_logic_)
 				internal_logic_ ->DetachSelf();
 
-			msg (E_INFO, E_DEBUG, "Attaching internal logic engine");
 			internal_logic_ = logic;
 			internal_logic_ ->SetProcessor (this);
 		}
@@ -234,37 +222,28 @@ namespace Processor
 	void ProcessorAPI::Attach_ (IMMU* mmu)
 	{
 		if (!mmu)
-		{
-			msg (E_WARNING, E_VERBOSE, "Unregistered MMU");
 			mmu_ = 0;
-		}
 
 		else
 		{
 			if (mmu_)
 				mmu_ ->DetachSelf();
 
-			msg (E_INFO, E_DEBUG, "Attaching MMU");
 			mmu_ = mmu;
 			mmu_ ->SetProcessor (this);
-			mmu_ ->ResetEverything();
 		}
 	}
 
 	void ProcessorAPI::Attach_ (IReader* reader)
 	{
 		if (!reader)
-		{
-			msg (E_WARNING, E_VERBOSE, "Unregistered reader");
 			reader_ = 0;
-		}
 
 		else
 		{
 			if (reader_)
 				reader_ ->DetachSelf();
 
-			msg (E_INFO, E_DEBUG, "Attaching reader");
 			reader_ = reader;
 			reader_ ->SetProcessor (this);
 		}
@@ -273,17 +252,13 @@ namespace Processor
 	void ProcessorAPI::Attach_ (IWriter* writer)
 	{
 		if (!writer)
-		{
-			msg (E_WARNING, E_VERBOSE, "Unregistered writer");
 			writer_ = 0;
-		}
 
 		else
 		{
 			if (writer_)
 				writer_ ->DetachSelf();
 
-			msg (E_INFO, E_DEBUG, "Attaching writer");
 			writer_ = writer;
 			writer_ ->SetProcessor (this);
 		}
@@ -343,16 +318,10 @@ namespace Processor
 	void ICommandSet::SetFallbackExecutor (IExecutor* exec)
 	{
 		if (!exec)
-		{
-			smsg (E_WARNING, E_VERBOSE, "Deregistering fallback executor");
 			default_exec_ = 0;
-		}
 
 		else
-		{
-			smsg (E_WARNING, E_VERBOSE, "Setting fallback executor");
 			default_exec_ = exec;
-		}
 	}
 
 	ProcessorAPI::ProcessorAPI() :
@@ -370,14 +339,15 @@ namespace Processor
 
 } // namespace Processor
 
-ImplementDescriptor (IReader, "reader module", MOD_APPMODULE, Processor::IReader);
-ImplementDescriptor (IWriter, "writer module", MOD_APPMODULE, Processor::IWriter);
-ImplementDescriptor (ILinker, "linker module", MOD_APPMODULE, Processor::ILinker);
-ImplementDescriptor (IMMU, "memory management unit", MOD_APPMODULE, Processor::IMMU);
-ImplementDescriptor (IExecutor, "executor module", MOD_APPMODULE, Processor::IExecutor);
-ImplementDescriptor (ProcessorAPI, "processor API", MOD_APPMODULE, Processor::ProcessorAPI);
-ImplementDescriptor (ICommandSet, "command set handler", MOD_APPMODULE, Processor::ICommandSet);
-ImplementDescriptor (IBackend, "native compiler", MOD_APPMODULE, Processor::IBackend);
-ImplementDescriptor (IInternalLogic, "processor logic", MOD_APPMODULE, Processor::ILogic);
+ImplementDescriptor (IReader, "reader module", MOD_APPMODULE);
+ImplementDescriptor (IWriter, "writer module", MOD_APPMODULE);
+ImplementDescriptor (ILinker, "linker module", MOD_APPMODULE);
+ImplementDescriptor (IMMU, "memory management unit", MOD_APPMODULE);
+ImplementDescriptor (IExecutor, "executor module", MOD_APPMODULE);
+ImplementDescriptor (ProcessorAPI, "processor API", MOD_APPMODULE);
+ImplementDescriptor (ICommandSet, "command set handler", MOD_APPMODULE);
+ImplementDescriptor (IBackend, "native compiler", MOD_APPMODULE);
+ImplementDescriptor (IInternalLogic, "processor logic", MOD_APPMODULE);
+ImplementDescriptor (IModuleBase, "unspecified module", MOD_APPMODULE);
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
 
