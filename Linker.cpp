@@ -5,7 +5,7 @@
 // Library		Homework
 // File			Linker.cpp
 // Author		intelfx
-// Description	Linker.
+// Description	Unit-At-a-Time linker implementation
 // -----------------------------------------------------------------------------
 
 namespace ProcessorImplementation
@@ -14,7 +14,7 @@ namespace ProcessorImplementation
 
 	void UATLinker::LinkSymbols (DecodeResult& input)
 	{
-		msg (E_INFO, E_DEBUG, "Linking symbols [%lu]", input.mentioned_symbols.size());
+		msg (E_INFO, E_DEBUG, "Linking symbols: %zu", input.mentioned_symbols.size());
 
 		char sym_nm_buf[STATIC_LENGTH];
 
@@ -104,7 +104,7 @@ namespace ProcessorImplementation
 				if (existing_record != temporary_map.end())
 				{
 					__verify (!existing_record ->second.second.is_resolved,
-							  "Symbol redefinition");
+							  "Symbol redefinition: %s", sym_nm_buf);
 
 					existing_record ->second.second = symbol_desc;
 				}
@@ -137,6 +137,7 @@ namespace ProcessorImplementation
 			temp_ref = &sym.ref;
 		}
 
+		proc_ ->MMU() ->VerifyReference (temp_ref ->direct);
 		return temp_ref ->direct;
 	}
 

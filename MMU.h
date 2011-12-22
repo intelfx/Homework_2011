@@ -37,9 +37,11 @@ namespace ProcessorImplementation
 
 	protected:
 		virtual bool _Verify() const;
+		virtual void OnAttach();
 
 	public:
-		MMU();
+		virtual Context&		GetContext	();
+		virtual void			DumpContext	() const;
 
 		virtual calc_t&			AStackFrame	(int offset);
 		virtual calc_t&			AStackTop	(size_t offset);
@@ -68,8 +70,7 @@ namespace ProcessorImplementation
 
 		virtual void			AlterStackTop (short int offset);
 
-		virtual Context&		GetContext	();
-		virtual void			DumpContext	() const;
+		virtual void VerifyReference (const Reference::Direct& ref) const;
 
 		virtual void ResetBuffers (size_t ctx_id);
 		virtual void ResetEverything();

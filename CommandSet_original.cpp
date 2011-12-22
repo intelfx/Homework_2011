@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "CommandSet_original.h"
 
+#include <uXray/fxhash_functions.h>
+
 // -----------------------------------------------------------------------------
 // Library		Homework
 // File			CommandSet_original.cpp
@@ -14,8 +16,11 @@ namespace ProcessorImplementation
 
 	CommandSet_mkI::~CommandSet_mkI() = default;
 	CommandSet_mkI::CommandSet_mkI() :
-	by_id(),
-	by_mnemonic()
+	by_id()
+	{
+	}
+
+	void CommandSet_mkI::OnAttach()
 	{
 		ResetCommandSet();
 	}
@@ -26,7 +31,6 @@ namespace ProcessorImplementation
 
 		msg (E_INFO, E_VERBOSE, "Resetting command set: using mkI");
 		by_id.clear();
-		by_mnemonic.clear();
 
 		for (const ICD* dsc = initial_commands; dsc ->name; ++dsc)
 		{
@@ -35,52 +39,52 @@ namespace ProcessorImplementation
 			traits.description			= dsc ->description;
 			traits.arg_type				= dsc ->arg_type;
 			traits.executed_at_decode	= dsc ->exec_at_decode;
-			traits.id					= by_id.size();
+			traits.id					= get_id (dsc ->name);
 
-			by_id.push_back (std::move (traits));
-
-			auto ins_res = by_mnemonic.insert (std::make_pair (dsc ->name, &by_id.back()));
-			__assert (ins_res.second, "Internal inconsistency on \"%s\"", dsc ->name);
+			msg (E_INFO, E_DEBUG, "mkI command: \"%s\" -> %u", dsc ->name, traits.id);
+			auto byid_ins_res = by_id.insert (std::make_pair (traits.id, std::move (traits)));
+			__assert (byid_ins_res.second, "Internal inconsistency on \"%s\"", dsc ->name);
 		}
 
 		msg (E_INFO, E_DEBUG, "Successfully added %zu commands", by_id.size());
 	}
 
-	void CommandSet_mkI::AddCommand (Processor::CommandTraits && command)
+	void CommandSet_mkI::AddCommand (Processor::CommandTraits&& command)
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUG, "Adding custom command: \"%s\" () -> # %zu",
-			 command.mnemonic, command.description, by_id.size());
+		command.id = get_id (command.mnemonic);
 
-		command.id = by_id.size();
-		by_id.push_back (std::move (command));
+		msg (E_INFO, E_DEBUG, "Adding custom command: \"%s\" (\"%s\") -> # %u",
+			 command.mnemonic, command.description, command.id);
 
-		auto main_ins_res = by_mnemonic.insert (std::make_pair (by_id.back().mnemonic, &by_id.back()));
-		__assert (main_ins_res.second, "Command already exists: \"%s\"", by_id.back().mnemonic);
+		auto byid_ins_res = by_id.insert (std::make_pair (command.id, std::move (command)));
+		__assert (byid_ins_res.second, "Command already exists: \"%s\"", command.mnemonic);
 	}
 
 	void CommandSet_mkI::AddCommandImplementation (const char* mnemonic, size_t module, void* handle)
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUG, "Registering implementation driver for command \"%s\"", mnemonic);
+		msg (E_INFO, E_DEBUG, "Registering implementation driver for command \"%s\" -> %p",
+			 mnemonic, module);
 
 		__assert (mnemonic, "NULL mnemonic");
-		auto cmd_it = by_mnemonic.find (mnemonic);
-		__assert (cmd_it != by_mnemonic.end(), "Invalid or unregistered mnemonic: \"%s\"", mnemonic);
+		cid_t cmd_id = get_id (mnemonic);
+		auto cmd_it = by_id.find (cmd_id);
+		__assert (cmd_it != by_id.end(), "Invalid or unregistered mnemonic: \"%s\"", mnemonic);
 
-		auto impl_ins_res = cmd_it ->second ->execution_handles.insert (std::make_pair (module, handle));
-		__assert (impl_ins_res.second, "Implementation of \"%s\" -> %zu has already been registered",
+		auto impl_ins_res = cmd_it ->second.execution_handles.insert (std::make_pair (module, handle));
+		__assert (impl_ins_res.second, "Implementation of \"%s\" -> %p has already been registered",
 				  mnemonic, module);
 	}
 
-	void* CommandSet_mkI::GetExecutionHandle (unsigned char id, size_t module)
+	void* CommandSet_mkI::GetExecutionHandle (cid_t id, size_t module)
 	{
 		const CommandTraits& cmd = DecodeCommand (id);
 		auto impl_it = cmd.execution_handles.find (module);
 		__assert (impl_it != cmd.execution_handles.end(),
-				  "Unable to find implementation of \"%s\" -> %zu",
+				  "Unable to find implementation of \"%s\" -> %p",
 				  cmd.mnemonic, module);
 
 		return impl_it ->second;
@@ -89,19 +93,19 @@ namespace ProcessorImplementation
 	const CommandTraits& CommandSet_mkI::DecodeCommand (const char* mnemonic) const
 	{
 		__assert (mnemonic, "NULL mnemonic");
-		auto cmd_it = by_mnemonic.find (mnemonic);
-		__assert (cmd_it != by_mnemonic.end(), "Invalid or unregistered mnemonic: \"%s\"", mnemonic);
+		cid_t cmd_id = get_id (mnemonic);
+		auto cmd_it = by_id.find (cmd_id);
+		__assert (cmd_it != by_id.end(), "Invalid or unregistered mnemonic: \"%s\"", mnemonic);
 
-		return *cmd_it ->second;
+		return cmd_it ->second;
 	}
 
-	const CommandTraits& CommandSet_mkI::DecodeCommand (unsigned char id) const
+	const CommandTraits& CommandSet_mkI::DecodeCommand (cid_t id) const
 	{
-		__assert (id < by_id.size(), "Invalid ID: %hhu", id);
-		__assert (by_id.at (id).id == id, "Internal inconsistency for id %hhu: registered id %hhu",
-				  id, by_id.at (id).id);
+		auto cmd_it = by_id.find (id);
+		__assert (cmd_it != by_id.end(), "Invalid or unregistered ID: %hhu", id);
 
-		return by_id.at (id);
+		return cmd_it ->second;
 	}
 
 	const CommandSet_mkI::ICD CommandSet_mkI::initial_commands[] =

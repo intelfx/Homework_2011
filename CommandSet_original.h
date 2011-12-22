@@ -17,8 +17,7 @@ namespace ProcessorImplementation
 
 	class CommandSet_mkI : public ICommandSet
 	{
-		std::vector<CommandTraits> by_id;
-		std::map<std::string, CommandTraits*> by_mnemonic;
+		std::map<cid_t, CommandTraits> by_id;
 
 		struct ICD
 		{
@@ -30,6 +29,14 @@ namespace ProcessorImplementation
 
 		static const ICD initial_commands[];
 
+		inline static cid_t get_id (const char* mnemonic)
+		{
+			return std::_Hash_impl::hash (mnemonic, strlen (mnemonic));
+		}
+
+	protected:
+		virtual void OnAttach();
+
 	public:
 		CommandSet_mkI();
 		virtual ~CommandSet_mkI();
@@ -40,9 +47,9 @@ namespace ProcessorImplementation
 		virtual void AddCommandImplementation (const char* mnemonic, size_t module, void* handle);
 
 		virtual const CommandTraits& DecodeCommand (const char* mnemonic) const;
-		virtual const CommandTraits& DecodeCommand (unsigned char id) const;
+		virtual const CommandTraits& DecodeCommand (cid_t id) const;
 
-		virtual void* GetExecutionHandle (unsigned char id, size_t module);
+		virtual void* GetExecutionHandle (Processor::cid_t id, size_t module);
 	};
 }
 

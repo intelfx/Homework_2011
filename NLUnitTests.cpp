@@ -6,6 +6,7 @@
 #include "CommandSet_original.h"
 #include "Linker.h"
 #include "Logic.h"
+#include "Executor.h"
 
 int main (int argc, char** argv)
 {
@@ -14,27 +15,34 @@ int main (int argc, char** argv)
 																		EVERYTHING),
 												   &FXConLog::Instance());
 
-// 	Debug::API::SetStaticTypeVerbosity< StaticAllocator<int, 1> > (Debug::E_USER);
+	Debug::API::SetTypewideVerbosity ("MallocAllocator", Debug::E_USER);
+	Debug::API::SetTypewideVerbosity ("StaticAllocator", Debug::E_USER);
 
 
 	Processor::ProcessorAPI api;
 
-	ProcessorImplementation::MMU mmu;
-	ProcessorImplementation::UATLinker linker;
-	ProcessorImplementation::AsmHandler asm_rw;
-	ProcessorImplementation::Logic logic;
-	ProcessorImplementation::CommandSet_mkI cset;
+	api.Attach (new ProcessorImplementation::MMU);
+	api.Attach (new ProcessorImplementation::UATLinker);
+	api.Attach (new ProcessorImplementation::Logic);
+	api.Attach (new ProcessorImplementation::CommandSet_mkI);
+	api.Attach (new ProcessorImplementation::Executor);
+// 	api.Flush();
 
-	api.Attach (&mmu);
-	api.Attach (&linker);
-	api.Attach (&logic);
-	api.Attach (&cset);
-	api.Flush();
-
-	api.Attach (&asm_rw);
+	api.Attach (new ProcessorImplementation::AsmHandler);
 	FILE* read = fopen ("input.dasm", "rt");
 	api.Load (read, 0);
-	api.Delete();
+
+	delete api.Reader();
+
+	Processor::calc_t result = api.Exec();
+
+	smsg (E_INFO, E_USER, "Testing has apparently completed OK: result %lg", result);
+
+	delete api.MMU();
+	delete api.Linker();
+	delete api.LogicProvider();
+	delete api.CommandSet();
+	delete api.Executor();
 
 	Debug::System::Instance().CloseTargets();
 }

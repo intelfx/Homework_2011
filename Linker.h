@@ -5,7 +5,7 @@
 // Library		Homework
 // File			Linker.h
 // Author		intelfx
-// Description	Linker.
+// Description	Unit-At-a-Time linker implementation
 // -----------------------------------------------------------------------------
 
 #include "build.h"

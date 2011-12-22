@@ -9,6 +9,7 @@ namespace Processor
 
 		mmu_ ->ResetEverything();
 		cset_ ->ResetCommandSet();
+		executor_ ->ResetImplementations();
 	}
 
 	void ProcessorAPI::Reset()
@@ -29,7 +30,6 @@ namespace Processor
 	{
 		verify_method;
 
-		mmu_ ->ResetBuffers (mmu_ ->GetContext().buffer);
 		mmu_ ->RestoreContext();
 	}
 
@@ -39,8 +39,8 @@ namespace Processor
 
 		if (!execute_stream)
 		{
-			msg (E_INFO, E_VERBOSE, "Loading from stream -> context %zu", mmu_ ->GetContext().buffer + 1);
 			mmu_ ->AllocContextBuffer();
+			msg (E_INFO, E_VERBOSE, "Loading from stream -> context %zu", mmu_ ->GetContext().buffer);
 		}
 
 		else
@@ -65,6 +65,7 @@ namespace Processor
 			msg (E_INFO, E_DEBUG, "Reading section: type \"%s\" size %zu",
 				 ProcDebug::FileSectionType_ids[sec_type], sec_size);
 
+			// Read uniform section as a whole image
 			if (sec_type != SEC_NON_UNIFORM)
 			{
 				__assert (!execute_stream, "Uniform (image) section in stream execute mode");
@@ -75,6 +76,8 @@ namespace Processor
 				read_size = reader_ ->ReadSectionImage (&rd_prop, data_buffer, req_bytes);
 				__assert (read_size == sec_size, "Failed to read section: received %zu elements of %zu",
 						  read_size, sec_size);
+
+				msg (E_INFO, E_DEBUG, "Passing image to MMU");
 
 				switch (sec_type)
 				{
@@ -120,7 +123,11 @@ namespace Processor
 					{
 						if (reader_ ->ReadStream (&rd_prop, &decode_result))
 						{
-							__verify (decode_result.mentioned_symbols.empty(), "Symbols are not allowed in EIP mode");
+							__verify (decode_result.mentioned_symbols.empty(),
+									  "Symbols are not allowed in EIP mode");
+
+							__verify (decode_result.type == DecodeResult::DEC_COMMAND,
+									  "Only commands are allowed in EIP mode");
 
 							void* handle = cset_ ->GetExecutionHandle (decode_result.command.id, module);
 							executor_ ->Execute (handle, decode_result.command.arg);
@@ -129,15 +136,16 @@ namespace Processor
 						else
 						{
 							msg (E_WARNING, E_VERBOSE, "Preliminary EOS reading and executing stream");
-							mmu_ ->GetContext().flags |= MASK(F_EXIT);
+							mmu_ ->GetContext().flags |= MASK (F_EXIT);
 						}
 
-						if (mmu_ ->GetContext().flags & MASK(F_EXIT)) /* we are marked to exit context, do it */
+
+						if (mmu_ ->GetContext().flags & MASK (F_EXIT)) /* we are marked to exit context, do it */
 						{
 							if (mmu_ ->GetContext().buffer == initial_ctx_n)
 							{
-								msg (E_INFO, E_VERBOSE, "Load and execute ended normally [%lg]",
-                                     internal_logic_ ->StackTop());
+								msg (E_INFO, E_VERBOSE, "Load and execute OK. Result = %lg",
+									 internal_logic_ ->StackTop());
 								break; /* we leave used context for the user */
 							}
 
@@ -152,19 +160,46 @@ namespace Processor
 				{
 					linker_ ->InitLinkSession();
 
+					msg (E_INFO, E_DEBUG, "Non-uniform section decode start");
+
 					while (reader_ ->ReadStream (&rd_prop, &decode_result))
 					{
-						linker_ ->LinkSymbols (decode_result);
-						mmu_ ->InsertText (decode_result.command);
+						msg (E_INFO, E_DEBUG, "Decoded: ID %zu -> [%zu]",
+							 decode_result.command.id, mmu_ ->GetTextSize());
+
+						if (!decode_result.mentioned_symbols.empty())
+							linker_ ->LinkSymbols (decode_result);
+
+						switch (decode_result.type)
+						{
+							case DecodeResult::DEC_COMMAND:
+								mmu_ ->InsertText (decode_result.command);
+								break;
+
+							case DecodeResult::DEC_DATA:
+								mmu_ ->InsertData (decode_result.data);
+								break;
+
+							case DecodeResult::DEC_NOTHING:
+								msg (E_WARNING, E_DEBUG,
+									 "Reader returned no primary data in decoded set");
+								break;
+
+							default:
+								__asshole ("Switch error");
+								break;
+						}
 					}
 
+					msg (E_INFO, E_DEBUG, "Non-uniform section decode OK, linking phase");
 					linker_ ->Finalize();
-					msg (E_INFO, E_DEBUG, "Load completed normally");
 				}
 
 			} // non-uniform section
 
 		} // while (nextsection)
+
+		msg (E_INFO, E_VERBOSE, "Reading completed");
 
 		reader_ ->RdReset (&rd_prop); // close file
 	}
@@ -196,7 +231,7 @@ namespace Processor
 			backend_ ->CompileBuffer (chk);
 			__assert (backend_ ->ImageIsOK (chk), "Backend reported compile error");
 
-			msg (E_INFO, E_VERBOSE, "Compilation OK, checksum assigned %p", chk);
+			msg (E_INFO, E_VERBOSE, "Compilation OK: checksum assigned %p", chk);
 		}
 
 		catch (std::exception& e)
@@ -211,41 +246,52 @@ namespace Processor
 
 		size_t initial_ctx = mmu_ ->GetContext().buffer, now_ctx = initial_ctx;
 		size_t chk = internal_logic_ ->ChecksumState(), execid = executor_ ->ID();
+
 		msg (E_INFO, E_VERBOSE, "Starting execution of context %zu (system checksum %p)", initial_ctx, chk);
 
+		// Try to use backend if image was compiled
 		if (backend_ && backend_ ->ImageIsOK (chk))
 		{
-			msg (E_INFO, E_VERBOSE, "Backend reports image is OK, using precompiled");
+			msg (E_INFO, E_VERBOSE, "Backend reports image is OK. Using precompiled image");
 
 			try
 			{
 				calc_t result = backend_ ->ExecuteImage (chk);
 
-				msg (E_INFO, E_VERBOSE, "Execution OK [%lg]", result);
+				msg (E_INFO, E_VERBOSE, "Execution OK: Result = %lg", result);
 				mmu_ ->RestoreContext();
 				return result;
 			}
 
 			catch (std::exception& e)
 			{
-				msg (E_CRITICAL, E_USER, "Execution FAILED: %s. Reverting to interpreter.", e.what());
+				msg (E_CRITICAL, E_USER, "Execution FAILED: Error = %s. Reverting to interpreter", e.what());
 			}
-		} // if (image_available)
+		}
 
+		// Else fall back to the interpreter.
+		msg (E_INFO, E_VERBOSE, "Using interpreter (ID %p)", execid);
+		calc_t last_result;
 		for (;;)
 		{
 			Command& now_cmd = mmu_ ->ACommand();
+
+			msg (E_INFO, E_DEBUG, "Executing : [PC=%zu] : %zu", mmu_ ->GetContext().ip, now_cmd.id);
+
 			++mmu_ ->GetContext().ip;
 
 			void* handle = cset_ ->GetExecutionHandle (now_cmd.id, execid);
-			__sassert (handle, "Invalid handle for command \"%s\"",
-					   cset_ ->DecodeCommand (now_cmd.id).mnemonic);
+			__assert (handle, "Invalid handle for command \"%s\"",
+					  cset_ ->DecodeCommand (now_cmd.id).mnemonic);
 
 			executor_ ->Execute (handle, now_cmd.arg);
 			now_ctx = mmu_ ->GetContext().buffer;
 
-			if (mmu_ ->GetContext().flags & MASK(F_EXIT))
+			msg (E_INFO, E_DEBUG, "Stack top after command: %lg", internal_logic_ ->StackTop());
+
+			if (mmu_ ->GetContext().flags & MASK (F_EXIT))
 			{
+				last_result = internal_logic_ ->StackTop();
 				mmu_ ->RestoreContext();
 
 				if (now_ctx == initial_ctx)
@@ -253,7 +299,7 @@ namespace Processor
 			}
 		} // for (interpreter)
 
-		msg (E_INFO, E_VERBOSE, "Interpreter finished, result %lg", internal_logic_ ->StackTop());
-		return internal_logic_ ->StackPop(); /* pop the result value from stack */
+		msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED: Result = %lg", last_result);
+		return last_result;
 	}
 }

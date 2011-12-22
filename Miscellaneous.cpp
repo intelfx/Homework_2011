@@ -26,18 +26,18 @@ namespace Processor
 			"parameter"
 		};
 
-		char debug_buffer[line_length];
+		char debug_buffer[STATIC_LENGTH];
 
 		void PrintReference (const Reference& ref)
 		{
 			if (ref.is_symbol)
-				snprintf (debug_buffer, line_length, "symbol (hash %p)", ref.symbol_hash);
+				snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %p)", ref.symbol_hash);
 
 			else
 			{
 				__sassert (ref.direct.type < S_MAX, "Invalid reference type: %zu", ref.direct.type);
 
-				snprintf (debug_buffer, line_length, "direct %s address %zu",
+				snprintf (debug_buffer, STATIC_LENGTH, "direct %s address %zu",
 						  AddrType_ids[ref.direct.type], ref.direct.address);
 			}
 		}
@@ -60,7 +60,7 @@ namespace Processor
 	{
 		ICommandSet* cset = default_exec_ ->GetProcessor() ->CommandSet();
 		void* handle = cset ->GetExecutionHandle (cmd ->id, default_exec_ ->ID());
-		__sassert (handle, "Invalid handle for command \"%s\"", cset ->DecodeCommand (cmd ->id).mnemonic);
+// 		__sassert (handle, "Invalid handle for command \"%s\"", cset ->DecodeCommand (cmd ->id).mnemonic);
 
 		default_exec_ ->Execute (handle, cmd ->arg);
 		calc_t temporary_result = default_exec_ ->GetProcessor() ->LogicProvider() ->StackPop();

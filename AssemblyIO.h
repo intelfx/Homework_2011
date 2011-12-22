@@ -5,43 +5,47 @@
 #include "Interfaces.h"
 #include "Linker.h"
 
-DeclareDescriptor(AsmHandler);
+DeclareDescriptor (AsmHandler);
 
 namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class AsmHandler : LogBase(AsmHandler), public Processor::IReader, public Processor::IWriter
+	class AsmHandler : LogBase (AsmHandler), public Processor::IReader, public Processor::IWriter
 	{
-        FILE* writing_file_;
-        char read_buffer[line_length], command[line_length], arg[line_length];
+		FILE* writing_file_;
 
-        std::pair<bool, DecodeResult>	ReadSingleStatement (size_t line_num);
-		Reference						ReadSingleReference (symbol_map& symbols);
+		calc_t			ReadSingleValue (const char* input);
+		Reference		ReadSingleReference (Processor::symbol_map& symbols, const char* arg);
 
-        void InternalWriteFile();
-		char* PrepLine();
+		void	ReadSingleStatement (size_t line_num, char* input, Processor::DecodeResult& output);
+		bool			ReadSingleDeclaration (size_t line_num, const char* input, Processor::DecodeResult& output);
+		bool			ReadSingleCommand (size_t line_num, const char* input, Processor::DecodeResult& output);
 
-    protected:
-        virtual bool _Verify() const;
+		void InternalWriteFile();
+		char* PrepLine (char* read_buffer);
 
-    public:
+	protected:
+		virtual bool _Verify() const;
+
+	public:
 		AsmHandler();
 
-        virtual void RdReset (FileProperties* prop);
-        virtual FileProperties RdSetup (FILE* file);
+		virtual void RdReset (FileProperties* prop);
+		virtual FileProperties RdSetup (FILE* file);
 
-        virtual size_t NextSection (Processor::FileProperties* prop, Processor::FileSectionType* type, size_t* count, size_t*, bool = 0);
+		virtual size_t NextSection (Processor::FileProperties* prop, Processor::FileSectionType* type, size_t* count, size_t*, bool = 0);
 
-        virtual size_t ReadNextElement (FileProperties* prop, void* destination, size_t max);
-        virtual size_t ReadSectionImage (FileProperties* prop, void* destination, size_t max);
-        virtual size_t ReadStream (FileProperties* prop, DecodeResult* destination);
+		virtual size_t ReadNextElement (FileProperties* prop, void* destination, size_t max);
+		virtual size_t ReadSectionImage (FileProperties* prop, void* destination, size_t max);
+		virtual size_t ReadStream (FileProperties* prop, DecodeResult* destination);
 
 		virtual void WrSetup (FILE* file);
 		virtual void WrReset();
 
-        virtual void Write (size_t ctx_id);
+		virtual void Write (size_t ctx_id);
 	};
 }
 
 #endif // _ASM_IO_H
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

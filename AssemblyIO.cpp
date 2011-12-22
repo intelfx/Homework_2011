@@ -1,14 +1,14 @@
 #include "stdafx.h"
 #include "AssemblyIO.h"
 
-ImplementDescriptor(AsmHandler, "assembly reader/writer", MOD_APPMODULE, ProcessorImplementation::AsmHandler);
+ImplementDescriptor (AsmHandler, "assembly reader/writer", MOD_APPMODULE);
 
 namespace ProcessorImplementation
 {
 	using namespace Processor;
 
 	AsmHandler::AsmHandler() :
-	writing_file_ (0)
+		writing_file_ (0)
 	{
 	}
 
@@ -112,7 +112,7 @@ namespace ProcessorImplementation
 		return 0;
 	}
 
-	Reference AsmHandler::ReadSingleReference (Processor::symbol_map& symbols)
+	Reference AsmHandler::ReadSingleReference (Processor::symbol_map& symbols, const char* arg)
 	{
 		verify_method;
 
@@ -128,29 +128,29 @@ namespace ProcessorImplementation
 
 			switch (id)
 			{
-				case 'c':
-					result.direct.type = S_CODE;
-					break;
+			case 'c':
+				result.direct.type = S_CODE;
+				break;
 
-				case 'd':
-					result.direct.type = S_DATA;
-					break;
+			case 'd':
+				result.direct.type = S_DATA;
+				break;
 
-				case 'f':
-					result.direct.type = S_FRAME;
-					break;
+			case 'f':
+				result.direct.type = S_FRAME;
+				break;
 
-				case 'p':
-					result.direct.type = S_FRAME_BACK;
-					break;
+			case 'p':
+				result.direct.type = S_FRAME_BACK;
+				break;
 
-				case 'r':
-					result.direct.type = S_REGISTER;
-					__verify (address < R_MAX, "Invalid address in register reference: %zu", address);
-					break;
+			case 'r':
+				result.direct.type = S_REGISTER;
+				__verify (address < R_MAX, "Invalid address in register reference: %zu", address);
+				break;
 
-				default:
-					result.direct.type = S_NONE;
+			default:
+				result.direct.type = S_NONE;
 			}
 
 			__verify (result.direct.type != S_NONE, "Invalid direct address specifier: '%c'", id);
@@ -175,11 +175,11 @@ namespace ProcessorImplementation
 		return result;
 	}
 
-	char* AsmHandler::PrepLine()
+	char* AsmHandler::PrepLine(char* read_buffer)
 	{
 		char *begin, *tmp = read_buffer;
 
-		while (isspace (*(begin = tmp++)));
+		while (isspace (* (begin = tmp++)));
 
 		if (*begin == '\0')
 			return 0;
@@ -198,54 +198,103 @@ namespace ProcessorImplementation
 			else
 				*tmp = tolower (*tmp);
 
-		} while (*tmp++);
+		}
+		while (*tmp++);
 
 		return begin;
 	}
 
-	std::pair<bool, DecodeResult> AsmHandler::ReadSingleStatement (size_t line_num)
+	calc_t AsmHandler::ReadSingleValue (const char* input)
 	{
-		verify_method;
+		char* endptr;
+		long double decoded_a = strtold (input, &endptr);
 
-		std::pair<bool, DecodeResult> result;
-		size_t labels = 0;
-		Symbol current_label;
-		char* tmp_reading = PrepLine();
+		__verify (endptr != input, "Malformed value argument: \"%s\"", input);
 
-		init (current_label);
-		result.first = 0;
+		int classification = fpclassify (decoded_a);
+		__verify (classification == FP_NORMAL || classification == FP_ZERO,
+				  "Invalid floating-point value: \"%s\" -> %llg", input, decoded_a);
 
-		/* skip leading space and return if empty string */
-		if (!tmp_reading)
+		return static_cast<calc_t> (decoded_a);
+	}
+
+	bool AsmHandler::ReadSingleDeclaration (size_t line_num, const char* input, DecodeResult& output)
+	{
+		char name[STATIC_LENGTH], init[STATIC_LENGTH], type;
+		Symbol declaration;
+		init (declaration);
+
+		declaration.is_resolved = 1;
+
+		int arguments = sscanf (input, "decl %s %c %s", name, &type, init);
+		switch (arguments)
 		{
-			msg (E_INFO, E_DEBUG, "Not decoding empty line");
-			return result;
+			case 3:
+				switch (type)
+				{
+					case '=':
+						output.data = ReadSingleValue (init);
+
+						declaration.ref.is_symbol = 0;
+						declaration.ref.direct.type = S_DATA;
+						declaration.ref.direct.address = ILinker::symbol_auto_placement_addr;
+
+						msg (E_INFO, E_DEBUG, "Declaration: DATA entry, initialiser <%lg>", output.data);
+						break;
+
+					case ':':
+						declaration.ref = ReadSingleReference (output.mentioned_symbols, init);
+
+						ProcDebug::PrintReference (declaration.ref);
+						msg (E_INFO, E_DEBUG, "Declaration: alias to %s", ProcDebug::debug_buffer);
+						break;
+
+					default:
+						__asshole ("Parse error: \"%s\"", input);
+						break;
+				}
+
+				output.type = DecodeResult::DEC_NOTHING;
+				output.mentioned_symbols.insert (PrepareSymbol (name, declaration));
+				break;
+
+			case 1:
+				output.data = 0; // default initialiser
+
+				declaration.ref.is_symbol = 0;
+				declaration.ref.direct.type = S_DATA;
+				declaration.ref.direct.address = ILinker::symbol_auto_placement_addr;
+
+				msg (E_INFO, E_DEBUG, "Declaration: DATA entry, default initialiser");
+
+				output.type = DecodeResult::DEC_DATA;
+				output.mentioned_symbols.insert (PrepareSymbol (name, declaration));
+				break;
+
+			case 2:
+				__asshole ("Parse error: \"%s\"", input);
+				break;
+
+			case EOF:
+			case 0:
+				msg (E_INFO, E_DEBUG, "Declaration: no declaration");
+				break;
+
+			default:
+				__asshole ("Switch error");
+				break;
 		}
 
-		msg (E_INFO, E_DEBUG, "Decoding single line: \"%s\"", tmp_reading);
+		return (arguments > 0);
+	}
 
-		/* parse labels */
-		while (char* colon = strchr (tmp_reading, ':'))
-		{
-			*colon++ = '\0'; /* set symbol name boundary */
-			while (isspace (*tmp_reading)) ++tmp_reading; /* skip leading space */
+	bool AsmHandler::ReadSingleCommand (size_t line_num,
+										const char* input,
+										DecodeResult& output)
+	{
+		char command[STATIC_LENGTH], arg[STATIC_LENGTH];
 
-			current_label.is_resolved = 1; /* defined here */
-			current_label.ref.is_symbol = 0; /* it does not reference another symbol */
-			current_label.ref.direct.type = S_CODE; /* it points to text */
-			current_label.ref.direct.address = ILinker::symbol_auto_placement_addr; /* its address must be determined later */
-
-			result.second.mentioned_symbols.insert (PrepareSymbol (tmp_reading, current_label));
-
-			msg (E_INFO, E_DEBUG, "Label: \"%s\"", tmp_reading);
-
-			tmp_reading = colon;
-			++labels;
-		}
-		msg (E_INFO, E_DEBUG, "Parsed labels: %zu", labels);
-
-		// the only statement type now is instruction
-		int arguments = sscanf (tmp_reading, "%s %s", command, arg);
+		int arguments = sscanf (input, "%s %s", command, arg);
 		switch (arguments)
 		{
 		case 1: /* no argument */
@@ -255,9 +304,10 @@ namespace ProcessorImplementation
 					  "Line %zu: No argument required for command \"%s\" while given argument \"%s\"",
 					  line_num, command, arg);
 
-			result.second.command.id = desc.id;
+			output.type = DecodeResult::DEC_COMMAND;
+			output.command.id = desc.id;
 
-			msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%zu]", desc.mnemonic, desc.id);
+			msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu]", desc.mnemonic, desc.id);
 			break;
 		}
 
@@ -267,16 +317,14 @@ namespace ProcessorImplementation
 			__verify (desc.arg_type != A_NONE,
 					  "Line %zu: Argument needed for command \"%s\"", line_num, command);
 
-			result.second.command.id = desc.id;
-
 			switch (desc.arg_type)
 			{
 			case A_REFERENCE:
 			{
-				result.second.command.arg.ref = ReadSingleReference (result.second.mentioned_symbols);
+				output.command.arg.ref = ReadSingleReference (output.mentioned_symbols, arg);
 
-				ProcDebug::PrintReference (result.second.command.arg.ref);
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%zu] reference to %s",
+				ProcDebug::PrintReference (output.command.arg.ref);
+				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu] reference to %s",
 					 desc.mnemonic, desc.id, ProcDebug::debug_buffer);
 
 				break;
@@ -284,24 +332,15 @@ namespace ProcessorImplementation
 
 			case A_VALUE:
 			{
-				char* endptr;
-				long double decoded_a = strtold (arg, &endptr);
-
-				__verify (endptr != arg, "Line %zu: Malformed value argument: \"%s\"", line_num, arg);
-
-				int classification = fpclassify (decoded_a);
-				__verify (classification == FP_NORMAL || classification == FP_ZERO,
-						  "Line %zu: Invalid floating-point value: \"%s\" -> %lg", line_num, arg, decoded_a);
-
-				result.second.command.arg.value = static_cast<calc_t> (decoded_a);
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%zu] argument %lg",
-					 desc.mnemonic, desc.id, decoded_a);
+				output.command.arg.value = ReadSingleValue (arg);
+				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu] argument %llg",
+					 desc.mnemonic, desc.id, output.command.arg.value);
 
 				break;
 			}
 
 			case A_NONE:
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%zu]", desc.mnemonic, desc.id);
+				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu]", desc.mnemonic, desc.id);
 				break;
 
 			default:
@@ -309,17 +348,70 @@ namespace ProcessorImplementation
 				break;
 			} // switch (argument type)
 
+			output.type = DecodeResult::DEC_COMMAND;
+			output.command.id = desc.id;
+
 			break;
 		} // argument processing
 
 		case EOF:
-		default:
+		case 0:
 			msg (E_INFO, E_DEBUG, "Command: No command");
+			break;
+
+		default:
+			__asshole ("Switch error");
 			break;
 		} // switch (argument count)
 
-		result.first = static_cast<bool> (arguments);
-		return std::move (result);
+		return (arguments > 0);
+	}
+
+	void AsmHandler::ReadSingleStatement (size_t line_num, char* input, DecodeResult& output)
+	{
+		verify_method;
+		size_t labels = 0;
+		Symbol label_symbol;
+		char label_name_buf[STATIC_LENGTH];
+		char* current_position = PrepLine (input);
+
+		init (label_symbol);
+
+		/* skip leading space and return if empty string */
+		if (!current_position)
+		{
+			msg (E_INFO, E_DEBUG, "Not decoding empty line");
+			return;
+		}
+
+		msg (E_INFO, E_DEBUG, "Decoding line %zu: \"%s\"", line_num, current_position);
+
+		/*
+		 * parse labels
+		 * while() condition is a mess.
+		 * Don't touch, it is supposed to work.
+		 */
+
+		int tmp_index = 0;
+		while ((tmp_index = 0, sscanf (current_position, "%[^ ]:%n", label_name_buf, &tmp_index), tmp_index))
+		{
+			current_position += tmp_index;
+
+			label_symbol.is_resolved = 1; /* defined here */
+			label_symbol.ref.is_symbol = 0; /* it does not reference another symbol */
+			label_symbol.ref.direct.type = S_CODE; /* it points to text */
+			label_symbol.ref.direct.address = ILinker::symbol_auto_placement_addr; /* its address must be determined later */
+
+			output.mentioned_symbols.insert (PrepareSymbol (label_name_buf, label_symbol));
+
+			msg (E_INFO, E_DEBUG, "Label: \"%s\"", label_name_buf);
+			++labels;
+		}
+		msg (E_INFO, E_DEBUG, "Labels: %zu", labels);
+
+
+		if (ReadSingleDeclaration (line_num, current_position, output)) return;
+		if (ReadSingleCommand (line_num, current_position, output)) return;
 	}
 
 	size_t AsmHandler::ReadStream (FileProperties* prop, DecodeResult* destination)
@@ -330,20 +422,20 @@ namespace ProcessorImplementation
 				  "Invalid (non-stream) section type: \"%s\"",
 				  ProcDebug::FileSectionType_ids[prop ->file_description.front().first]);
 
-		std::pair<bool, DecodeResult> result;
+		*destination = DecodeResult();
+		char read_buffer[STATIC_LENGTH];
 
 		do
 		{
 			if (feof (prop ->file))
 				return 0;
 
-			fgets (read_buffer, line_length, prop ->file);
-			result = ReadSingleStatement (prop ->file_description.front().second++);
+			fgets (read_buffer, STATIC_LENGTH, prop ->file);
+			ReadSingleStatement (prop ->file_description.front().second++, read_buffer, *destination);
 
-		} while (!result.first);
+		} while (destination ->type == DecodeResult::DEC_NOTHING);
 
-		*destination = result.second;
 		return 1;
 	}
 }
-// kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

@@ -62,7 +62,8 @@ namespace ProcessorImplementation
 			break;
 
 		default:
-			__sasshole ("fpclassify() error - returned %d", classification);
+// 			__sasshole ("fpclassify() error - returned %d", classification);
+			break;
 		}
 	}
 
@@ -95,8 +96,7 @@ namespace ProcessorImplementation
 		__verify (dref.type == S_CODE, "Cannot jump to non-CODE reference to %s",
 				  (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 
-		msg (E_INFO, E_DEBUG, "Jumping %zu -> %zu",
-			 proc_ ->MMU() ->GetContext().ip, dref.address);
+		msg (E_INFO, E_DEBUG, "Jumping -> %zu", dref.address);
 
 		proc_ ->MMU() ->GetContext().ip = dref.address;
 	}

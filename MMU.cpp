@@ -5,11 +5,7 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	MMU::MMU() :
-	main_stack(),
-	context_stack(),
-	buffers(),
-	context()
+	void MMU::OnAttach()
 	{
 		ResetEverything();
 	}
@@ -172,7 +168,7 @@ namespace ProcessorImplementation
 
 		const symbol_map& src = CurrentBuffer().sym_table;
 
-		size_t i_cnt = src.size(), i_bytes = (sizeof (Symbol) + sizeof (size_t) + line_length) * i_cnt;
+		size_t i_cnt = src.size(), i_bytes = (sizeof (Symbol) + sizeof (size_t) + STATIC_LENGTH) * i_cnt;
 		size_t i_idx = 0;
 		char* i_img = reinterpret_cast<char*> (malloc (i_bytes));
 
@@ -240,8 +236,8 @@ namespace ProcessorImplementation
 
 			else
 			{
-				char tmp_ptr[line_length];
-				snprintf (tmp_ptr, line_length, "__unk_%p", sym ->hash);
+				char tmp_ptr[STATIC_LENGTH];
+				snprintf (tmp_ptr, STATIC_LENGTH, "__unk_%p", sym ->hash);
 				name.assign (tmp_ptr);
 			}
 
@@ -320,8 +316,6 @@ namespace ProcessorImplementation
 
 		ClearContext();
 		context.buffer = -1;
-
-		AllocContextBuffer();
 	}
 
 	void MMU::SaveContext()
@@ -375,17 +369,19 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUG, "Restoring execution context");
+		msg (E_INFO, E_DEBUG, "Restoring execution context [was %zd]", context.buffer);
+
+		InternalDumpCtx (context_stack.back());
+
+		if (context_stack.size() == 1)
+			msg (E_INFO, E_DEBUG, "MMU back to uninitialized state");
 
 		context = context_stack.back();
 		context_stack.pop_back();
-		InternalDumpCtx (context);
 	}
 
 	void MMU::InternalDumpCtx (const Context& w_context) const
 	{
-		verify_method;
-
 		msg (E_INFO, E_DEBUG, "Ctx [%zd]: IP [%zu] FL [%zu] STACK [T %zu F %zu] DEPTH [%zu]",
 			 w_context.buffer, w_context.ip, w_context.flags, main_stack.size(),
 			 w_context.frame, w_context.depth);
@@ -492,6 +488,42 @@ namespace ProcessorImplementation
 		return 1;
 	}
 
+	void MMU::VerifyReference (const Reference::Direct& ref) const
+	{
+		switch (ref.type)
+		{
+		case S_CODE:
+			__verify (ref.address < GetTextSize(),
+					  "Invalid reference [TEXT:%zu] : limit %zu", ref.address, GetTextSize());
+			break;
 
+		case S_DATA:
+			__verify (ref.address < GetDataSize(),
+					  "Invalid reference [DATA:%zu] : limit %zu", ref.address, GetDataSize());
+			break;
+
+		case S_REGISTER:
+			__verify (ref.address < R_MAX,
+					  "Invalid reference [REG:%zu] : max register ID %zu", ref.address, R_MAX - 1);
+			break;
+
+		case S_FRAME:
+			__verify (context.frame + ref.address < main_stack.size(),
+					  "Invalid reference [FRAME:%zu] : offset limit %zu", main_stack.size() - context.frame);
+			break;
+
+
+		case S_FRAME_BACK:
+			__verify (context.frame - ref.address < main_stack.size(),
+					  "Invalid reference [BACKFRAME:%zu] : offset limit %zu", context.frame + 1);
+			break;
+
+		case S_NONE:
+		case S_MAX:
+		default:
+			__asshole ("Switch error");
+			break;
+		}
+	}
 } // namespace ProcessorImplementation
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
