@@ -259,6 +259,6 @@ void* PluginSystem::LookupSequential (const char* symbol)
 
 PluginEngine* PluginSystem::native_engine_ = 0;
 
-ImplementDescriptor(PluginSystem, "dynamic plugin system", MOD_APPMODULE, PluginSystem);
-ImplementDescriptor(PluginEngine, "dynamic plugin backend", MOD_APPMODULE, PluginEngine);
-ImplementDescriptor(PluginSystem_Plugin, "plugin", MOD_OBJECT, PluginSystem::Plugin);
+ImplementDescriptor(PluginSystem, "dynamic plugin system", MOD_APPMODULE);
+ImplementDescriptor(PluginEngine, "dynamic plugin backend", MOD_APPMODULE);
+ImplementDescriptor(PluginSystem_Plugin, "plugin", MOD_OBJECT);

@@ -19,7 +19,7 @@
  */
 
 #define ENCAP_IMPLEMENTATION(Type, fund)												\
-	ImplementDescriptor (Type, #fund, MOD_INTERNAL, Type);								\
+	ImplementDescriptor (Type, #fund, MOD_INTERNAL);									\
 	Type::Type (fund data) : data_ (data) {}											\
 	Type::~Type() = default;
 

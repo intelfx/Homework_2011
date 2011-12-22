@@ -8,7 +8,7 @@
 // Description	Console (stdio) logger backend for debug system
 // -----------------------------------------------------------------------------
 
-ImplementDescriptor(FXConLog, "console logger backend", MOD_INTERNAL, FXConLog);
+ImplementDescriptor(FXConLog, "console logger backend", MOD_INTERNAL);
 
 FILE* const FXConLog::FALLBACK_FILE = stderr;
 
