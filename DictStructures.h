@@ -70,12 +70,12 @@ struct Configs
 struct Entry /* LOCALE */
 {
 	const wchar_t* word;
-	const wchar_t* tran;
+	std::vector<const wchar_t*> trans;
 	size_t flags;
 
 	explicit Entry (const wchar_t* src) :
 	word (src),
-	tran (0),
+	trans (0),
 	flags (0)
 	{
 		smsg (E_INFO, E_DEBUG, "Word parsed: \"%ls\"", src);

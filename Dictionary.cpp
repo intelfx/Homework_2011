@@ -208,8 +208,12 @@ void debug_print_data (const InputData& src, const wchar_t* title, bool second_p
 		{
 			printf ("* WORD: \"%ls\"", j ->word);
 
-			if (second_pass && j ->tran)
-				printf (" -> \"%ls\"", j ->tran);
+			if (second_pass && !j ->trans.empty())
+			{
+				printf (" ->");
+				for (auto it = j ->trans.begin(); it != j ->trans.end(); ++it)
+					printf (" \"%ls\"", *it);
+			}
 
 			else if (second_pass)
 				printf (" (no translation)");
@@ -223,9 +227,22 @@ void debug_print_data (const InputData& src, const wchar_t* title, bool second_p
 
 const wchar_t* attempt_translate_word (std::wstring& in_str, Dictionary& dict) /* LOCALE */
 {
-	Dictionary::Iterator it = dict.Find (in_str.c_str());
+	Dictionary::Iterator it = dict.Find (in_str);
 
 	return it.End() ? 0 : it ->data.c_str();
+}
+
+std::vector<const wchar_t*> attempt_translate_word_multi (std::wstring& in_str, Dictionary& dict) /* LOCALE */
+{
+	std::vector<Dictionary::Iterator> it_v = dict.FindAll (in_str);
+
+	std::vector<const wchar_t*> res_v;
+	for (auto it_it = it_v.begin(); it_it != it_v.end(); ++it_it)
+	{
+		res_v.push_back ((*it_it) ->data.c_str());
+	}
+
+	return std::move (res_v);
 }
 
 const char* debug_dump_operations (Entry& e) /* non-LOCALE */
@@ -278,11 +295,13 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 			// If we do not use word operations, we set current_op to the end manually.
 			size_t current_op = (cfg.use_normalisation) ? 0 : S_SCOUNT;
 
-			const wchar_t* translation = 0;
-			while (!(translation = attempt_translate_word (working_string, dict)) && (++current_op < S_SCOUNT))
+			std::vector<const wchar_t*> translations;
+
+			while (((translations = attempt_translate_word_multi (working_string, dict)), translations.empty()) &&
+					(++current_op < S_SCOUNT))
 				tr_entry.AttemptNormalisation (static_cast<NmOperation> (current_op), working_string);
 
-			if (!translation)
+			if (translations.empty())
 			{
 				++failed;
 
@@ -294,9 +313,9 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 			{
 				++translated;
 
-				smsg (E_INFO, E_DEBUG, "OK: \"%ls\" -> \"%ls\" (transformations used: %s)",
-					  tr_entry.word, translation, debug_dump_operations (tr_entry));
-				tr_entry.tran = translation;
+				smsg (E_INFO, E_DEBUG, "OK: \"%ls\" -> \"%ls\" (got %zu translations; transformations used: %s)",
+					  tr_entry.word, translations.front(), translations.size(), debug_dump_operations (tr_entry));
+				tr_entry.trans = std::move (translations);
 			}
 		} // inner for()
 	} // outer for()
