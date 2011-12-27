@@ -274,19 +274,21 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 				continue;
 			}
 
-			smsg (E_INFO, E_DEBUG, "Translating word \"%ls\"", tr_entry.word);
+			std::wstring working_string (tr_entry.word);
+			smsg (E_INFO, E_DEBUG, "Translating word \"%ls\"", working_string.c_str());
 
 			// If we do not use word operations, we set current_op to the end manually.
 			size_t current_op = (cfg.use_normalisation) ? 0 : S_SCOUNT;
 
 			while (!attempt_translate_word (tr_entry, dict) && (++current_op < S_SCOUNT))
-				tr_entry.AttemptNormalisation (static_cast<NmOperation> (current_op));
+				tr_entry.AttemptNormalisation (static_cast<NmOperation> (current_op), working_string);
 
 			if (!tr_entry.tran)
 			{
 				++failed;
 
-				smsg (E_WARNING, E_VERBOSE, "Translation failure (word simplified to \"%ls\")", tr_entry.word);
+				smsg (E_WARNING, E_VERBOSE, "Translation failure on \"%ls\" (normalised to \"%ls\")",
+					  tr_entry.word, working_string.c_str());
 			}
 
 			else
@@ -326,11 +328,13 @@ int main (int argc, char** argv) /* LOCALE */
 				 "Invalid call: %s\n"
 				 "Usage: %s -w dictionary -i input [ -o output ] [ -s source_lang ] [ -d dest_lang ] [ -ntvm ]\n",
 				 e.what(), argv[0]);
+
+		Debug::System::Instance.ForceDelete();
 		return 1;
 	}
 
 	Debug::API::SetDefaultVerbosity (Debug::E_USER);
-	Debug::API::SetTypewideVerbosity (0, Debug::E_VERBOSE);
+	Debug::API::SetTypewideVerbosity (0, Debug::E_DEBUG);
 
 	if (cfg.skip_verify)
 	{
@@ -346,7 +350,7 @@ int main (int argc, char** argv) /* LOCALE */
 	clock_measure_end();
 
 	clock_measure_start ("Reading input file");
-	wchar_t *file_data = read_input(), *title;
+	wchar_t *file_data = read_input(), *working_file_data = wcsdup (file_data), *title;
 	parse_input (file_data, input_data, &title);
 	clock_measure_end();
 
@@ -357,7 +361,10 @@ int main (int argc, char** argv) /* LOCALE */
 	debug_print_data (input_data, title, 1);
 
 	input_data.clear();
-	free (file_data); /* every input block became invalid by this point */
+
+	/* every input block became invalid by this point */
+	free (file_data);
+	free (working_file_data);
 
 	fclose (input);
 	fclose (output);

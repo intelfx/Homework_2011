@@ -57,7 +57,7 @@ struct Configs
 	Configs() :
 	dictionary_error_fatal (1),
 	skip_verify (1),
-		use_normalisation (1),
+	use_normalisation (1),
 	check_for_multi_insertion (1),
 	src (L_ENGLISH),
 	dest (L_RUSSIAN)
@@ -69,11 +69,11 @@ struct Configs
 
 struct Entry /* LOCALE */
 {
-	wchar_t* word;
+	const wchar_t* word;
 	const wchar_t* tran;
 	size_t flags;
 
-	explicit Entry (wchar_t* src) :
+	explicit Entry (const wchar_t* src) :
 	word (src),
 	tran (0),
 	flags (0)
@@ -81,13 +81,14 @@ struct Entry /* LOCALE */
 		smsg (E_INFO, E_DEBUG, "Word parsed: \"%ls\"", src);
 	}
 
-	void AttemptNormalisation (NmOperation s_id)
+	void AttemptNormalisation (NmOperation s_id, std::wstring& current_str)
 	{
-		smsg (E_INFO, E_DEBUG, "Attempting normalisation \"%s\" on \"%ls\"", tr_op_names[s_id], word);
+		smsg (E_INFO, E_DEBUG, "Attempting normalisation \"%s\" on \"%ls\"",
+			  tr_op_names[s_id], current_str.c_str());
 
-		if ( (operations[s_id]) (word))
+		if ( (operations[s_id]) (current_str))
 		{
-			smsg (E_INFO, E_DEBUG, "Accomplished - result is \"%ls\"", word);
+			smsg (E_INFO, E_DEBUG, "Accomplished - result is \"%ls\"", current_str.c_str());
 			flags |= MASK (s_id);
 		}
 	}
