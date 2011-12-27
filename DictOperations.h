@@ -27,7 +27,7 @@ const char* tr_op_names[S_SCOUNT] =
 	"none",
 // 	"decompressed"
 	"apostrophes",
-	"plural"
+	"plural",
 	"past participle",
 	"present participle (-ing)"
 };

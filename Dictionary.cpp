@@ -221,13 +221,11 @@ void debug_print_data (const InputData& src, const wchar_t* title, bool second_p
 	printf ("Debug print ends\n");
 }
 
-bool attempt_translate_word (Entry& e, Dictionary& dict) /* independent */
+const wchar_t* attempt_translate_word (std::wstring& in_str, Dictionary& dict) /* LOCALE */
 {
-	Dictionary::Iterator it = dict.Find (e.word);
+	Dictionary::Iterator it = dict.Find (in_str.c_str());
 
-	if (it.End()) return 0;
-	e.tran = it ->data.c_str();
-	return 1;
+	return it.End() ? 0 : it ->data.c_str();
 }
 
 const char* debug_dump_operations (Entry& e) /* non-LOCALE */
@@ -280,10 +278,11 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 			// If we do not use word operations, we set current_op to the end manually.
 			size_t current_op = (cfg.use_normalisation) ? 0 : S_SCOUNT;
 
-			while (!attempt_translate_word (tr_entry, dict) && (++current_op < S_SCOUNT))
+			const wchar_t* translation = 0;
+			while (!(translation = attempt_translate_word (working_string, dict)) && (++current_op < S_SCOUNT))
 				tr_entry.AttemptNormalisation (static_cast<NmOperation> (current_op), working_string);
 
-			if (!tr_entry.tran)
+			if (!translation)
 			{
 				++failed;
 
@@ -296,7 +295,8 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 				++translated;
 
 				smsg (E_INFO, E_DEBUG, "OK: \"%ls\" -> \"%ls\" (transformations used: %s)",
-					  tr_entry.word, tr_entry.tran, debug_dump_operations (tr_entry));
+					  tr_entry.word, translation, debug_dump_operations (tr_entry));
+				tr_entry.tran = translation;
 			}
 		} // inner for()
 	} // outer for()

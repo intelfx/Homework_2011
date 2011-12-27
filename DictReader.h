@@ -73,7 +73,7 @@ Dictionary read_dictionary() /* LOCALE */
 
 		for (auto srci = tokens_src.begin(); srci != tokens_src.end(); ++srci)
 		{
-// 			if (wcschr (*srci, L' ')) continue; // we do not work with multiword sources
+			if (wcschr (*srci, L' ')) continue; // we do not work with multiword sources
 
 			for (auto trni = tokens_tran.begin(); trni != tokens_tran.end(); ++trni)
 			{
