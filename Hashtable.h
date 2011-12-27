@@ -207,7 +207,7 @@ public:
 		return i;
 	}
 
-	Iterator Find (Key&& key)
+	Iterator Find (const Key& key)
 	{
 		verify_method;
 
@@ -229,7 +229,28 @@ public:
 		return i;
 	}
 
-	void Remove (Key&& key)
+	std::vector<Iterator> FindAll (const Key& key)
+	{
+		verify_method;
+
+		size_t hash = Hash (&key);
+
+		msg (E_INFO, E_DEBUG, "Searching for hash %p -> %zu [len %zu]",
+			 hash, hash % table_size_, table_size_);
+
+		std::vector<Iterator> results;
+
+		for (Iterator i = AcTable (hash).Begin(); !i.End(); ++i)
+			if (i ->key == key)
+				results.push_back (i);
+
+		if (results.empty())
+			msg (E_WARNING, E_DEBUG, "No results, returning empty vector");
+
+		return std::move (results);
+	}
+
+	void Remove (const Key& key)
 	{
 		verify_method;
 
