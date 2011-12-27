@@ -366,6 +366,10 @@ int main (int argc, char** argv) /* LOCALE */
 
 	clock_measure_start ("Reading dictionary");
 	Dictionary dict_data (read_dictionary());
+
+	if (!cfg.check_for_multi_insertion)
+		dict_data.RemoveDuplicates(); /* if duplicates weren't checked, at least find exact duplicates */
+
 	clock_measure_end();
 
 	clock_measure_start ("Reading input file");
