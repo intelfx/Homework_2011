@@ -253,6 +253,8 @@ const char* debug_dump_operations (Entry& e) /* non-LOCALE */
 	size_t maxlen = STATIC_LENGTH;
 	const char* fmt = "%s";
 
+	buffer[0] = '\0';
+
 	for (size_t op = 1; op < S_SCOUNT; ++op)
 		if (e.flags & MASK (op))
 		{

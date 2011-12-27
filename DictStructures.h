@@ -76,7 +76,7 @@ struct Entry /* LOCALE */
 	explicit Entry (const wchar_t* src) :
 	word (src),
 	trans (0),
-	flags (0)
+	flags (S_NONE)
 	{
 		smsg (E_INFO, E_DEBUG, "Word parsed: \"%ls\"", src);
 	}

@@ -35,7 +35,7 @@ Dictionary read_dictionary() /* LOCALE */
 	size_t line_num = 0;
 	wchar_t input_buf[STATIC_LENGTH];
 
-	Dictionary result (&hasher_xroll_plain, 0x100001);
+	Dictionary result (&hasher_stl, 0x100001);
 
 	const wchar_t* delim_stage_1 = L"\t";
 	const wchar_t* delim_stage_2 = L";";
