@@ -20,7 +20,7 @@ set (LIST_SRC LinkedList.h LinkedList.cpp DoubleLinkedList.cpp DoubleLinkedList.
 set (LISTDEMO_SRC ListDemo.cpp)
 set (HTABLE_SRC Hashtable.h Hashtable.cpp)
 set (HASHTEST_SRC Hashtest.cpp)
-set (HASHDICT_SRC Dictionary.cpp DictReader.h DictOperations.h DictStructures.h)
+set (HASHDICT_SRC Dictionary.cpp DictOpImpl.h DictOpImpl.cpp DictReader.h DictOperations.h DictStructures.h)
 
 add_subdirectory(MTServerClientApp)
 

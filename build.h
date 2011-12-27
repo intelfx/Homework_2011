@@ -10,7 +10,6 @@
 
 #include <uXray/build.h>
 
-#include <uXray/encap.h>
 #include <uXray/fxassert.h>
 #include <uXray/fxmisc.h>
 
