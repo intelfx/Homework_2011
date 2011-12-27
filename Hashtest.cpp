@@ -168,12 +168,30 @@ void test_dictionary (Hashtable<std::string, std::string>::hash_function hasher,
 	size_t added_count = 0;
 	for (auto i = input.cbegin(); i != input.cend(); ++i, ++added_count)
 	{
-		dictionary.Add (i ->_1, i ->_2);
+		dictionary.Add (i ->_1, i ->_2, 1);
 		if (!(added_count % 100))
 			smsg (E_INFO, E_DEBUG, "Added %zu-th element", added_count);
 	}
 
 	stat_init_time = clock_measure_end();
+
+	std::vector<Hashtable<std::string, std::string>::Iterator> iterators;
+	iterators = dictionary.FindAll ("abc");
+	printf ("DUPS: \"abc\" ->");
+	for (auto i = iterators.begin(); i != iterators.end(); ++i)
+	{
+		printf (" \"%s\"", (*i) ->data.c_str());
+	}
+	putchar ('\n');
+
+	dictionary.RemoveDuplicates();
+	iterators = dictionary.FindAll ("abc");
+	printf ("NODUPS: \"abc\" ->");
+	for (auto i = iterators.begin(); i != iterators.end(); ++i)
+	{
+		printf (" \"%s\"", (*i) ->data.c_str());
+	}
+	putchar ('\n');
 
 	clock_measure_start ("Dictionary verify (sequential find)");
 

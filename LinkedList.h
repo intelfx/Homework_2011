@@ -185,6 +185,31 @@ public:
 			return 1;
 		}
 
+	public:
+		Iterator (const Iterator&) = default;
+		Iterator& operator= (const Iterator&) = default;
+
+		Iterator (LinkedList* parent, size_t prev) :
+		parent_ (parent),
+		prev_index_ (prev)
+		{
+		}
+
+		Iterator& operator++()
+		{
+			prev_index_ = Index();
+			return *this;
+		}
+
+		Iterator operator+ (unsigned count)
+		{
+			Iterator result = *this;
+			while (count--)
+				++result;
+
+			return result;
+		}
+
 		size_t Index() const
 		{
 			verify_method;
@@ -200,22 +225,6 @@ public:
 		{
 			verify_method;
 			return prev_index_;
-		}
-
-	public:
-		Iterator (const Iterator&) = default;
-		Iterator& operator= (const Iterator&) = default;
-
-		Iterator (LinkedList* parent, size_t prev) :
-		parent_ (parent),
-		prev_index_ (prev)
-		{
-		}
-
-		Iterator& operator++()
-		{
-			prev_index_ = Index();
-			return *this;
 		}
 
 		bool End() const
