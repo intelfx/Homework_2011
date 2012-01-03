@@ -24,7 +24,7 @@ set (HASHDICT_SRC Dictionary.cpp DictOpImpl.h DictOpImpl.cpp DictReader.h DictOp
 
 add_subdirectory(MTServerClientApp)
 
-main_add_gch(stdafx.h ${OVERALL_SRC} ${STACK_SRC} ${QUEUE_SRC} ${QSERVER_SRC} ${LIST_SRC} ${HTABLE_SRC})
+main_add_gch(stdafx.h "${OVERALL_SRC} ${STACK_SRC} ${QUEUE_SRC} ${QSERVER_SRC} ${LIST_SRC} ${HTABLE_SRC}")
 
 add_executable(homework_queue_server ${OVERALL_SRC} ${QUEUE_SRC} ${QSERVER_SRC})
 target_link_libraries(homework_queue_server ${THREADLIBS} ${LIBRARIES})
