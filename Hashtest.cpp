@@ -184,15 +184,6 @@ void test_dictionary (Hashtable<std::string, std::string>::hash_function hasher,
 	}
 	putchar ('\n');
 
-	dictionary.RemoveDuplicates();
-	iterators = dictionary.FindAll ("abc");
-	printf ("NODUPS: \"abc\" ->");
-	for (auto i = iterators.begin(); i != iterators.end(); ++i)
-	{
-		printf (" \"%s\"", (*i) ->data.c_str());
-	}
-	putchar ('\n');
-
 	clock_measure_start ("Dictionary verify (sequential find)");
 
 	for (auto i = input.cbegin(); i != input.cend(); ++i)

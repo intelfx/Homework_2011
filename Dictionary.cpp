@@ -252,6 +252,19 @@ void debug_print_data (const InputData& src, const wchar_t* title, bool second_p
 	printf ("Debug print ends\n");
 }
 
+void helper_remove_duplicate_translations (std::vector<const wchar_t*> translations)
+{
+	for (auto i = translations.begin(); i != translations.end(); ++i)
+		for (auto j = i + 1; j != translations.end();)
+		{
+			if (!wcscmp (*i, *j))
+				j = translations.erase (j);
+
+			else
+				++j;
+		}
+}
+
 const wchar_t* attempt_translate_word (std::wstring& in_str, Dictionary& dict) /* LOCALE */
 {
 	Dictionary::Iterator it = dict.Find (in_str);
@@ -292,16 +305,18 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 			}
 
 			std::wstring working_string (tr_entry.word);
-			smsg (E_INFO, E_DEBUG, "Translating word \"%ls\"", working_string.c_str());
-
-			// If we do not use word operations, we set current_op to the end manually.
-			size_t current_op = (cfg.use_normalisation) ? 0 : S_SCOUNT;
-
 			std::vector<const wchar_t*> translations;
 
-			while (((translations = attempt_translate_word_multi (working_string, dict)), translations.empty()) &&
-					(++current_op < S_SCOUNT))
+			smsg (E_INFO, E_DEBUG, "Translating word \"%ls\"", working_string.c_str());
+
+			// Normalise the word if desired.
+			// If we do not use word operations, we set current_op to the end manually.
+			size_t current_op = (cfg.use_normalisation) ? 0 : S_SCOUNT;
+			while (translations = attempt_translate_word_multi (working_string, dict), translations.empty())
+			{
+				if (current_op < S_SCOUNT) break;
 				tr_entry.AttemptNormalisation (static_cast<NmOperation> (current_op), working_string);
+			}
 
 			if (translations.empty())
 			{
@@ -314,6 +329,7 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 			else
 			{
 				++translated;
+				helper_remove_duplicate_translations (translations);
 
 				smsg (E_INFO, E_DEBUG, "OK: \"%ls\" -> \"%ls\" (got %zu translations; transformations used: %s)",
 					  tr_entry.word, translations.front(), translations.size(), debug_dump_operations (tr_entry));
@@ -368,13 +384,6 @@ int main (int argc, char** argv) /* LOCALE */
 
 	clock_measure_start ("Reading dictionary");
 	Dictionary dict_data (read_dictionary());
-	clock_measure_end();
-
-	clock_measure_start ("Duplicates removal");
-
-	if (!cfg.check_for_multi_insertion)
-		dict_data.RemoveDuplicates(); /* if duplicates weren't checked, at least find exact duplicates */
-
 	clock_measure_end();
 
 	clock_measure_start ("Reading input file");

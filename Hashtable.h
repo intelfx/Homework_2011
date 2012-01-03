@@ -250,29 +250,6 @@ public:
 		return std::move (results);
 	}
 
-	void RemoveDuplicates()
-	{
-		verify_method;
-
-		msg (E_INFO, E_DEBUG, "Cleaning up hash table, removing duplicates");
-
-		for (size_t idx = 0; idx < table_size_; ++idx)
-			if (table_[idx])
-			{
-				Hashlist& lst = *table_[idx];
-
-				for (Iterator i = lst.Begin(); !i.End(); ++i)
-					for (Iterator j = i + 1; !j.End();)
-					{
-						if (i ->data == j ->data)
-							j = lst.Erase (j);
-
-						else
-							++j;
-					}
-			}
-	}
-
 	void Remove (const Key& key)
 	{
 		verify_method;
