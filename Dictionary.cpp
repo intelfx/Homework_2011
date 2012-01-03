@@ -252,7 +252,7 @@ void debug_print_data (const InputData& src, const wchar_t* title, bool second_p
 	printf ("Debug print ends\n");
 }
 
-void helper_remove_duplicate_translations (std::vector<const wchar_t*> translations)
+void helper_remove_duplicate_translations (std::vector<const wchar_t*>& translations)
 {
 	for (auto i = translations.begin(); i != translations.end(); ++i)
 		for (auto j = i + 1; j != translations.end();)
@@ -311,11 +311,11 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 
 			// Normalise the word if desired.
 			// If we do not use word operations, we set current_op to the end manually.
-			size_t current_op = (cfg.use_normalisation) ? 0 : S_SCOUNT;
+			size_t current_op = (cfg.use_normalisation) ? 1 : S_SCOUNT; // normalisation 0 is "none"
 			while (translations = attempt_translate_word_multi (working_string, dict), translations.empty())
 			{
-				if (current_op < S_SCOUNT) break;
-				tr_entry.AttemptNormalisation (static_cast<NmOperation> (current_op), working_string);
+				if (current_op >= S_SCOUNT) break;
+				tr_entry.AttemptNormalisation (static_cast<NmOperation> (current_op++), working_string);
 			}
 
 			if (translations.empty())
@@ -329,7 +329,9 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 			else
 			{
 				++translated;
-				helper_remove_duplicate_translations (translations);
+
+				if (translations.size() > 1)
+					helper_remove_duplicate_translations (translations);
 
 				smsg (E_INFO, E_DEBUG, "OK: \"%ls\" -> \"%ls\" (got %zu translations; transformations used: %s)",
 					  tr_entry.word, translations.front(), translations.size(), debug_dump_operations (tr_entry));
