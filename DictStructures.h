@@ -94,7 +94,7 @@ struct Entry /* LOCALE */
 	}
 };
 
-typedef std::vector< std::vector< Entry > > InputData;
+typedef std::vector< std::vector< Entry > > ProcessingData;
 typedef Hashtable< std::wstring, std::wstring > Dictionary;
 
 #endif // _DICT_STRUCTURES_H

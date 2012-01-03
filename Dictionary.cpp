@@ -156,7 +156,7 @@ wchar_t* read_input() /* LOCALE */
 	return wdata;
 }
 
-void parse_input (wchar_t* data, InputData& dest, wchar_t** title) /* LOCALE */
+void parse_input (wchar_t* data, ProcessingData& dest, wchar_t** title) /* LOCALE */
 {
 	__sassert (data, "Invalid data");
 	static const wchar_t* newline_delim = L"\n\r";
@@ -188,7 +188,7 @@ void parse_input (wchar_t* data, InputData& dest, wchar_t** title) /* LOCALE */
 	{
 		smsg (E_INFO, E_DEBUG, "Received line: \"%ls\" len %zu", line_token, wcslen (line_token));
 
-		dest.push_back (InputData::value_type());
+		dest.push_back (ProcessingData::value_type());
 		while (wchar_t* word_token = wcstok (line_token, word_delim, &saveptr_word))
 		{
 			line_token = 0;
@@ -221,14 +221,14 @@ const char* debug_dump_operations (Entry& e) /* non-LOCALE */
 			fmt = ", %s";
 		}
 
-		return buffer;
+	return buffer;
 }
 
-void debug_print_data (const InputData& src, const wchar_t* title, bool second_pass = 0) /* LOCALE */
+void debug_print_data (const ProcessingData& entries, const wchar_t* title, bool second_pass = 0) /* LOCALE */
 {
 	printf ("\nDebug data dump. Title is \"%ls\"\n\n", title);
 
-	for (InputData::const_iterator i = src.begin(); i != src.end(); ++i)
+	for (ProcessingData::const_iterator i = entries.begin(); i != entries.end(); ++i)
 	{
 		printf ("NEWLINE\n");
 		for (std::vector<Entry>::const_iterator j = i ->begin(); j != i ->end(); ++j)
@@ -285,11 +285,11 @@ std::vector<const wchar_t*> attempt_translate_word_multi (std::wstring& in_str, 
 	return std::move (res_v);
 }
 
-void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
+void translate_data (ProcessingData& data, Dictionary& dict) /* LOCALE */
 {
 	size_t total = 0, translated = 0, skipped = 0, failed = 0;
 
-	for (InputData::iterator i = src.begin(); i != src.end(); ++i)
+	for (ProcessingData::iterator i = data.begin(); i != data.end(); ++i)
 	{
 		for (std::vector<Entry>::iterator j = i ->begin(); j != i ->end(); ++j)
 		{
@@ -309,9 +309,9 @@ void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
 
 			smsg (E_INFO, E_DEBUG, "Translating word \"%ls\"", working_string.c_str());
 
-			// Normalise the word if desired.
-			// If we do not use word operations, we set current_op to the end manually.
-			size_t current_op = (cfg.use_normalisation) ? 1 : S_SCOUNT; // normalisation 0 is "none"
+			// Iteratively translate the entry, normalising if desired.
+			// If we do not normalise, use S_SCOUNT as initial value to artificially break the loop.
+			size_t current_op = (cfg.use_normalisation) ? 1 : S_SCOUNT; // normalisation 0 is "none", skip it
 			while (translations = attempt_translate_word_multi (working_string, dict), translations.empty())
 			{
 				if (current_op >= S_SCOUNT) break;
@@ -382,24 +382,25 @@ int main (int argc, char** argv) /* LOCALE */
 		Debug::API::ClrTypewideFlag ("LinkedListIterator", Debug::OF_USEVERIFY);
 	}
 
-	InputData input_data;
+	ProcessingData entries;
+	wchar_t* title;
 
 	clock_measure_start ("Reading dictionary");
 	Dictionary dict_data (read_dictionary());
 	clock_measure_end();
 
 	clock_measure_start ("Reading input file");
-	wchar_t *file_data = read_input(), *working_file_data = wcsdup (file_data), *title;
-	parse_input (file_data, input_data, &title);
+	wchar_t *file_data = read_input(), *working_file_data = wcsdup (file_data);
+	parse_input (working_file_data, entries, &title);
 	clock_measure_end();
 
 	clock_measure_start ("Translating words");
-	translate_data (input_data, dict_data);
+	translate_data (entries, dict_data);
 	clock_measure_end();
 
-	debug_print_data (input_data, title, 1);
+	debug_print_data (entries, title, 1);
 
-	input_data.clear();
+	entries.clear();
 
 	/* every input block became invalid by this point */
 	free (file_data);
