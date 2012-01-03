@@ -186,8 +186,9 @@ namespace Debug
 
 	enum ObjectFlags_
 	{
-		OF_FATALVERIFY = 1, // Whether we need to __assert() verification result
-		OF_USEVERIFY = 2 // Whether to call Verify_() at all
+		OF_FATALVERIFY = 1, // Whether to fail on bad object status immediately
+		OF_USEVERIFY, // Whether to use verification method Verify_()
+		OF_USECHECK // Whether to enable verification interface CheckObject()
 	};
 
 	static const size_t GLOBAL_OID = -1; // object_id for global scope
@@ -355,17 +356,7 @@ namespace Debug
 										   const char* desc_name)
 	{
 		ObjectDescriptor_ object = {DebugHash (desc_name), name, type,
-									/* these parameters aren't going to be used in real objects
-									 * see _SetStaticDbgInfo()
-									 *
-									 * Expl.: until at least one object is created,
-									 * static ObjectDescriptor_ in BaseClass<T> will be initialized by global one
-									 * and will be possibly altered by type-wide API functions.
-									 *
-									 * On first object creation, name, type and ID are copied from this descriptor
-									 * to static one in BaseClass<T>.
-									 */
-									E_UNDEFINED_VERBOSITY, E_UNDEFINED_TYPE, 0
+									E_UNDEFINED_VERBOSITY, E_UNDEFINED_TYPE, _default_dbg_info.type_flags
 								   };
 		return object;
 	}
@@ -457,13 +448,18 @@ namespace Debug
 			return dbg_params_;
 		}
 
+		inline ObjectDescriptor _GetStaticDbgInfo() const
+		{
+			return *dbg_params_. object_descriptor;
+		}
+
 		// Returns whether object state is BAD.
 		inline bool CheckObject (SourceDescriptor place) const
 		{
 			_VerifyAndSetState (place);
 
 			return ! ( (dbg_params_.object_status == OS_BAD) &&
-					   (dbg_params_.flags & MASK (OF_FATALVERIFY)));
+					   (dbg_params_.flags & MASK (OF_USECHECK)));
 		}
 
 		// Returns whether object state is BAD.
@@ -618,7 +614,7 @@ namespace Debug
 				return "NULL pointer";
 
 			if (const _InsideBase* baseptr = dynamic_cast<const _InsideBase*> (object))
-				return baseptr ->_GetDynamicDbgInfo (THIS_PLACE).object_descriptor ->object_name;
+				return baseptr ->_GetStaticDbgInfo().object_name;
 
 			return typeid (*object).name();
 		}
@@ -685,19 +681,19 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 // __assert is for verifying system-dependent conditions (as pointers),
 // __verify is for checking user-dependent conditions (as input file names and expressions).
 
-#define __silent(sta, code) ((sta) || dosilentthrow (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE))
-#define __ssilent(sta, code) ((sta) || dosilentthrow (Debug::CreateParameters (0, _specific_dbg_info))
+#define __silent(sta, code)  do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dosilentthrow (_GetDynamicDbgInfo (pl), code); } while (0)
+#define __ssilent(sta, code) do { if ((sta)) break; dosilentthrow (Debug::CreateParameters (0, _specific_dbg_info), code); } while (0)
 
-#define __sassert(sta, fmt...) ((sta) || dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_BUG, #sta, fmt))
-#define __sverify(sta, fmt...) ((sta) || dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, #sta, fmt))
-#define __sasshole(fmt...)				dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_BUG, "code flow", fmt)
+#define __sassert(sta, fmt...) do { if ((sta)) break; dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_BUG, #sta, fmt); } while (0)
+#define __sverify(sta, fmt...) do { if ((sta)) break; dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, #sta, fmt); } while (0)
+#define __sasshole(fmt...)     do {                 dothrow (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, "<none>", fmt); } while (0)
 
-#define __assert(sta, fmt...) ((sta) || dothrow (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE, Debug::EX_BUG, #sta, fmt))
-#define __verify(sta, fmt...) ((sta) || dothrow (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE, Debug::EX_INPUT, #sta, fmt))
-#define __asshole(fmt...)				dothrow (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE, Debug::EX_BUG, "code flow", fmt)
+#define __assert(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_BUG, #sta, fmt); } while (0)
+#define __verify(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, #sta, fmt); } while (0)
+#define __asshole(fmt...)     do {                 Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, "<none>", fmt); } while (0)
 
 #define smsg(type, level, ...) call_log (Debug::CreateParameters (0, _specific_dbg_info), THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__)
-#define msg(type, level, ...) call_log (_GetDynamicDbgInfo (THIS_PLACE), THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__)
+#define msg(type, level, ...) do { Debug::SourceDescriptor_ pl = THIS_PLACE; call_log (_GetDynamicDbgInfo (pl), pl, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
 
 #define verify_statement(sta, fmt...) if (!(sta)) { seterror (_GetDynamicDbgInfo (THIS_PLACE), fmt); return 0; }
 #define verify_method __verify (CheckObject (THIS_PLACE), "In-method object verification failed")
@@ -726,8 +722,13 @@ inline void Debug::_InsideBase::_VerifyAndSetState (Debug::SourceDescriptor plac
 			dbg_params_.object_status = Debug::OS_OK;
 
 		else
+		{
 			call_log (dbg_params_, place, Debug::E_CRITICAL, Debug::E_USER,
 					  "Verification error: %s", dbg_params_.error_string);
+
+			if (dbg_params_.flags & MASK (OF_FATALVERIFY))
+				dothrow (dbg_params_, place, EX_INPUT, "<none>", "Inline verification failed");
+		}
 	}
 }
 

@@ -26,22 +26,28 @@ inline T max (const T& a, const T& b)
 	return (a > b) ? a : b;
 }
 
-inline void str_tolower (char* s)
+inline void str_tolower (char* s, bool cut_newline = 1)
 {
 	while (char& a = *s++)
 		a = tolower (static_cast<int> (a));
 
-	s -= 2;
-	if (*s == '\n') *s = '\0';
+	if (cut_newline)
+	{
+		s -= 2;
+		if (*s == '\n') *s = '\0';
+	}
 }
 
-inline void wstr_tolower (wchar_t* s)
+inline void wstr_tolower (wchar_t* s, bool cut_newline = 1)
 {
 	while (wchar_t& a = *s++)
 		a = towlower (static_cast<int> (a));
 
-	s -= 2;
-	if (*s == L'\n') *s = L'\0';
+	if (cut_newline)
+	{
+		s -= 2;
+		if (*s == L'\n') *s = L'\0';
+	}
 }
 
 #endif // _FXCRITICAL_H

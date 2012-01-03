@@ -14,7 +14,7 @@ static const Debug::ObjectDescriptor_ _global_dbg_info = {Debug::GLOBAL_OID, "gl
 
 const Debug::ObjectDescriptor_ Debug::_default_dbg_info = {Debug::GLOBAL_OID, "undefined object", Debug::MOD_INTERNAL,
 														   Debug::E_UNDEFINED_VERBOSITY, Debug::E_UNDEFINED_TYPE,
-														   MASK (Debug::OF_FATALVERIFY) | MASK (Debug::OF_USEVERIFY)
+														   MASK (Debug::OF_FATALVERIFY) | MASK (Debug::OF_USEVERIFY) | MASK (Debug::OF_USECHECK)
 														  };
 
 const Debug::ObjectDescriptor_* _specific_dbg_info = &_global_dbg_info;
