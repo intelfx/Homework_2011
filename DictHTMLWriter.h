@@ -17,7 +17,7 @@ public:
 	void Prepare (FILE* output);
 	void Close();
 
-	void Write
+	void Write();
 };
 
 #endif // _DICTHTMLWRITER_H

@@ -152,7 +152,7 @@ wchar_t* read_input() /* LOCALE */
 			   "mbstowcs() failed, invalid characters detected in input file");
 
 	// postprocess and return
-	wstr_tolower (wdata);
+	wstr_tolower (wdata, 0);
 	return wdata;
 }
 
@@ -195,6 +195,33 @@ void parse_input (wchar_t* data, InputData& dest, wchar_t** title) /* LOCALE */
 			dest.back().push_back (Entry (word_token));
 		}
 	}
+}
+
+const char* debug_dump_operations (Entry& e) /* non-LOCALE */
+{
+	static char buffer [STATIC_LENGTH];
+
+	char* ptr = buffer;
+	size_t maxlen = STATIC_LENGTH;
+	const char* fmt = "%s";
+
+	buffer[0] = '\0';
+
+	for (size_t op = 1; op < S_SCOUNT; ++op)
+		if (e.flags & MASK (op))
+		{
+			size_t len = snprintf (ptr, maxlen, fmt, tr_op_names[op]);
+
+			if (len >= maxlen)
+				break;
+
+			maxlen -= len;
+			ptr += len;
+
+			fmt = ", %s";
+		}
+
+		return buffer;
 }
 
 void debug_print_data (const InputData& src, const wchar_t* title, bool second_pass = 0) /* LOCALE */
@@ -243,33 +270,6 @@ std::vector<const wchar_t*> attempt_translate_word_multi (std::wstring& in_str, 
 	}
 
 	return std::move (res_v);
-}
-
-const char* debug_dump_operations (Entry& e) /* non-LOCALE */
-{
-	static char buffer [STATIC_LENGTH];
-
-	char* ptr = buffer;
-	size_t maxlen = STATIC_LENGTH;
-	const char* fmt = "%s";
-
-	buffer[0] = '\0';
-
-	for (size_t op = 1; op < S_SCOUNT; ++op)
-		if (e.flags & MASK (op))
-		{
-			size_t len = snprintf (ptr, maxlen, fmt, tr_op_names[op]);
-
-			if (len >= maxlen)
-				break;
-
-			maxlen -= len;
-			ptr += len;
-
-			fmt = ", %s";
-		}
-
-	return buffer;
 }
 
 void translate_data (InputData& src, Dictionary& dict) /* LOCALE */
@@ -368,6 +368,9 @@ int main (int argc, char** argv) /* LOCALE */
 
 	clock_measure_start ("Reading dictionary");
 	Dictionary dict_data (read_dictionary());
+	clock_measure_end();
+
+	clock_measure_start ("Duplicates removal");
 
 	if (!cfg.check_for_multi_insertion)
 		dict_data.RemoveDuplicates(); /* if duplicates weren't checked, at least find exact duplicates */
