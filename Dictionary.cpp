@@ -156,7 +156,7 @@ wchar_t* read_input() /* LOCALE */
 	return wdata;
 }
 
-void parse_input (wchar_t* data, ProcessingData& dest, wchar_t** title) /* LOCALE */
+void parse_input (wchar_t* data, ProcessingData& dest) /* LOCALE */
 {
 	__sassert (data, "Invalid data");
 	static const wchar_t* newline_delim = L"\n\r";
@@ -181,17 +181,18 @@ void parse_input (wchar_t* data, ProcessingData& dest, wchar_t** title) /* LOCAL
 	smsg (E_INFO, E_DEBUG, "Using \"%ls\" as delimiter string", word_delim);
 
 	wchar_t *saveptr_nl, *saveptr_word;
-	*title = wcstok (data, newline_delim, &saveptr_nl);
-
 	dest.clear();
-	while (wchar_t* line_token = wcstok (0, newline_delim, &saveptr_nl))
+
+	while (wchar_t* line_token = wcstok (data, newline_delim, &saveptr_nl))
 	{
+		data = 0; /* for successive wcstok calls */
 		smsg (E_INFO, E_DEBUG, "Received line: \"%ls\" len %zu", line_token, wcslen (line_token));
 
 		dest.push_back (ProcessingData::value_type());
 		while (wchar_t* word_token = wcstok (line_token, word_delim, &saveptr_word))
 		{
-			line_token = 0;
+			line_token = 0; /* for successive wcstok calls */
+
 			dest.back().push_back (Entry (word_token));
 		}
 	}
@@ -224,9 +225,9 @@ const char* debug_dump_operations (Entry& e) /* non-LOCALE */
 	return buffer;
 }
 
-void debug_print_data (const ProcessingData& entries, const wchar_t* title, bool second_pass = 0) /* LOCALE */
+void debug_print_data (const ProcessingData& entries, bool second_pass = 0) /* LOCALE */
 {
-	printf ("\nDebug data dump. Title is \"%ls\"\n\n", title);
+	printf ("\nDebug data dump.\n\n");
 
 	for (ProcessingData::const_iterator i = entries.begin(); i != entries.end(); ++i)
 	{
@@ -250,6 +251,68 @@ void debug_print_data (const ProcessingData& entries, const wchar_t* title, bool
 	}
 
 	printf ("Debug print ends\n");
+}
+
+void console_write_paragraph (const ProcessingData::value_type& paragraph, const wchar_t* working_source, const wchar_t* exact_source)
+{
+	auto current_word = paragraph.begin();
+	ptrdiff_t last_token_end_offset = current_word ->word - working_source;
+
+	char initial_space = '\0';
+
+	while (current_word != paragraph.end())
+	{
+		ptrdiff_t working_offset = current_word ->word - working_source;
+
+		putchar (initial_space);
+		initial_space = ' ';
+
+		// print text between previous and current tokens
+		if (int plaintext_length = working_offset - last_token_end_offset)
+			printf ("%.*ls", plaintext_length, exact_source + last_token_end_offset);
+
+		// print the token itself
+		int token_size;
+		printf ("%ls%n", current_word ->word, &token_size);
+
+		// print translations in brackets
+		if (!current_word ->trans.empty())
+		{
+			putchar ('(');
+
+			const char* format = "\"%ls\"";
+			for (auto translation_it = current_word ->trans.begin(); translation_it != current_word ->trans.end(); ++translation_it)
+			{
+				printf (format, *translation_it);
+				format = ", \"%ls\"";
+			}
+
+			putchar (')');
+		}
+
+		// update pointers
+		last_token_end_offset = working_offset + token_size + 1;
+		++current_word;
+	}
+}
+
+void console_output_data (const ProcessingData& entries, const wchar_t* working_source, const wchar_t* exact_source) /* LOCALE */
+{
+	printf ("\n==== console translation output : cut here ====\n");
+	printf ("TITLE :: ");
+
+	console_write_paragraph (entries.front(), working_source, exact_source);
+
+	printf (":: \n\n");
+
+	for (auto paragraph_it = entries.begin() + 1; paragraph_it != entries.end(); ++paragraph_it)
+	{
+		printf ("-> ");
+		console_write_paragraph (*paragraph_it, working_source, exact_source);
+		printf (" <-\n");
+	}
+
+	printf ("==== console translation end ====\n");
 }
 
 void helper_remove_duplicate_translations (std::vector<const wchar_t*>& translations)
@@ -383,7 +446,6 @@ int main (int argc, char** argv) /* LOCALE */
 	}
 
 	ProcessingData entries;
-	wchar_t* title;
 
 	clock_measure_start ("Reading dictionary");
 	Dictionary dict_data (read_dictionary());
@@ -391,14 +453,15 @@ int main (int argc, char** argv) /* LOCALE */
 
 	clock_measure_start ("Reading input file");
 	wchar_t *file_data = read_input(), *working_file_data = wcsdup (file_data);
-	parse_input (working_file_data, entries, &title);
+	parse_input (working_file_data, entries);
 	clock_measure_end();
 
 	clock_measure_start ("Translating words");
 	translate_data (entries, dict_data);
 	clock_measure_end();
 
-	debug_print_data (entries, title, 1);
+	debug_print_data (entries, 1);
+	console_output_data (entries, working_file_data, file_data);
 
 	entries.clear();
 
