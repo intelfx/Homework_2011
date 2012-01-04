@@ -59,15 +59,7 @@ namespace ProcessorImplementation
 		C_SNFC,
 		C_CNFC,
 
-		C_CSWITCH,
 		C_EXEC,
-		C_INVD,
-
-		C_LASM,
-		C_LBIN,
-		C_WASM,
-		C_WBIN,
-
 		C_QUIT,
 
 		C_MAX
@@ -120,15 +112,7 @@ namespace ProcessorImplementation
 		"snfc",
 		"cnfc",
 
-		"cswitch",
 		"exec",
-		"invd",
-
-		"lasm",
-		"lbin",
-		"wasm",
-		"wbin",
-
 		"quit"
 	};
 
@@ -374,23 +358,16 @@ namespace ProcessorImplementation
 			proc_ ->MMU() ->GetContext().flags &= ~MASK (F_NFC);
 			break;
 
-		case C_CSWITCH:
-			proc_ ->MMU() ->NextContextBuffer();
-			break;
-
 		case C_EXEC:
 			proc_ ->MMU() ->NextContextBuffer();
 			proc_ ->Exec();
-			break;
-
-		case C_INVD:
-			proc_ ->MMU() ->ResetBuffers (proc_ ->MMU() ->GetContext().buffer + 1);
 			break;
 
 		case C_QUIT:
 			proc_ ->MMU() ->GetContext().flags |= MASK (F_EXIT);
 			break;
 
+		case C_MAX:
 		default:
 			__asshole ("Switch error");
 			break;
