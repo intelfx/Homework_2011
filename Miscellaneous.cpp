@@ -31,7 +31,7 @@ namespace Processor
 		void PrintReference (const Reference& ref)
 		{
 			if (ref.is_symbol)
-				snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %p)", ref.symbol_hash);
+				snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %zx)", ref.symbol_hash);
 
 			else
 			{

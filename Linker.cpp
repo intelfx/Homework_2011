@@ -27,10 +27,10 @@ namespace ProcessorImplementation
 			size_t daddress			= proc_ ->MMU() ->GetDataSize();
 			auto existing_record	= temporary_map.find (hash);
 
-			snprintf (sym_nm_buf, STATIC_LENGTH, "\"%s\" (hash %p)", name.c_str(), hash);
+			snprintf (sym_nm_buf, STATIC_LENGTH, "\"%s\" (hash %zx)", name.c_str(), hash);
 
 			__assert (symbol.first == symbol_desc.hash,
-					  "Input symbol inconsistence (%s): hash %p <-> key %p",
+					  "Input symbol inconsistence (%s): hash %x <-> key %x",
 					  sym_nm_buf, symbol_desc.hash, symbol.first);
 
 			// If symbol is defined here, link it (set address).
@@ -160,7 +160,7 @@ namespace ProcessorImplementation
 		{
 			symbol_type* current_sym = &sym_iter.second;
 
-			snprintf (sym_nm_buf, STATIC_LENGTH, "\"%s\" (hash %p)",
+			snprintf (sym_nm_buf, STATIC_LENGTH, "\"%s\" (hash %zx)",
 					  current_sym ->first.c_str(), current_sym ->second.hash);
 
 			__assert (current_sym ->second.hash == sym_iter.first,

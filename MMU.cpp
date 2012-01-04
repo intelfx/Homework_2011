@@ -237,7 +237,7 @@ namespace ProcessorImplementation
 			else
 			{
 				char tmp_ptr[STATIC_LENGTH];
-				snprintf (tmp_ptr, STATIC_LENGTH, "__unk_%p", sym ->hash);
+				snprintf (tmp_ptr, STATIC_LENGTH, "__unk_%zx", sym ->hash);
 				name.assign (tmp_ptr);
 			}
 
