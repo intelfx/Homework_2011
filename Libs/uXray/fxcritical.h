@@ -1,8 +1,7 @@
 #ifndef _FXCRITICAL_H
 #define _FXCRITICAL_H
 
-#include <ctype.h>
-#include <wctype.h>
+#include "build.h"
 
 // -----------------------------------------------------------------------------
 // Library		uXray
@@ -26,22 +25,50 @@ inline T max (const T& a, const T& b)
 	return (a > b) ? a : b;
 }
 
-inline void str_tolower (char* s)
+inline void str_tolower (char* s, bool cut_newline = 1)
 {
 	while (char& a = *s++)
 		a = tolower (static_cast<int> (a));
 
-	s -= 2;
-	if (*s == '\n') *s = '\0';
+	if (cut_newline)
+	{
+		s -= 2;
+		if (*s == '\n') *s = '\0';
+	}
 }
 
-inline void wstr_tolower (wchar_t* s)
+inline void wstr_tolower (wchar_t* s, bool cut_newline = 1)
 {
 	while (wchar_t& a = *s++)
 		a = towlower (static_cast<int> (a));
 
-	s -= 2;
-	if (*s == L'\n') *s = L'\0';
+	if (cut_newline)
+	{
+		s -= 2;
+		if (*s == L'\n') *s = L'\0';
+	}
+}
+
+const unsigned STATIC_LENGTH = 1024;
+
+FXLIB_API bool fx_vasprintf (char** dest, const char* fmt, va_list args);
+inline bool fx_asprintf (char** dest, const char* fmt, ...)
+{
+	va_list args;
+	va_start (args, fmt);
+
+	bool result = fx_vasprintf (dest, fmt, args);
+
+	va_end (args);
+	return result;
+}
+
+typedef unsigned long mask_t;
+
+static const mask_t EVERYTHING = ~0x0;
+inline mask_t MASK (int x)
+{
+	return x ? (1 << (x - 1)) : 0;
 }
 
 #endif // _FXCRITICAL_H

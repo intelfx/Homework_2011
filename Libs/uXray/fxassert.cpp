@@ -8,52 +8,12 @@
 // Description	Log/debug system and reworked assertion
 // -----------------------------------------------------------------------------
 
-static const Debug::ObjectDescriptor_ _global_dbg_info = {Debug::GLOBAL_OID, "global scope", Debug::MOD_APPMODULE,
-														  Debug::E_UNDEFINED_VERBOSITY, Debug::E_UNDEFINED_TYPE, 0
-														 };
+const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::global_scope_object;
+const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::default_object (MASK (Debug::OF_FATALVERIFY) |
+																		 MASK (Debug::OF_USEVERIFY) |
+																		 MASK (Debug::OF_USECHECK));
 
-const Debug::ObjectDescriptor_ Debug::_default_dbg_info = {Debug::GLOBAL_OID, "undefined object", Debug::MOD_INTERNAL,
-														   Debug::E_UNDEFINED_VERBOSITY, Debug::E_UNDEFINED_TYPE,
-														   MASK (Debug::OF_FATALVERIFY) | MASK (Debug::OF_USEVERIFY) | MASK (Debug::OF_USECHECK)
-														  };
-
-const Debug::ObjectDescriptor_* _specific_dbg_info = &_global_dbg_info;
-
-FXLIB_API bool fx_vasprintf (char** dest, const char* fmt, va_list args)
-{
-#ifdef _GNU_SOURCE
-	int vasprintf_result = vasprintf (dest, fmt, args);
-
-	if (vasprintf_result != -1)
-		return 1;
-#endif
-
-	// Fallback to another implementation when vasprintf is either unavailable or failed.
-
-	// Try to determine length via vsnprintf with NULL pointer and size, as by POSIX/C99.
-	// Otherwise, if runtime does not conform, use static method.
-	int length = vsnprintf (0, 0, fmt, args);
-	if (length < 1)
-		length = STATIC_LENGTH;
-
-	// Allocate the memory.
-	char* staticmem = reinterpret_cast<char*> (calloc (length + 1, 1));
-	if (!staticmem)
-	{
-		// We can't do much if calloc() fails.
-		*dest = 0;
-		return 0;
-	}
-
-	// We won't check if our length is sufficient, we'll just cut off what's excess.
-	int vsnprintf_result = vsnprintf (staticmem, length, fmt, args);
-
-	if (vsnprintf_result != -1)
-		return 1;
-
-	// Everything fails.
-	return 0;
-}
+const Debug::ObjectDescriptor_* _specific_dbg_info = &Debug::ObjectDescriptor_::global_scope_object;
 
 int dosilentthrow (Debug::ObjectParameters object,
 				   Debug::SourceDescriptor place,
@@ -127,20 +87,12 @@ namespace Debug
 {
 	namespace API
 	{
-		typedef std::map<size_t, ObjectDescriptor_> MetaTypeMap;
-		MetaTypeMap* rmt;
+		typedef Init::Base< std::map<size_t, ObjectDescriptor_> > MetatypeMap;
 
-		inline MetaTypeMap& AccessMap()
-		{
-			if (!rmt)
-				rmt = new MetaTypeMap;
-
-			return *rmt;
-		}
 
 		const ObjectDescriptor_* RegisterMetaType (Debug::ObjectDescriptor_ type)
 		{
-			auto insertion_result = AccessMap().insert (std::pair<size_t, ObjectDescriptor> (type.object_id, type));
+			auto insertion_result = MetatypeMap::Instance().insert (std::pair<size_t, ObjectDescriptor> (type.object_id, type));
 			__sassert (insertion_result.second,
 					   "Type \"%s\" (id %p) already registered in system",
 					   type.object_name, type.object_id);
@@ -152,9 +104,9 @@ namespace Debug
 		{
 			if (name)
 			{
-				size_t id = DebugHash (name);
-				std::map<size_t, ObjectDescriptor_>::iterator it = AccessMap().find (id);
-				__sassert (it != AccessMap().end(),
+				size_t id = ObjectDescriptor_::GetOID (name);
+				std::map<size_t, ObjectDescriptor_>::iterator it = MetatypeMap::Instance().find (id);
+				__sassert (it != MetatypeMap::Instance().end(),
 						"Type \"%s\" (id %p) was not registered in system",
 						name, id);
 
@@ -163,7 +115,7 @@ namespace Debug
 
 			else
 			{
-				return _global_dbg_info;
+				return ObjectDescriptor_::global_scope_object;
 			}
 		}
 
@@ -285,8 +237,8 @@ namespace Debug
 	}
 
 	System::System() :
-		default_target (CreateTarget ("", EVERYTHING, EVERYTHING)),
-		state (S_UNINITIALIZED)
+	default_target ("", EVERYTHING, EVERYTHING),
+	state (S_UNINITIALIZED)
 	{
 	}
 
@@ -301,7 +253,7 @@ namespace Debug
 
 	void System::CloseTargets()
 	{
-		if (TargetIsOK (&default_target))
+		if (default_target.isOK())
 		{
 			msg (E_INFO, E_VERBOSE, "Target is being closed (destination \"%s\")",
 				 default_target.target_name);
@@ -335,7 +287,7 @@ namespace Debug
 	{
 		bool is_emergency_mode = object.is_emergency_mode;
 		bool is_critical_message = (event.event_type >= E_CRITICAL);
-		bool is_message_allowed = CheckDynamicVerbosity (*object.object_descriptor, event);
+		bool is_message_allowed = object.object_descriptor ->AcceptsEvent (event);
 		TargetDescriptor_* current_target = 0;
 
 		if (!is_message_allowed)
@@ -362,13 +314,13 @@ namespace Debug
 		else
 		{
 			// Current implementation does not support multiple targets.
-			if (!TargetAcceptsEvent (event, default_target)) return;
+			if (default_target.AcceptsEvent (event)) return;
 			current_target = &default_target;
 		}
 
 		// The following code will do error handling in case of debug system/target/logger failures.
 		// I know that it's overkill for just one target.
-		if (!TargetIsOK (current_target))
+		if (!current_target || !current_target ->isOK())
 		{
 			HandleError (event, place, object, "Invalid target");
 			return;
@@ -426,30 +378,50 @@ namespace Debug
 			// Non-critical messages are "lost".
 			// Critical ones are reposted in emergency mode.
 			if (is_critical_message)
-				DoLogging (event, place, CreateEmergencyObject (object));
+				DoLogging (event, place, object.ToEmergency());
 		}
 	}
 
-	_InsideBase::_InsideBase() :
-	dbg_params_ (Debug::CreateParameters (this, 0)) // stub
+#ifndef NDEBUG
+
+	void VerifierBase::_UpdateState (Debug::SourceDescriptor place) const
 	{
+		// eliminate successive _Verify() calls in case of bad object to reduce log clutter
+		if ( (dbg_params_.flags & MASK (OF_USEVERIFY)) && (dbg_params_.object_status != Debug::OS_BAD))
+		{
+			dbg_params_.object_status = Debug::OS_BAD; // eliminate recursive calls from verify_statement statements
+
+			if (this ->_Verify())
+				dbg_params_.object_status = Debug::OS_OK;
+
+			else
+			{
+				call_log (dbg_params_, place, Debug::E_CRITICAL, Debug::E_USER,
+						  "Verification error: %s", dbg_params_.error_string);
+
+				if (dbg_params_.flags & MASK (OF_FATALVERIFY))
+					dothrow (dbg_params_, place, EX_INPUT, "<none>", "Inline verification failed");
+			}
+		}
 	}
 
-	void _InsideBase::_MoveDynamicDbgInfo (const Debug::_InsideBase* that)
-	{
-		dbg_params_ = that ->dbg_params_;
+#else
 
-		that ->dbg_params_.object_status = OS_MOVED;
+	void VerifierBase::_VerifyAndSetState (Debug::SourceDescriptor) const
+	{
+		dbg_params_.object_status = OS_UNCHECKED;
 	}
 
-	void _InsideBase::_SetDynamicDbgInfo (const ObjectDescriptor_* info)
+#endif // NDEBUG
+
+	void VerifierBase::_SetDynamicDbgInfo (const ObjectDescriptor_* info)
 	{
 		// If pointer is already set, don't do anything.
 		if (dbg_params_.object_descriptor)
 			return;
 
 		// Else, set the dynamic pointer and do the logging.
-		dbg_params_ = CreateParameters (this, info);
+		dbg_params_ = ObjectParameters_ (info);
 
 		SourceDescriptor_ place = THIS_PLACE; // Place information is a kind of "stub"
 		EventLevelIndex_ ctor_event_level;
@@ -471,10 +443,10 @@ namespace Debug
 
 		call_log (dbg_params_, place, // Collected data
 				  E_OBJCREATION, ctor_event_level, // Generated data
-				  GetCtorFmt_(), dbg_params_.object_descriptor ->object_name, this); // Fmt and arguments
+				  _GetCtorFmt(), dbg_params_.object_descriptor ->object_name, this); // Fmt and arguments
 	}
 
-	_InsideBase::~_InsideBase()
+	VerifierBase::~VerifierBase()
 	{
 		SourceDescriptor_ place = THIS_PLACE;
 		EventLevelIndex_ dtor_event_level;
@@ -495,10 +467,10 @@ namespace Debug
 
 		call_log (dbg_params_, place,
 				  E_OBJDESTRUCTION, dtor_event_level,
-				  GetDtorFmt_(), dbg_params_.object_descriptor ->object_name, this);
+				  _GetDtorFmt(), dbg_params_.object_descriptor ->object_name, this);
 	}
 
-	const char* _InsideBase::GetCtorFmt_()
+	const char* VerifierBase::_GetCtorFmt()
 	{
 		switch (dbg_params_.object_descriptor ->object_type)
 		{
@@ -514,7 +486,7 @@ namespace Debug
 		}
 	}
 
-	const char* _InsideBase::GetDtorFmt_()
+	const char* VerifierBase::_GetDtorFmt()
 	{
 		switch (dbg_params_.object_descriptor ->object_type)
 		{
