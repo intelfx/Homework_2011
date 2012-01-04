@@ -9,29 +9,23 @@
 // Description	Macros for declaring/implementing debug system descriptors.
 // -----------------------------------------------------------------------------
 
-#if defined(TARGET_POSIX)
-# define DBC_VISIBILITY __attribute__ ((visibility("default")))
-#elif defined(TARGET_WINDOWS)
-# warning "Debug class exporting for WINDOWS DL: implement me"
-#endif
-
 #define _ObjectDescName(var_name) _ ## var_name ## _dbginfo
 
-#define DoExternBaseClass(var_name) extern template class DBC_VISIBILITY ::Debug::BaseClass<_ObjectDescName(var_name)>
-#define DoExternDescriptor(var_name) struct DBC_VISIBILITY _ObjectDescName(var_name) 	\
+#define DoExternBaseClass(var_name) extern template class  ::Debug::VerifierWrapper<_ObjectDescName(var_name)>
+#define DoExternDescriptor(var_name) struct  _ObjectDescName(var_name) 	\
 	{																					\
 	static const ::Debug::ObjectDescriptor_* desc;										\
 	const ::Debug::ObjectDescriptor_* operator()() { return desc;}						\
 	}
 
 
-#define DoImplementBaseClass(var_name) template class ::Debug::BaseClass<_ObjectDescName(var_name)>
+#define DoImplementBaseClass(var_name) template class ::Debug::VerifierWrapper<_ObjectDescName(var_name)>
 
 #define DoImplementDescriptor(var_name, object_name, object_type)						\
-	const Debug::ObjectDescriptor_* _ObjectDescName(var_name)::desc = ::Debug::API::RegisterMetaType (::Debug::CreateObject (object_name, object_type, #var_name))
+	const Debug::ObjectDescriptor_* _ObjectDescName(var_name)::desc = ::Debug::API::RegisterMetaType (::Debug::ObjectDescriptor_ (object_name, object_type, #var_name))
 
 // Derives the logged class from base helper
-#define LogBase(var_name) public ::Debug::BaseClass<_ObjectDescName(var_name)>
+#define LogBase(var_name) public ::Debug::VerifierWrapper<_ObjectDescName(var_name)>
 
 // Descriptor pre-declaration
 #define DeclareDescriptor(var_name)														\
@@ -54,7 +48,7 @@ DoImplementBaseClass(var_name)
 # define __FXFUNC__ __func__
 #endif
 
-#define THIS_PLACE Debug::CreatePlace (__FILE__, __FXFUNC__, __LINE__)
+#define THIS_PLACE Debug::SourceDescriptor_ (__FILE__, __FXFUNC__, __LINE__)
 
 // -----------------------------------------------------------------------------
 // End

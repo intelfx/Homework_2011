@@ -48,7 +48,7 @@ FXConLog::~FXConLog()
 
 void FXConLog::RegisterTarget (Debug::TargetDescriptor_* target)
 {
-	bool ready_for_init = !Debug::TargetIsOK (target);
+	bool ready_for_init = target && target ->isOK();
 	if (!ready_for_init) return;
 
 
@@ -69,7 +69,7 @@ void FXConLog::RegisterTarget (Debug::TargetDescriptor_* target)
 
 void FXConLog::CloseTarget (Debug::TargetDescriptor_* target)
 {
-	bool ready_for_disown = Debug::TargetIsOK (target) &&
+	bool ready_for_disown = target && target ->isOK() &&
 							(target ->target_engine == this);
 	if (!ready_for_disown) return;
 
@@ -341,7 +341,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 		msgspec = "DELETE\t";
 	}
 
-	else if (object.object_descriptor ->object_id == Debug::GLOBAL_OID)
+	else if (object.object_descriptor ->IsGlobal())
 	{
 		status_data.background = CCC_TRANSPARENT;
 		status_data.foreground = CCC_WHITE;
