@@ -178,7 +178,6 @@ namespace ProcessorImplementation
 			for (size_t i = 0; i < size; ++i)
 			{
 				const calc_t& element = *image;
-				__assert (element.type != Value::V_MAX, "Invalid input element type");
 
 				switch (element.type)
 				{
@@ -191,6 +190,9 @@ namespace ProcessorImplementation
 						break;
 
 					case Value::V_MAX:
+						__asshole ("Invalid input element type");
+						break;
+
 					default:
 						__asshole ("Switch error");
 						break;

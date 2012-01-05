@@ -139,7 +139,6 @@ namespace Processor
 	{
 		union
 		{
-			abiret_t abi_direct;
 			fp_t fp;
 			int_t integer;
 		};
@@ -150,6 +149,23 @@ namespace Processor
 			V_INTEGER,
 			V_MAX
 		} type;
+
+		Value() :
+		type (V_MAX)
+		{
+		}
+
+		Value (fp_t src) :
+		type (V_FLOAT)
+		{
+			fp = src;
+		}
+
+		Value (int_t src) :
+		type (V_INTEGER)
+		{
+			integer = src;
+		}
 
 		template <typename T> void Get (T& dest)
 		{
@@ -164,6 +180,9 @@ namespace Processor
 				break;
 
 			case V_MAX:
+				__sasshole ("Uninitialised value");
+				break;
+
 			default:
 				__sasshole ("Switch error");
 				break;
@@ -183,6 +202,9 @@ namespace Processor
 				break;
 
 			case V_MAX:
+				__sasshole ("Uninitialised value");
+				break;
+
 			default:
 				__sasshole ("Switch error");
 				break;
@@ -206,12 +228,15 @@ namespace Processor
 			}
 
 			case V_MAX:
-				return abi_direct;
+				__sasshole ("Uninitialised value");
+				break;
 
 			default:
 				__sasshole ("Switch error");
 				break;
 			}
+
+			return 0; // for GCC not to complain
 		}
 
 		void SetFromABI (abiret_t value, Type new_type)
@@ -233,10 +258,56 @@ namespace Processor
 			}
 
 			case V_MAX:
-				abi_direct = value;
+				__sasshole ("Uninitialised value");
+				break;
 
 			default:
 				__sasshole ("Switch error");
+				break;
+			}
+		}
+
+		void Parse (const char* string)
+		{
+			char* endptr;
+
+			switch (type)
+			{
+			case V_INTEGER:
+			{
+				errno = 0;
+				integer = strtol (string, &endptr, 0); /* autodetermine base */
+
+				__sverify (!errno && (endptr != string) && (*endptr == '\0'),
+						   "Malformed integer value argument: \"%s\": strtol() says %s",
+						   string, strerror (errno));
+
+				break;
+			}
+
+			case V_FLOAT:
+			{
+				errno = 0;
+				fp = strtof (string, &endptr);
+
+				__sverify (!errno && (endptr != string) && (*endptr == '\0'),
+						   "Malformed floating-point value argument: \"%s\": strtof() says %s",
+						   string, strerror (errno));
+
+				int classification = fpclassify (fp);
+				__sverify (classification == FP_NORMAL || classification == FP_ZERO,
+						   "Invalid floating-point value: \"%s\" -> %lg", string, fp);
+
+				break;
+			}
+
+			case V_MAX:
+				__sasshole ("Uninitialised value");
+				break;
+
+			default:
+				__sasshole ("Switch error");
+				break;
 			}
 		}
 	} calc_t;
@@ -317,6 +388,7 @@ namespace Processor
 		extern char debug_buffer[STATIC_LENGTH];
 
 		void PrintReference (const Reference& ref);
+		void PrintValue (const Value& val);
 	}
 
 	class IReader;

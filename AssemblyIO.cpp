@@ -8,7 +8,7 @@ namespace ProcessorImplementation
 	using namespace Processor;
 
 	AsmHandler::AsmHandler() :
-		writing_file_ (0)
+	writing_file_ (0)
 	{
 	}
 
@@ -171,11 +171,11 @@ namespace ProcessorImplementation
 		return result;
 	}
 
-	char* AsmHandler::PrepLine(char* read_buffer)
+	char* AsmHandler::PrepLine (char* read_buffer)
 	{
 		char *begin, *tmp = read_buffer;
 
-		while (isspace (* (begin = tmp++)));
+		while (isspace (*(begin = tmp++)));
 
 		if (*begin == '\0')
 			return 0;
@@ -194,48 +194,35 @@ namespace ProcessorImplementation
 			else
 				*tmp = tolower (*tmp);
 
-		}
-		while (*tmp++);
+		} while (*tmp++);
 
 		return begin;
 	}
 
-	calc_t AsmHandler::ParseValue (const char* input)
-	{
-		char* endptr;
-		long double decoded_a = strtold (input, &endptr);
-
-		__verify (endptr != input, "Malformed value argument: \"%s\"", input);
-
-		int classification = fpclassify (decoded_a);
-		__verify (classification == FP_NORMAL || classification == FP_ZERO,
-				  "Invalid floating-point value: \"%s\" -> %llg", input, decoded_a);
-
-		return static_cast<calc_t> (decoded_a);
-	}
-
-	bool AsmHandler::ReadSingleDeclaration (const char* input, DecodeResult& output)
+	void AsmHandler::ReadSingleDeclaration (const char* decl_data, DecodeResult& output)
 	{
 		char name[STATIC_LENGTH], initialiser[STATIC_LENGTH], type;
+
+		// Declaration is a symbol itself.
 		Symbol declaration;
 		init (declaration);
-
 		declaration.is_resolved = 1;
 
-		int arguments = sscanf (input, "decl %s %c %s", name, &type, initialiser);
+		int arguments = sscanf (decl_data, "%s %c %s", name, &type, initialiser);
 		switch (arguments)
 		{
 			case 3:
 				switch (type)
 				{
 					case '=':
-						output.data = ParseValue (initialiser);
+						output.data.Parse (initialiser); // type of value is already set
 
 						declaration.ref.is_symbol = 0;
 						declaration.ref.direct.type = S_DATA;
 						declaration.ref.direct.address = ILinker::symbol_auto_placement_addr;
 
-						msg (E_INFO, E_DEBUG, "Declaration: DATA entry, initialiser <%lg>", output.data);
+						ProcDebug::PrintValue (output.data);
+						msg (E_INFO, E_DEBUG, "Declaration: DATA entry = %s", ProcDebug::debug_buffer);
 
 						output.type = DecodeResult::DEC_DATA;
 						break;
@@ -246,11 +233,11 @@ namespace ProcessorImplementation
 						ProcDebug::PrintReference (declaration.ref);
 						msg (E_INFO, E_DEBUG, "Declaration: alias to %s", ProcDebug::debug_buffer);
 
-						output.type = DecodeResult::DEC_NOTHING;
+						output.type = DecodeResult::DEC_NOTHING; // in this case declaration is not a declaration itself
 						break;
 
 					default:
-						__asshole ("Parse error: \"%s\"", input);
+						__asshole ("Parse error: \"%s\"", decl_data);
 						break;
 				}
 
@@ -258,108 +245,76 @@ namespace ProcessorImplementation
 				break;
 
 			case 1:
-				output.data = 0; // default initialiser
+				output.data = Value(); // default initialiser
 
 				declaration.ref.is_symbol = 0;
 				declaration.ref.direct.type = S_DATA;
 				declaration.ref.direct.address = ILinker::symbol_auto_placement_addr;
 
-				msg (E_INFO, E_DEBUG, "Declaration: DATA entry, default initialiser");
+				msg (E_INFO, E_DEBUG, "Declaration: DATA entry uninitialised");
 
 				output.type = DecodeResult::DEC_DATA;
 				output.mentioned_symbols.insert (PrepareSymbol (name, declaration));
 				break;
 
-			case EOF:
-			case 0:
-				msg (E_INFO, E_DEBUG, "Declaration: no declaration");
-				break;
-
 			default:
-				__asshole ("Parse error: \"%s\"", input);
+				__asshole ("Parse error: \"%s\"", decl_data);
 				break;
 		}
-
-		return (arguments > 0);
 	}
 
-	bool AsmHandler::ReadSingleCommand (size_t line_num,
-										const char* input,
-										DecodeResult& output)
+	void AsmHandler::ReadSingleCommand (const char* command,
+										const char* argument,
+										Processor::DecodeResult& output)
 	{
-		char command[STATIC_LENGTH], arg[STATIC_LENGTH];
+		const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);
+		output.command.id = desc.id;
 
-		int arguments = sscanf (input, "%s %s", command, arg);
-		switch (arguments)
+		if (!argument)
 		{
-		case 1: /* no argument */
-		{
-			const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);
 			__verify (desc.arg_type == A_NONE,
-					  "Line %zu: No argument required for command \"%s\" while given argument \"%s\"",
-					  line_num, command, arg);
+					  "No argument required for command \"%s\" while given argument \"%s\"",
+					  command, argument);
 
-			output.type = DecodeResult::DEC_COMMAND;
-			output.command.id = desc.id;
-
-			msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu]", desc.mnemonic, desc.id);
-			break;
+			msg (E_INFO, E_DEBUG, "Command: \"%s\" no argument", desc.mnemonic);
 		}
 
-		case 2: /* single argument */
+		else /* have argument */
 		{
-			const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);
 			__verify (desc.arg_type != A_NONE,
-					  "Line %zu: Argument needed for command \"%s\"", line_num, command);
+					  "Argument needed for command \"%s\"", command);
 
 			switch (desc.arg_type)
 			{
 			case A_REFERENCE:
 			{
-				output.command.arg.ref = ParseReference (output.mentioned_symbols, arg);
+				output.command.arg.ref = ParseReference (output.mentioned_symbols, argument);
 
 				ProcDebug::PrintReference (output.command.arg.ref);
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu] reference to %s",
-					 desc.mnemonic, desc.id, ProcDebug::debug_buffer);
+				msg (E_INFO, E_DEBUG, "Command: \"%s\" reference to %s",
+					 desc.mnemonic, ProcDebug::debug_buffer);
 
 				break;
 			}
 
 			case A_VALUE:
 			{
-				output.command.arg.value = ParseValue (arg);
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu] argument %lg",
-					 desc.mnemonic, desc.id, output.command.arg.value);
+				output.command.arg.value.Parse (argument);
+
+				ProcDebug::PrintValue (output.command.arg.value);
+				msg (E_INFO, E_DEBUG, "Command: \"%s\" argument %s",
+					 desc.mnemonic, ProcDebug::debug_buffer);
 
 				break;
 			}
 
 			case A_NONE:
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" -> [%hu]", desc.mnemonic, desc.id);
-				break;
-
 			default:
 				__asshole ("Switch error");
 				break;
 			} // switch (argument type)
 
-			output.type = DecodeResult::DEC_COMMAND;
-			output.command.id = desc.id;
-
-			break;
-		} // argument processing
-
-		case EOF:
-		case 0:
-			msg (E_INFO, E_DEBUG, "Command: No command");
-			break;
-
-		default:
-			__asshole ("Switch error");
-			break;
-		} // switch (argument count)
-
-		return (arguments > 0);
+		} // have argument
 	}
 
 	char* AsmHandler::ParseLabel (char* string)
@@ -384,11 +339,14 @@ namespace ProcessorImplementation
 		verify_method;
 		size_t labels = 0;
 		Symbol label_symbol;
-		char* current_position = PrepLine (input);
-
 		init (label_symbol);
 
+		Value::Type statement_type;
+		char *command, *argument, typespec = default_type_specifier, *current_position = PrepLine (input);
+
+
 		/* skip leading space and return if empty string */
+
 		if (!current_position)
 		{
 			msg (E_INFO, E_DEBUG, "Not decoding empty line");
@@ -397,11 +355,8 @@ namespace ProcessorImplementation
 
 		msg (E_INFO, E_DEBUG, "Decoding line %zu: \"%s\"", line_num, current_position);
 
-		/*
-		 * parse labels
-		 * while() condition is a mess.
-		 * Don't touch, it is supposed to work.
-		 */
+
+		/* parse labels */
 
 		while (char* next_chunk = ParseLabel (current_position))
 		{
@@ -422,8 +377,56 @@ namespace ProcessorImplementation
 		msg (E_INFO, E_DEBUG, "Labels: %zu", labels);
 
 
-		if (ReadSingleDeclaration (current_position, output)) return;
-		if (ReadSingleCommand (line_num, current_position, output)) return;
+		/* get remaining statement */
+
+		command = strtok (current_position, " \t");
+		argument = strtok (0, " \t");
+
+		if (!command)
+			return; // no command
+
+		/* parse explicit type-specifier */
+
+		if (char* dot = strchr (command, '.'))
+		{
+			*dot++ = '\0';
+			typespec = *dot;
+		}
+
+		/* decode type-specifier */
+
+		switch (tolower (typespec))
+		{
+			case 'f':
+				statement_type = Value::V_FLOAT;
+
+			case 'd':
+			case 'i':
+				statement_type = Value::V_INTEGER;
+
+			default:
+				__asshole ("Invalid command type specification: '%c'", typespec);
+		}
+
+		/* determine if we have a declaration or a command and parse accordingly */
+
+		if (!strcmp (command, "decl"))
+		{
+			__verify (argument, "Empty declaration");
+
+			output.type = DecodeResult::DEC_DATA;
+			output.data.type = statement_type;
+
+			ReadSingleDeclaration (argument, output);
+		}
+
+		else
+		{
+			output.type = DecodeResult::DEC_COMMAND;
+			output.command.type = statement_type;
+
+			ReadSingleCommand (command, argument, output);
+		}
 	}
 
 	size_t AsmHandler::ReadStream (FileProperties* prop, DecodeResult* destination)

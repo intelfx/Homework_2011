@@ -48,6 +48,26 @@ namespace Processor
 						  AddrType_ids[ref.direct.type], ref.direct.address);
 			}
 		}
+
+
+		void Print (const Value& val)
+		{
+			switch (val.type)
+			{
+				case Value::V_INTEGER:
+					snprintf (debug_buffer, STATIC_LENGTH, "int:%ld", val.integer);
+					break;
+
+				case Value::V_FLOAT:
+					snprintf (debug_buffer, STATIC_LENGTH, "float:%lg", val.fp);
+					break;
+
+				case Value::V_MAX:
+				default:
+					__sasshole ("Switch error");
+					break;
+			}
+		}
 	}
 
 	symbol_map::value_type PrepareSymbol (const char* label, Symbol sym, size_t* hash)
