@@ -5,28 +5,99 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
+	MMU::MMU() :
+	main_stack(),
+	integer_stack(),
+	fp_stack(),
+	current_stack (0),
+	frame_stack (0),
+	current_stack_type (Value::V_MAX),
+	frame_stack_type (Value::V_MAX),
+	context_stack(),
+	buffers(),
+	context()
+	{
+	}
+
 	void MMU::OnAttach()
 	{
 		ResetEverything();
+	}
+
+	void MMU::ClearStacks()
+	{
+		main_stack.clear();
+		integer_stack.clear();
+		fp_stack.clear();
+	}
+
+	void MMU::InternalWrStackPointer (std::vector<calc_t>** ptr, Value::Type type)
+	{
+		switch (type)
+		{
+			case Value::V_FLOAT:
+				*ptr = &fp_stack;
+				break;
+
+			case Value::V_INTEGER:
+				*ptr = &integer_stack;
+				break;
+
+			case Value::V_MAX:
+				*ptr = &main_stack;
+				break;
+
+			default:
+				__asshole ("Switch error");
+				break;
+		}
+	}
+
+	void MMU::SelectStack (Value::Type type)
+	{
+		verify_method;
+
+		current_stack = 0;
+		frame_stack = 0;
+
+		if ((current_stack_type == Value::V_MAX) && (type != Value::V_MAX))
+		{
+			msg (E_INFO, E_VERBOSE, "Entering multiple-stack implementation");
+			ClearStacks();
+		}
+
+		else if (type == Value::V_MAX)
+		{
+			msg (E_WARNING, E_VERBOSE, "Reverting to single-stack implementation");
+			ClearStacks();
+		}
+
+		current_stack_type = type;
+		frame_stack_type = (type == Value::V_MAX) ? Value::V_MAX : Value::V_INTEGER;
+
+		InternalWrStackPointer (&current_stack, current_stack_type);
+		InternalWrStackPointer (&frame_stack, frame_stack_type);
+
+		verify_method;
 	}
 
 	void MMU::AlterStackTop (short int offset)
 	{
 		verify_method;
 
-		long new_size = main_stack.size() + offset;
+		long new_size = current_stack ->size() + offset;
 		__assert (new_size >= 0, "Unable to alter stack top by %hd: current top is %zu",
-				  offset, main_stack.size());
+				  offset, current_stack ->size());
 
-		main_stack.resize (new_size, 0);
+		current_stack ->resize (new_size);
 	}
 
 	calc_t& MMU::AStackTop (size_t offset)
 	{
 		verify_method;
 
-		__assert (offset < main_stack.size(), "Stack top offset overflow: %zu [max %zu]", offset, main_stack.size());
-		return main_stack.at (main_stack.size() - (offset + 1));
+		__assert (offset < current_stack ->size(), "Stack top offset overflow: %zu [max %zu]", offset, current_stack ->size());
+		return current_stack ->at (current_stack ->size() - (offset + 1));
 	}
 
 	calc_t& MMU::AStackFrame (int offset)
@@ -39,10 +110,10 @@ namespace ProcessorImplementation
 
 		size_t final_offset = context.frame + offset;
 
-		__assert (final_offset < main_stack.size(), "Stack frame offset overflow: %zu [max %ld]",
-				  offset, main_stack.size() - context.frame);
+		__assert (final_offset < frame_stack ->size(), "Stack frame offset overflow: %zu [max %ld]",
+				  offset, frame_stack ->size() - context.frame);
 
-		return main_stack.at (final_offset);
+		return frame_stack ->at (final_offset);
 	}
 
 	Processor::symbol_type& MMU::ASymbol (size_t hash)
@@ -83,19 +154,48 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSE, "Reading stack image (%p : %zu) -> global",
-			 image, size);
+		__assert (image, "NULL stack image pointer");
 
-		main_stack.clear();
-		main_stack.reserve (size + 1);
-
-		if (size)
+		if (selected_only)
 		{
-			calc_t* tmp_image = 0;
-			__assert (tmp_image = image, "NULL stack image pointer");
+			msg (E_INFO, E_VERBOSE, "Reading stack image (%p : %zu) -> global type \"%s\"",
+				 image, size, ProcDebug::ValueType_ids[current_stack_type]);
 
-			for (unsigned i = 0; i < size; ++i)
-				main_stack.push_back (*tmp_image++);
+			current_stack ->clear();
+			current_stack ->reserve (size + 1);
+
+			for (size_t i = 0; i < size; ++i)
+				current_stack ->push_back (*image++);
+		}
+
+		else
+		{
+			msg (E_INFO, E_VERBOSE, "Reading multiple stack images (%p : %zu) -> global",
+				 image, size);
+
+			ClearStacks();
+
+			for (size_t i = 0; i < size; ++i)
+			{
+				const calc_t& element = *image;
+				__assert (element.type != Value::V_MAX, "Invalid input element type");
+
+				switch (element.type)
+				{
+					case Value::V_FLOAT:
+						fp_stack.push_back (element);
+						break;
+
+					case Value::V_INTEGER:
+						integer_stack.push_back (element);
+						break;
+
+					case Value::V_MAX:
+					default:
+						__asshole ("Switch error");
+						break;
+				}
+			}
 		}
 	}
 
@@ -174,9 +274,10 @@ namespace ProcessorImplementation
 
 		for (symbol_map::const_iterator i = src.begin(); i != src.end(); ++i)
 		{
-			const Symbol* sptr = &i ->second.second;
-			size_t nlen = i ->second.first.length();
-			const char* name = i ->second.first.c_str();
+			auto symbol_record = i ->second;
+			const Symbol* sptr = &symbol_record.second;
+			size_t nlen = symbol_record.first.length();
+			const char* name = symbol_record.first.c_str();
 
 			memcpy (i_img, sptr, sizeof (Symbol));
 			i_img += sizeof (Symbol);
@@ -265,24 +366,42 @@ namespace ProcessorImplementation
 
 		if (size)
 		{
-			Command* tmp_image = 0;
-			__assert (tmp_image = image, "NULL text image pointer");
+			__assert (image, "NULL text image pointer");
 
 			for (unsigned i = 0; i < size; ++i)
-				text_dest.push_back (*tmp_image++);
+				text_dest.push_back (*image++);
 		}
+	}
+
+	size_t MMU::InternalWriteStack (const std::vector<calc_t>* stack, Processor::calc_t* pointer) const
+	{
+		for (std::vector<calc_t>::const_iterator i = stack ->begin(); i != stack ->end(); ++i)
+			*pointer++ = *i;
+
+		return stack ->size();
 	}
 
 	void MMU::WriteStack (Processor::calc_t* image, bool selected_only) const
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUG, "Writing stack image [ctx %zu] -> %p", context.buffer, image);
 		__assert (image, "Invalid destination image");
 
-		for (std::vector<calc_t>::const_iterator i = main_stack.begin(); i != main_stack.end(); ++i)
+		if (selected_only)
 		{
-			*image++ = *i;
+			msg (E_INFO, E_DEBUG, "Writing stack image type \"%s\" [ctx %zu] -> %p",
+				 ProcDebug::ValueType_ids[current_stack_type], context.buffer, image);
+
+			for (std::vector<calc_t>::const_iterator i = current_stack ->begin(); i != current_stack ->end(); ++i)
+				*image++ = *i;
+		}
+
+		else
+		{
+			msg (E_INFO, E_DEBUG, "Writing all stack images [ctx %zu] -> %p", context.buffer, image);
+
+			image += InternalWriteStack (&integer_stack, image);
+			image += InternalWriteStack (&fp_stack, image);
 		}
 	}
 
@@ -303,12 +422,12 @@ namespace ProcessorImplementation
 		buffer_dest.sym_table.clear();
 
 		for (size_t reg_id = 0; reg_id < R_MAX; ++reg_id)
-			buffer_dest.registers[reg_id] = 0;
+			buffer_dest.registers[reg_id] = Value();
 	}
 
 	void MMU::ResetEverything()
 	{
-		main_stack.clear();
+		SelectStack (Value::V_MAX); // will clean up the stacks
 		context_stack.clear();
 
 		for (size_t buf_id = 0; buf_id < BUFFER_NUM; ++buf_id)
@@ -332,7 +451,7 @@ namespace ProcessorImplementation
 
 		// Update current context
 		++context.depth;
-		context.frame = main_stack.size() - 1;
+		context.frame = current_stack ->size() - 1;
 	}
 
 	void MMU::ClearContext()
@@ -382,25 +501,24 @@ namespace ProcessorImplementation
 
 	void MMU::InternalDumpCtx (const Context& w_context) const
 	{
-		msg (E_INFO, E_DEBUG, "Ctx [%zd]: IP [%zu] FL [%zu] STACK [T %zu F %zu] DEPTH [%zu]",
-			 w_context.buffer, w_context.ip, w_context.flags, main_stack.size(),
+		msg (E_INFO, E_DEBUG, "Ctx [%zd]: IP [%zu] FL [%zu] FRAME [\"%s\" %zu] DEPTH [%zu]",
+			 w_context.buffer, w_context.ip, w_context.flags, ProcDebug::ValueType_ids[frame_stack_type],
 			 w_context.frame, w_context.depth);
 
-		// Placeholder context can be dumped as well - handle it
-		if (w_context.buffer < buffers.Capacity())
-		{
-			const calc_t* registers = CurrentBuffer().registers;
-			msg (E_INFO, E_DEBUG, "Reg: A [%lg] B [%lg] C [%lg] D [%lg] E [%lg] F [%lg]", /* a little unroll */
-				 registers[R_A],
-				 registers[R_B],
-				 registers[R_C],
-				 registers[R_D],
-				 registers[R_E],
-				 registers[R_F]);
-		}
-
-		else
-			msg (E_INFO, E_DEBUG, "Reg: N/A");
+// 		if (w_context.buffer < buffers.Capacity())
+// 		{
+// 			const calc_t* registers = CurrentBuffer().registers;
+// 			msg (E_INFO, E_DEBUG, "Reg: A [%lg] B [%lg] C [%lg|%zu] D [%lg] E [%lg] F [%lg]", /* a little unroll */
+// 				 registers[R_A],
+// 				 registers[R_B],
+// 				 registers[R_C],
+// 				 registers[R_D],
+// 				 registers[R_E],
+// 				 registers[R_F]);
+// 		}
+//
+// 		else
+// 			msg (E_INFO, E_DEBUG, "Reg: N/A");
 
 	}
 
@@ -431,7 +549,6 @@ namespace ProcessorImplementation
 
 		CurrentBuffer().commands.push_back (command);
 	}
-
 
 	MMU::InternalContextBuffer& MMU::CurrentBuffer()
 	{
@@ -465,17 +582,19 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		return main_stack.size();
+		return current_stack ->size();
 	}
-
 
 	bool MMU::_Verify() const
 	{
 		verify_statement (!context_stack.empty(), "Possible call stack underflow or MMU uninitialized");
 
-		if (!main_stack.empty())
-			verify_statement (context.frame < main_stack.size(), "Invalid stack frame [%zu]: top at %zu",
-							  context.frame, main_stack.size());
+		verify_statement (current_stack, "No stack selected");
+		verify_statement (frame_stack, "No auxiliary stack selected");
+
+		if (!current_stack ->empty())
+			verify_statement (context.frame < current_stack ->size(), "Invalid stack frame [%zu]: top at %zu",
+							  context.frame, current_stack ->size());
 
 		verify_statement (context.buffer < buffers.Capacity(), "Invalid context buffer ID [%zd]: max %zu",
 						  context.buffer, buffers.Capacity());
@@ -508,13 +627,13 @@ namespace ProcessorImplementation
 			break;
 
 		case S_FRAME:
-			__verify (context.frame + ref.address < main_stack.size(),
-					  "Invalid reference [FRAME:%zu] : offset limit %zu", main_stack.size() - context.frame);
+			__verify (context.frame + ref.address < frame_stack ->size(),
+					  "Invalid reference [FRAME:%zu] : offset limit %zu", frame_stack ->size() - context.frame);
 			break;
 
 
 		case S_FRAME_BACK:
-			__verify (context.frame - ref.address < main_stack.size(),
+			__verify (context.frame - ref.address < frame_stack ->size(),
 					  "Invalid reference [BACKFRAME:%zu] : offset limit %zu", context.frame + 1);
 			break;
 

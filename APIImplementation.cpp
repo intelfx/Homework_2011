@@ -258,7 +258,10 @@ namespace Processor
 
 			try
 			{
-				calc_t result = backend_ ->ExecuteImage (chk);
+				calc_t result;
+
+				abiret_t value = backend_ ->ExecuteImage (chk);
+				result.SetFromABI (value, Value::V_FLOAT); // TODO select correct type here
 
 				msg (E_INFO, E_VERBOSE, "Execution OK: Result = %lg", result);
 				mmu_ ->RestoreContext();

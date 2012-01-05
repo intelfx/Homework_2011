@@ -25,7 +25,9 @@ namespace ProcessorImplementation
 			calc_t registers[R_MAX];
 		};
 
-		std::vector<calc_t> main_stack;
+		std::vector<calc_t> main_stack, integer_stack, fp_stack, *current_stack, *frame_stack;
+		Value::Type current_stack_type, frame_stack_type;
+
 		std::vector<Context> context_stack;
 		StaticAllocator<InternalContextBuffer, BUFFER_NUM> buffers;
 		Context context;
@@ -34,14 +36,21 @@ namespace ProcessorImplementation
 		const InternalContextBuffer& CurrentBuffer() const;
 
 		void InternalDumpCtx (const Context& w_context) const;
+		void ClearStacks();
+		size_t InternalWriteStack (const std::vector<calc_t>* stack, Processor::calc_t* pointer) const;
+		void InternalWrStackPointer (std::vector<calc_t>** ptr, Value::Type type);
 
 	protected:
 		virtual bool _Verify() const;
 		virtual void OnAttach();
 
 	public:
+		MMU();
+
 		virtual Context&		GetContext	();
 		virtual void			DumpContext	() const;
+
+		virtual void			SelectStack	(Value::Type type);
 
 		virtual calc_t&			AStackFrame	(int offset);
 		virtual calc_t&			AStackTop	(size_t offset);

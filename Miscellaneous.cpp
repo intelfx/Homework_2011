@@ -26,10 +26,11 @@ namespace Processor
 			"parameter"
 		};
 
-		const char* ValueType_ids[Value::V_MAX] =
+		const char* ValueType_ids[Value::V_MAX + 1] =
 		{
 			"floating-point",
-			"integer"
+			"integer",
+			"undefined"
 		};
 
 		char debug_buffer[STATIC_LENGTH];
@@ -66,13 +67,11 @@ namespace Processor
 	{
 		ICommandSet* cset = default_exec_ ->GetProcessor() ->CommandSet();
 		void* handle = cset ->GetExecutionHandle (cmd ->id, default_exec_ ->ID());
-// 		__sassert (handle, "Invalid handle for command \"%s\"", cset ->DecodeCommand (cmd ->id).mnemonic);
 
 		default_exec_ ->Execute (handle, cmd ->arg);
-		calc_t temporary_result = default_exec_ ->GetProcessor() ->LogicProvider() ->StackPop();
-		abiprep_t prep_result = temporary_result;
 
-		return *reinterpret_cast<abiret_t*> (&prep_result);
+		calc_t temporary_result = default_exec_ ->GetProcessor() ->LogicProvider() ->StackPop();
+		return temporary_result.GetABI();
 	}
 
 	void IMMU::SetTemporaryContext (size_t ctx_id)

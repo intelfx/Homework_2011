@@ -26,21 +26,38 @@
 
 namespace Processor
 {
-	typedef double fp_t;
-	typedef long int_t;
+	// Main processing types
 
-	typedef fp_t calc_t; // until we support multitype
-
-	typedef float abiprep_t;
-	typedef unsigned abiret_t;
-
-	typedef unsigned short cid_t;
+	typedef double fp_t; // main floating-point type
+	typedef long int_t; // main integer type
 
 	static_assert (sizeof (fp_t) == sizeof (int_t),
 				   "FP data type size does not equal integer data type size");
 
-	static_assert (sizeof (abiprep_t) == sizeof (abiret_t),
-				   "ABI data type size does not equal ABI return type size");
+	// ABI types
+
+	/*
+	 * ABI conversion scheme:
+	 *  first conversion is a valid C cast (with precision loss)
+	 *  second conversion is type punning to integer type (same size, but exact copying)
+	 *  fp_t -> fp_abi_t -> abiret_t
+	 *  int_t -> int_abi_t -> abiret_t
+	 */
+
+	typedef float fp_abi_t; // ABI intermediate floating-point type
+	typedef unsigned int_abi_t; // ABI intermediate integer type
+
+	typedef unsigned abiret_t; // final ABI interaction type
+
+
+	static_assert (sizeof (fp_abi_t) == sizeof (abiret_t),
+				   "ABI data type size does not equal FP intermediate data type size");
+
+	static_assert (sizeof (int_abi_t) == sizeof (abiret_t),
+				   "ABI data type size does not equal integer intermediate data type size");
+
+
+	typedef unsigned short cid_t; // command identifier type
 
 	static const size_t BUFFER_NUM = 4;
 
@@ -118,10 +135,11 @@ namespace Processor
 		bool is_resolved; // When returning from decode, this means "is defined"
 	};
 
-	struct Value
+	typedef struct Value
 	{
 		union
 		{
+			abiret_t abi_direct;
 			fp_t fp;
 			int_t integer;
 		};
@@ -137,18 +155,18 @@ namespace Processor
 		{
 			switch (type)
 			{
-				case V_FLOAT:
-					dest = fp;
-					break;
+			case V_FLOAT:
+				dest = fp;
+				break;
 
-				case V_INTEGER:
-					dest = integer;
-					break;
+			case V_INTEGER:
+				dest = integer;
+				break;
 
-				case V_MAX:
-				default:
-					__sasshole ("Switch error");
-					break;
+			case V_MAX:
+			default:
+				__sasshole ("Switch error");
+				break;
 			}
 		}
 
@@ -156,19 +174,73 @@ namespace Processor
 		{
 			switch (type)
 			{
-				case V_FLOAT:
-					fp = src;
-					break;
+			case V_FLOAT:
+				fp = src;
+				break;
 
-				case V_INTEGER:
-					integer = src;
-					break;
+			case V_INTEGER:
+				integer = src;
+				break;
 
-				default:
-					__sasshole ("Switch error");
+			case V_MAX:
+			default:
+				__sasshole ("Switch error");
+				break;
 			}
 		}
-	};
+
+		abiret_t GetABI()
+		{
+			switch (type)
+			{
+			case V_INTEGER:
+			{
+				int_abi_t intermediate = integer;
+				return *reinterpret_cast<abiret_t*> (&intermediate);
+			}
+
+			case V_FLOAT:
+			{
+				fp_abi_t intermediate = fp;
+				return *reinterpret_cast<abiret_t*> (&intermediate);
+			}
+
+			case V_MAX:
+				return abi_direct;
+
+			default:
+				__sasshole ("Switch error");
+				break;
+			}
+		}
+
+		void SetFromABI (abiret_t value, Type new_type)
+		{
+			switch (type = new_type)
+			{
+			case V_INTEGER:
+			{
+				int_abi_t intermediate = *reinterpret_cast<int_abi_t*> (&value);
+				integer = intermediate;
+				break;
+			}
+
+			case V_FLOAT:
+			{
+				fp_abi_t intermediate = *reinterpret_cast<fp_abi_t*> (&value);
+				fp = intermediate;
+				break;
+			}
+
+			case V_MAX:
+				abi_direct = value;
+
+			default:
+				__sasshole ("Switch error");
+			}
+		}
+	} calc_t;
+// 	typedef fp_t calc_t; // until we support multitype
 
 	struct Command
 	{
@@ -179,6 +251,7 @@ namespace Processor
 		} arg;
 
 		cid_t id;
+		Value::Type type;
 	};
 
 	// This is something like TR1's std::unordered_map with manual hashing,
@@ -239,7 +312,7 @@ namespace Processor
 	{
 		extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
 		extern const char* AddrType_ids[S_MAX]; // debug address type IDs
-		extern const char* ValueType_ids[Value::V_MAX]; // debug value type IDs
+		extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
 
 		extern char debug_buffer[STATIC_LENGTH];
 
@@ -260,4 +333,4 @@ namespace Processor
 
 #endif // _UTILITY_H
 
-// kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

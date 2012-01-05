@@ -276,7 +276,7 @@ namespace Processor
 
 		virtual void		CompileBuffer (size_t chk) = 0;
 		virtual bool		ImageIsOK (size_t chk) = 0;
-		virtual abiprep_t	ExecuteImage (size_t chk) = 0;
+		virtual abiret_t	ExecuteImage (size_t chk) = 0;
 	};
 
 	class ILinker : LogBase (ILinker), public IModuleBase
