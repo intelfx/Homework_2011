@@ -90,7 +90,7 @@ namespace Processor
 						break;
 
 					case SEC_STACK_IMAGE:
-						mmu_ ->ReadStack (reinterpret_cast<calc_t*> (data_buffer), read_size);
+						mmu_ ->ReadStack (reinterpret_cast<calc_t*> (data_buffer), read_size, 0);
 						break;
 
 					case SEC_SYMBOL_MAP:

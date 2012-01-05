@@ -172,7 +172,8 @@ namespace Processor
 		// Advance file to the next section and return information about the new section.
 		// Successive calls to read functions should then read from this section.
 		// Returns if the section switch has been performed (0 in case of last section).
-		virtual size_t NextSection (FileProperties* prop, FileSectionType* type, size_t* count, size_t* bytes, bool force = 0) = 0;
+		virtual size_t NextSection (FileProperties* prop,
+									FileSectionType* type, size_t* count, size_t* bytes) = 0;
 
 		// Reads next element from current section into "destination", writing no more
 		// than "max" bytes.
@@ -209,6 +210,8 @@ namespace Processor
 		virtual Context&		GetContext	() = 0; // Get current context data
 		virtual void			DumpContext	() const = 0; // Print context data to the log
 
+		virtual void			SelectStack	(Value::Type type); // In implementations with multiple stacks, selects stack for consequent operations.
+
 		virtual calc_t&			AStackFrame	(int offset) = 0; // Access calculation stack relative to context's stack frame pointer
 		virtual calc_t&			AStackTop	(size_t offset) = 0; // Access calculation stack relative to its top
 		virtual calc_t&			ARegister	(Register reg_id) = 0; // Access register
@@ -217,7 +220,7 @@ namespace Processor
 		virtual calc_t&			AData		(size_t addr) = 0;   // Access DATA section
 		virtual symbol_type&	ASymbol		(size_t hash) = 0;   // Access symbol buffer
 
-		virtual void			ReadStack	(calc_t* image, size_t size) = 0; // Read stack data (image end is top)
+		virtual void			ReadStack	(calc_t* image, size_t size, bool selected_only) = 0; // Read stack(s) data (closer to image end is closer to top).
 		virtual void			ReadData	(calc_t* image, size_t size) = 0; // Read data buffer
 		virtual void			ReadText	(Command* image, size_t size) = 0; // Read code buffer
 		virtual void			ReadSyms	(void* image, size_t size) = 0; // read symbol buffer (deserialize)
@@ -226,7 +229,7 @@ namespace Processor
 		virtual void			InsertText	(const Command& command) = 0; // add a code entry to the buffer end
 		virtual void			InsertSyms	(symbol_map&& syms) = 0; // Read prepared symbol buffer
 
-		virtual void			WriteStack	(calc_t* image) const = 0; // write stack data (image end is top)
+		virtual void			WriteStack	(calc_t* image, bool selected_only) const = 0; // write stack(s) data (closer to image end is closer to top).
 		virtual void			WriteData	(calc_t* image) const = 0; // write data buffer
 		virtual void			WriteText	(Command* image) const = 0; // write code buffer
 		virtual void			WriteSyms	(void** image, size_t* bytes, size_t* count) const = 0; // serialize symbol map

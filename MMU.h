@@ -50,7 +50,7 @@ namespace ProcessorImplementation
 		virtual calc_t&			AData		(size_t addr);
 		virtual symbol_type&	ASymbol		(size_t hash);
 
-		virtual void			ReadStack	(calc_t* image, size_t size);
+		virtual void			ReadStack	(calc_t* image, size_t size, bool selected_only);
 		virtual void			ReadData	(calc_t* image, size_t size);
 		virtual void			ReadText	(Command* image, size_t size);
 		virtual void			ReadSyms	(void* image, size_t size);
@@ -59,7 +59,7 @@ namespace ProcessorImplementation
 		virtual void			InsertText	(const Command& command);
 		virtual void			InsertSyms	(symbol_map&& syms);
 
-		virtual void			WriteStack	(Processor::calc_t* image) const;
+		virtual void			WriteStack	(Processor::calc_t* image, bool selected_only) const;
 		virtual void			WriteData	(calc_t* image) const;
 		virtual void 			WriteText	(Command* image) const;
 		virtual void			WriteSyms	(void** image, size_t* bytes, size_t* count) const;

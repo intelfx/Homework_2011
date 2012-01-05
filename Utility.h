@@ -26,11 +26,18 @@
 
 namespace Processor
 {
-	typedef double calc_t;
+	typedef double fp_t;
+	typedef long int_t;
+
+	typedef fp_t calc_t; // until we support multitype
+
 	typedef float abiprep_t;
 	typedef unsigned abiret_t;
 
 	typedef unsigned short cid_t;
+
+	static_assert (sizeof (fp_t) == sizeof (int_t),
+				   "FP data type size does not equal integer data type size");
 
 	static_assert (sizeof (abiprep_t) == sizeof (abiret_t),
 				   "ABI data type size does not equal ABI return type size");
@@ -111,6 +118,58 @@ namespace Processor
 		bool is_resolved; // When returning from decode, this means "is defined"
 	};
 
+	struct Value
+	{
+		union
+		{
+			fp_t fp;
+			int_t integer;
+		};
+
+		enum Type
+		{
+			V_FLOAT,
+			V_INTEGER,
+			V_MAX
+		} type;
+
+		template <typename T> void Get (T& dest)
+		{
+			switch (type)
+			{
+				case V_FLOAT:
+					dest = fp;
+					break;
+
+				case V_INTEGER:
+					dest = integer;
+					break;
+
+				case V_MAX:
+				default:
+					__sasshole ("Switch error");
+					break;
+			}
+		}
+
+		template <typename T> void Set (T src)
+		{
+			switch (type)
+			{
+				case V_FLOAT:
+					fp = src;
+					break;
+
+				case V_INTEGER:
+					integer = src;
+					break;
+
+				default:
+					__sasshole ("Switch error");
+			}
+		}
+	};
+
 	struct Command
 	{
 		union Argument
@@ -128,24 +187,6 @@ namespace Processor
 	typedef symbol_map::value_type::second_type symbol_type;
 
 	symbol_map::value_type PrepareSymbol (const char* label, Symbol sym, size_t* hash = 0);
-
-	struct VersionSignature
-	{
-		unsigned long long magic;
-
-		union
-		{
-			struct
-			{
-				unsigned char minor;
-				unsigned char major;
-			} version;
-
-			unsigned short ver_raw;
-		};
-
-		bool is_sparse;
-	} PACKED;
 
 	struct Context
 	{
@@ -198,6 +239,7 @@ namespace Processor
 	{
 		extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
 		extern const char* AddrType_ids[S_MAX]; // debug address type IDs
+		extern const char* ValueType_ids[Value::V_MAX]; // debug value type IDs
 
 		extern char debug_buffer[STATIC_LENGTH];
 

@@ -35,7 +35,7 @@ namespace ProcessorImplementation
 		virtual void RdReset (FileProperties* prop);
 		virtual FileProperties RdSetup (FILE* file);
 
-		virtual size_t NextSection (Processor::FileProperties* prop, Processor::FileSectionType* type, size_t* count, size_t*, bool = 0);
+		virtual size_t NextSection (Processor::FileProperties* prop, Processor::FileSectionType* type, size_t*, size_t*);
 
 		virtual size_t ReadNextElement (FileProperties* prop, void* destination, size_t max);
 		virtual size_t ReadSectionImage (FileProperties* prop, void* destination, size_t max);

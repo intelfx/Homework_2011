@@ -26,6 +26,12 @@ namespace Processor
 			"parameter"
 		};
 
+		const char* ValueType_ids[Value::V_MAX] =
+		{
+			"floating-point",
+			"integer"
+		};
+
 		char debug_buffer[STATIC_LENGTH];
 
 		void PrintReference (const Reference& ref)
@@ -80,6 +86,12 @@ namespace Processor
 		ClearContext();
 		GetContext().buffer = ctx_id;
 		ResetBuffers (ctx_id);
+	}
+
+	void IMMU::SelectStack (Value::Type type)
+	{
+		msg (E_INFO, E_DEBUG, "Stack change request (req. \"%s\") is unsupported by MMU",
+			 ProcDebug::ValueType_ids[type]);
 	}
 }
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

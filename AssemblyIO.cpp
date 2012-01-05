@@ -55,9 +55,8 @@ namespace ProcessorImplementation
 
 	size_t AsmHandler::NextSection (Processor::FileProperties* prop,
 									Processor::FileSectionType* type,
-									size_t* count,
 									size_t*,
-									bool)
+									size_t*)
 	{
 		verify_method;
 
@@ -72,9 +71,6 @@ namespace ProcessorImplementation
 		if (type)
 			*type = prop ->file_description.front().first;
 
-		if (count)
-			*count = prop ->file_description.front().second;
-
 		return 1;
 	}
 
@@ -86,7 +82,7 @@ namespace ProcessorImplementation
 		FileProperties fp;
 		fp.file = file;
 		fp.file_description.push_back (std::make_pair (SEC_MAX, 0));
-		fp.file_description.push_back (std::make_pair (SEC_NON_UNIFORM, 1));
+		fp.file_description.push_back (std::make_pair (SEC_NON_UNIFORM, 0));
 		return fp;
 	}
 
@@ -220,20 +216,20 @@ namespace ProcessorImplementation
 
 	bool AsmHandler::ReadSingleDeclaration (const char* input, DecodeResult& output)
 	{
-		char name[STATIC_LENGTH], init[STATIC_LENGTH], type;
+		char name[STATIC_LENGTH], initialiser[STATIC_LENGTH], type;
 		Symbol declaration;
 		init (declaration);
 
 		declaration.is_resolved = 1;
 
-		int arguments = sscanf (input, "decl %s %c %s", name, &type, init);
+		int arguments = sscanf (input, "decl %s %c %s", name, &type, initialiser);
 		switch (arguments)
 		{
 			case 3:
 				switch (type)
 				{
 					case '=':
-						output.data = ParseValue (init);
+						output.data = ParseValue (initialiser);
 
 						declaration.ref.is_symbol = 0;
 						declaration.ref.direct.type = S_DATA;
@@ -245,7 +241,7 @@ namespace ProcessorImplementation
 						break;
 
 					case ':':
-						declaration.ref = ParseReference (output.mentioned_symbols, init);
+						declaration.ref = ParseReference (output.mentioned_symbols, initialiser);
 
 						ProcDebug::PrintReference (declaration.ref);
 						msg (E_INFO, E_DEBUG, "Declaration: alias to %s", ProcDebug::debug_buffer);
@@ -274,17 +270,13 @@ namespace ProcessorImplementation
 				output.mentioned_symbols.insert (PrepareSymbol (name, declaration));
 				break;
 
-			case 2:
-				__asshole ("Parse error: \"%s\"", input);
-				break;
-
 			case EOF:
 			case 0:
 				msg (E_INFO, E_DEBUG, "Declaration: no declaration");
 				break;
 
 			default:
-				__asshole ("Switch error");
+				__asshole ("Parse error: \"%s\"", input);
 				break;
 		}
 
@@ -450,7 +442,7 @@ namespace ProcessorImplementation
 			if (!fgets (read_buffer, STATIC_LENGTH, prop ->file))
 				return 0;
 
-			ReadSingleStatement (prop ->file_description.front().second++, read_buffer, *destination);
+			ReadSingleStatement (++prop ->file_description.front().second, read_buffer, *destination);
 
 		} while (destination ->type == DecodeResult::DEC_NOTHING);
 

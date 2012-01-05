@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "MMU.h"
 
 namespace ProcessorImplementation
@@ -79,7 +79,7 @@ namespace ProcessorImplementation
 
 	}
 
-	void MMU::ReadStack (calc_t* image, size_t size)
+	void MMU::ReadStack (calc_t* image, size_t size, bool selected_only)
 	{
 		verify_method;
 
@@ -273,7 +273,7 @@ namespace ProcessorImplementation
 		}
 	}
 
-	void MMU::WriteStack (calc_t* image) const
+	void MMU::WriteStack (Processor::calc_t* image, bool selected_only) const
 	{
 		verify_method;
 
