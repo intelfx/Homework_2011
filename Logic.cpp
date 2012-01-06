@@ -41,28 +41,55 @@ namespace ProcessorImplementation
 		verify_method;
 
 		Context& ctx = proc_ ->MMU() ->GetContext();
-		ctx.flags &= ~ (MASK (F_ZERO) | MASK (F_NEGATIVE) | MASK (F_INVALIDFP));
+		ctx.flags &= ~(MASK (F_ZERO) | MASK (F_NEGATIVE) | MASK (F_INVALIDFP));
 
-		int classification = fpclassify (value);
-		switch (classification)
+		switch (value.type)
 		{
-		case FP_NAN:
-		case FP_INFINITE:
-			ctx.flags |= MASK (F_INVALIDFP);
-			break;
+		case Value::V_FLOAT:
+		{
+			int classification = fpclassify (value.fp);
+			switch (classification)
+			{
+			case FP_NAN:
+			case FP_INFINITE:
+				ctx.flags |= MASK (F_INVALIDFP);
+				break;
 
-		case FP_ZERO:
-			ctx.flags |= MASK (F_ZERO);
-			break;
+			case FP_ZERO:
+				ctx.flags |= MASK (F_ZERO);
+				break;
 
-		case FP_SUBNORMAL:
-		case FP_NORMAL:
-			if (value < 0)
+			case FP_SUBNORMAL:
+			case FP_NORMAL:
+				if (value.fp < 0)
+					ctx.flags |= MASK (F_NEGATIVE);
+				break;
+
+			default:
+				__asshole ("fpclassify() error - returned %d", classification);
+				break;
+			}
+
+			break;
+		}
+
+		case Value::V_INTEGER:
+		{
+			if (value.integer == 0)
+				ctx.flags |= MASK (F_ZERO);
+
+			else if (value.integer < 0)
 				ctx.flags |= MASK (F_NEGATIVE);
+
+			break;
+		}
+
+		case Value::V_MAX:
+			__asshole ("Uninitialised value");
 			break;
 
 		default:
-// 			__sasshole ("fpclassify() error - returned %d", classification);
+			__asshole ("Switch error");
 			break;
 		}
 	}
@@ -109,8 +136,9 @@ namespace ProcessorImplementation
 		switch (dref.type)
 		{
 		case S_CODE:
+			ProcDebug::PrintReference (ref);
 			msg (E_CRITICAL, E_VERBOSE, "Attempt to write to CODE section: reference to %s",
-				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
+				 ProcDebug::debug_buffer);
 			msg (E_CRITICAL, E_VERBOSE, "Write will not be performed");
 			break;
 
@@ -122,8 +150,9 @@ namespace ProcessorImplementation
 			proc_ ->MMU() ->AStackFrame (dref.address) = value;
 
 		case S_FRAME_BACK:
+			ProcDebug::PrintReference (ref);
 			msg (E_WARNING, E_VERBOSE, "Attempt to write to function parameter: reference to %s",
-				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
+				 ProcDebug::debug_buffer);
 
 			proc_ ->MMU() ->AStackFrame (-dref.address) = value;
 			break;
@@ -140,7 +169,7 @@ namespace ProcessorImplementation
 		}
 	}
 
-	Processor::calc_t Logic::Read (Reference & ref)
+	Processor::calc_t Logic::Read (Reference& ref)
 	{
 		verify_method;
 
@@ -150,7 +179,7 @@ namespace ProcessorImplementation
 		case S_CODE:
 			msg (E_WARNING, E_VERBOSE, "Attempt to read from CODE section: reference to %s",
 				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
-			return proc_ ->MMU() ->ACommand (dref.address).id;
+			return static_cast<int_t> (proc_ ->MMU() ->ACommand (dref.address).id);
 
 		case S_DATA:
 			return proc_ ->MMU() ->AData (dref.address);
@@ -171,7 +200,7 @@ namespace ProcessorImplementation
 			break;
 		}
 
-		return strtod ("NAN", 0);
+		return strtod ("NAN", 0); /* for GCC not to complain */
 	}
 
 	Processor::calc_t Logic::StackPop()

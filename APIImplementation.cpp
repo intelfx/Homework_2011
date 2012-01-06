@@ -9,7 +9,8 @@ namespace Processor
 
 		mmu_ ->ResetEverything();
 		cset_ ->ResetCommandSet();
-		executor_ ->ResetImplementations();
+		for (unsigned i = 0; i < Value::V_MAX; ++i)
+			executors_[i] ->ResetImplementations();
 	}
 
 	void ProcessorAPI::Reset()
@@ -115,7 +116,6 @@ namespace Processor
 				if (execute_stream)
 				{
 					size_t initial_ctx_n = mmu_ ->GetContext().buffer;
-					size_t module = executor_ ->ID();
 
 					/* while (mmu_ ->DecodeLoopCondition (initial_ctx_n)) */
 
@@ -129,8 +129,10 @@ namespace Processor
 							__verify (decode_result.type == DecodeResult::DEC_COMMAND,
 									  "Only commands are allowed in EIP mode");
 
-							void* handle = cset_ ->GetExecutionHandle (decode_result.command.id, module);
-							executor_ ->Execute (handle, decode_result.command.arg);
+							IExecutor* executor = executors_[decode_result.command.type];
+							void* handle = cset_ ->GetExecutionHandle (decode_result.command.id, executor ->ID());
+
+							executor ->Execute (handle, decode_result.command.arg);
 						}
 
 						else
@@ -247,7 +249,7 @@ namespace Processor
 		verify_method;
 
 		size_t initial_ctx = mmu_ ->GetContext().buffer, now_ctx = initial_ctx;
-		size_t chk = internal_logic_ ->ChecksumState(), execid = executor_ ->ID();
+		size_t chk = internal_logic_ ->ChecksumState();
 
 		msg (E_INFO, E_VERBOSE, "Starting execution of context %zu (system checksum %p)", initial_ctx, chk);
 
@@ -275,23 +277,27 @@ namespace Processor
 		}
 
 		// Else fall back to the interpreter.
-		msg (E_INFO, E_VERBOSE, "Using interpreter (ID %p)", execid);
+		msg (E_INFO, E_VERBOSE, "Using interpreter");
 		calc_t last_result;
 		for (;;)
 		{
-			Command& now_cmd = mmu_ ->ACommand();
+			Command& command = mmu_ ->ACommand();
 
 			msg (E_INFO, E_DEBUG, "Executing : [PC=%zu] : \"%s\"",
-				 mmu_ ->GetContext().ip, cset_ ->DecodeCommand(now_cmd.id).mnemonic);
+				 mmu_ ->GetContext().ip, cset_ ->DecodeCommand(command.id).mnemonic);
 
+			// TODO this code is invalid since effectively disables MMU IP check and possibly leaves last command to execute forever
 			if (mmu_ ->GetContext().ip + 1 < mmu_ ->GetTextSize())
 				++mmu_ ->GetContext().ip;
 
-			void* handle = cset_ ->GetExecutionHandle (now_cmd.id, execid);
-			__assert (handle, "Invalid handle for command \"%s\"",
-					  cset_ ->DecodeCommand (now_cmd.id).mnemonic);
+			IExecutor* executor = executors_[command.type];
+			size_t module = executor ->ID();
 
-			executor_ ->Execute (handle, now_cmd.arg);
+			void* handle = cset_ ->GetExecutionHandle (command.id, module);
+			__assert (handle, "Invalid handle for command \"%s\"",
+					  cset_ ->DecodeCommand (command.id).mnemonic);
+
+			executor ->Execute (handle, command.arg);
 			now_ctx = mmu_ ->GetContext().buffer;
 
 			if (mmu_ ->GetContext().flags & MASK (F_EXIT))

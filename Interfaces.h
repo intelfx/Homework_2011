@@ -30,7 +30,7 @@ namespace Processor
 		IReader* reader_;
 		IWriter* writer_;
 		IMMU* mmu_;
-		IExecutor* executor_;
+		StaticAllocator<IExecutor*, Value::V_MAX> executors_;
 		IBackend* backend_;
 		ILinker* linker_;
 		ICommandSet* cset_;
@@ -61,7 +61,7 @@ namespace Processor
 		IWriter*	Writer() { verify_method; return writer_; }
 		IMMU*		MMU() { verify_method; return mmu_; }
 		IBackend*	Backend() { verify_method; return backend_; }
-		IExecutor*	Executor() { verify_method; return executor_; }
+		IExecutor*	Executor (Value::Type type) { verify_method; return executors_[type]; }
 		ILinker*	Linker() { verify_method; return linker_; }
 		ICommandSet*CommandSet() { verify_method; return cset_; }
 		ILogic*		LogicProvider() { verify_method; return internal_logic_; }
@@ -261,6 +261,9 @@ namespace Processor
 		virtual ~IExecutor();
 
 		virtual size_t ID() { return typeid (*this).hash_code(); }
+
+		// Returns instruction type supported by the executor module
+		virtual Value::Type SupportedType() const = 0;
 
 		// Re-registers all supported implementations.
 		virtual void ResetImplementations() = 0;

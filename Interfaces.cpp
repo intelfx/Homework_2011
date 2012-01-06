@@ -89,10 +89,15 @@ namespace Processor
 			was_detach = 1;
 		}
 
-		if (dynamic_cast<const IExecutor*> (module) == executor_)
+		if (const IExecutor* exec_module = dynamic_cast<const IExecutor*> (module))
 		{
-			executor_ = 0;
-			was_detach = 1;
+			Value::Type supported_type = exec_module ->SupportedType();
+
+			if (exec_module == executors_[supported_type])
+			{
+				executors_[supported_type] = 0;
+				was_detach = 1;
+			}
 		}
 
 		if (dynamic_cast<const IReader*> (module) == reader_)
@@ -142,122 +147,85 @@ namespace Processor
 
 	void ProcessorAPI::Attach_ (IBackend* backend)
 	{
-		if (!backend)
-			backend_ = 0;
+		__assert (backend, "NULL backend to be attached");
 
-		else
-		{
-			if (backend_)
-				backend_ ->DetachSelf();
+		if (backend_)
+			backend_ ->DetachSelf();
 
-			backend_ = backend;
-			backend_ ->SetProcessor (this);
-		}
+		backend_ = backend;
+		backend_ ->SetProcessor (this);
 	}
 
 	void ProcessorAPI::Attach_ (ICommandSet* cset)
 	{
-		if (!cset)
-			cset_ = 0;
+		__assert (cset, "NULL command set to be attached");
 
-		else
-		{
-			if (cset_)
-				cset_ ->DetachSelf();
+		if (cset_)
+			cset_ ->DetachSelf();
 
-			cset_ = cset;
-			cset_ ->SetProcessor (this);
-		}
+		cset_ = cset;
+		cset_ ->SetProcessor (this);
 	}
 
 	void ProcessorAPI::Attach_ (IExecutor* executor)
 	{
-		if (!executor)
-			executor_ = 0;
+		Value::Type supported_type = executor ->SupportedType();
+		__assert (supported_type < Value::V_MAX,
+					"Invalid supported type (executor module to be registered \"%s\")",
+					Debug::API::GetClassName (executor));
 
-		else
-		{
-			if (executor_)
-				executor_ ->DetachSelf();
+		IExecutor*& executor_ = executors_[supported_type];
 
-			executor_ = executor;
-			executor_ ->SetProcessor (this);
-		}
+		if (executor_)
+			executor_ ->DetachSelf();
+
+		executor_ = executor;
+		executor_ ->SetProcessor (this);
 	}
 
 	void ProcessorAPI::Attach_ (ILinker* linker)
 	{
-		if (!linker)
-			linker_ = 0;
+		if (linker_)
+			linker_ ->DetachSelf();
 
-		else
-		{
-			if (linker_)
-				linker_ ->DetachSelf();
-
-			linker_ = linker;
-			linker_ ->SetProcessor (this);
-		}
+		linker_ = linker;
+		linker_ ->SetProcessor (this);
 	}
 
 	void ProcessorAPI::Attach_ (ILogic* logic)
 	{
-		if (!logic)
-			internal_logic_ = 0;
+		if (internal_logic_)
+			internal_logic_ ->DetachSelf();
 
-		else
-		{
-			if (internal_logic_)
-				internal_logic_ ->DetachSelf();
-
-			internal_logic_ = logic;
-			internal_logic_ ->SetProcessor (this);
-		}
+		internal_logic_ = logic;
+		internal_logic_ ->SetProcessor (this);
 	}
 
 	void ProcessorAPI::Attach_ (IMMU* mmu)
 	{
-		if (!mmu)
-			mmu_ = 0;
+		if (mmu_)
+			mmu_ ->DetachSelf();
 
-		else
-		{
-			if (mmu_)
-				mmu_ ->DetachSelf();
-
-			mmu_ = mmu;
-			mmu_ ->SetProcessor (this);
-		}
+		mmu_ = mmu;
+		mmu_ ->SetProcessor (this);
 	}
 
 	void ProcessorAPI::Attach_ (IReader* reader)
 	{
-		if (!reader)
-			reader_ = 0;
+		if (reader_)
+			reader_ ->DetachSelf();
 
-		else
-		{
-			if (reader_)
-				reader_ ->DetachSelf();
-
-			reader_ = reader;
-			reader_ ->SetProcessor (this);
-		}
+		reader_ = reader;
+		reader_ ->SetProcessor (this);
 	}
 
 	void ProcessorAPI::Attach_ (IWriter* writer)
 	{
-		if (!writer)
-			writer_ = 0;
+		if (writer_)
+			writer_ ->DetachSelf();
 
-		else
-		{
-			if (writer_)
-				writer_ ->DetachSelf();
-
-			writer_ = writer;
-			writer_ ->SetProcessor (this);
-		}
+		writer_ = writer;
+		writer_ ->SetProcessor (this);
 	}
 
 	IModuleBase::~IModuleBase()
@@ -287,14 +255,16 @@ namespace Processor
 		verify_statement (cset_, "command set provider not registered");
 		verify_statement (cset_ ->CheckObject(), "command set provider verification failure");
 
-		verify_statement (executor_, "main executor not registered");
-		verify_statement (executor_ ->CheckObject(), "main executor verification failure");
+		for (unsigned i = 0; i < Value::V_MAX; ++i)
+		{
+			verify_statement (executors_[i], "executor [type \"%s\"] not registered",
+							  ProcDebug::ValueType_ids[i]);
+			verify_statement (executors_[i] ->CheckObject(), "executor [type \"%s\"] verification failure",
+							  ProcDebug::ValueType_ids[i]);
+		}
 
 		verify_statement (linker_, "linker not registered");
 		verify_statement (linker_ ->CheckObject(), "linker verification failure");
-
-		verify_statement (executor_, "executor not registered");
-		verify_statement (executor_ ->CheckObject(), "executor verification failure");
 
 		verify_statement (mmu_, "MMU not registered");
 		verify_statement (mmu_ ->CheckObject(), "MMU verification failure");
@@ -321,15 +291,15 @@ namespace Processor
 	}
 
 	ProcessorAPI::ProcessorAPI() :
-		reader_ (0),
-		writer_ (0),
-		mmu_ (0),
-		executor_ (0),
-		backend_ (0),
-		linker_ (0),
-		cset_ (0),
-		internal_logic_ (0),
-		initialise_completed (0)
+	reader_ (0),
+	writer_ (0),
+	mmu_ (0),
+	executors_(),
+	backend_ (0),
+	linker_ (0),
+	cset_ (0),
+	internal_logic_ (0),
+	initialise_completed (0)
 	{
 	}
 
