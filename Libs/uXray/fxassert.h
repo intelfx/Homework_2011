@@ -54,7 +54,13 @@ namespace Init
 		T& operator() () // Fuck the world, forgot second pair of brackets
 		{
 			if (!is_available_)
-				throw std::logic_error ("Request for global object after its destruction");
+			{
+				char message [STATIC_LENGTH];
+				snprintf (message, STATIC_LENGTH, "Request for global object after its destruction [typeid %s]",
+						  typeid (T).name());
+
+				throw std::logic_error (message);
+			}
 
 			if (!instance_) instance_ = new T;
 			return *instance_;
@@ -179,6 +185,20 @@ namespace Debug
 		EventLevelIndex_ event_level;
 		const char* message_format_string;
 		mutable va_list message_args; // mutable, since v*printf() does not accept "const va_list"
+
+		EventDescriptor_ (EventTypeIndex_ type, EventLevelIndex_ level, const char* fmt) :
+		event_type (type),
+		event_level (level),
+		message_format_string (fmt)
+		{
+		}
+
+		bool IsCritical() const
+		{
+			return (event_type == E_CRITICAL) ||
+				   (event_type == E_EXCEPTION) ||
+				   (event_type == E_FUCKING_EPIC_SHIT);
+		}
 	};
 	typedef const EventDescriptor_& EventDescriptor;
 
@@ -193,14 +213,21 @@ namespace Debug
 		mask_t target_typemask;
 		mask_t target_levelmask;
 
-
-
 		TargetDescriptor_ (const char* name, mask_t typemask, mask_t levelmask) :
 		target_name (name),
 		target_descriptor (0),
 		target_engine (0),
 		target_typemask (typemask),
 		target_levelmask (levelmask)
+		{
+		}
+
+		TargetDescriptor_() :
+		target_name (0),
+		target_descriptor (0),
+		target_engine (0),
+		target_typemask (EVERYTHING),
+		target_levelmask (EVERYTHING)
 		{
 		}
 
@@ -214,6 +241,8 @@ namespace Debug
 			return (target_typemask & MASK (event.event_type)) &&
 				   (target_levelmask & MASK (event.event_level));
 		}
+
+		void Close();
 	};
 	typedef const TargetDescriptor_& TargetDescriptor;
 
@@ -368,6 +397,16 @@ namespace Debug
 		SourceDescriptor place; // Source file data (filled by macro)
 		ObjectParameters object; // Initiator object data (filled by macro from Debug::VerifierWrapper)
 		TargetDescriptor target; // Logging target (filled by Debug::System)
+
+		LogAtom_ (EventDescriptor event_, SourceDescriptor place_, ObjectParameters object_, TargetDescriptor target_) :
+		event (event_),
+		place (place_),
+		object (object_),
+		target (target_)
+		{
+		}
+
+		void WriteOut();
 	};
 	typedef const LogAtom_& LogAtom;
 
@@ -534,8 +573,8 @@ namespace Debug
 	{
 		ExceptionType_ type_;
 		const char* expression_;
-		char* a_reason_, *a_message_;
-		const char* reason_, *message_;
+		char* a_reason_, *a_message_, *a_what_message_;
+		const char* reason_, *message_, *what_message_;
 
 	public:
 		Exception (const Exception&) = delete;
@@ -576,12 +615,13 @@ namespace Debug
 	class FXLIB_API System : LogBase (System), public Init::Base<System>
 	{
 		TargetDescriptor_ default_target;
+		TargetDescriptor_ emergency_target;
 
 		enum DbgSystemState
 		{
 			S_UNINITIALIZED = 0,
 			S_READY,
-			S_FATALERROR
+			S_FATAL_ERROR
 		} state;
 
 		// Handles a logging error dependent on circumstances (criticalness, emergency mode)
@@ -589,6 +629,8 @@ namespace Debug
 						  SourceDescriptor place,
 						  ObjectParameters object,
 						  const char* error_string) throw();
+
+		void FatalErrorWrite (EventDescriptor event, SourceDescriptor place, ObjectParameters object);
 
 	public:
 		System();
@@ -604,20 +646,6 @@ namespace Debug
 		void CloseTargets(); // Removes all targets and puts system into uninitialized state
 	};
 
-
-	inline void WriteOutAtom (LogAtom atom, bool emergency_mode)
-	{
-		if (emergency_mode)	atom.target.target_engine ->WriteLogEmergency (atom);
-		else				atom.target.target_engine ->WriteLog (atom);
-	}
-
-	inline void CloseTarget (TargetDescriptor_* target)
-	{
-		target ->target_engine ->CloseTarget (target);
-		target ->target_engine = 0;
-		target ->target_descriptor = 0;
-	}
-
 	namespace API
 	{
 		template <typename T>
@@ -630,6 +658,14 @@ namespace Debug
 				return baseptr ->_GetStaticDbgInfo().object_name;
 
 			return typeid (*object).name();
+		}
+
+		inline size_t GetObjectID (const VerifierBase* object)
+		{
+			if (!object)
+				return ObjectDescriptor_::GLOBAL_OID;
+
+			return object ->_GetStaticDbgInfo().object_id;
 		}
 
 		inline void SetObjectFlag (VerifierBase* obj, ObjectFlags_ flag) { obj ->_SetFlag (flag); }
