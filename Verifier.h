@@ -178,7 +178,8 @@ protected:
 	}
 
 public:
-	StaticAllocator()
+	StaticAllocator() :
+	array_()
 	{
 		static_assert (capacity, "Static allocator with zero capacity");
 	}

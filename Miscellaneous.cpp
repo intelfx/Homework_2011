@@ -50,7 +50,7 @@ namespace Processor
 		}
 
 
-		void Print (const Value& val)
+		void PrintValue (const Value& val)
 		{
 			switch (val.type)
 			{

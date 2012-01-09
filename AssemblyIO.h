@@ -20,8 +20,8 @@ namespace ProcessorImplementation
 		Reference		ParseReference (Processor::symbol_map& symbols, const char* arg);
 
 		void			ReadSingleStatement (size_t line_num, char* input, Processor::DecodeResult& output);
-		void	ReadSingleDeclaration (const char* decl_data, Processor::DecodeResult& output);
-		void	ReadSingleCommand (const char* command, const char* argument, Processor::DecodeResult& output);
+		void			ReadSingleDeclaration (const char* decl_data, Processor::DecodeResult& output);
+		void			ReadSingleCommand (const char* command, const char* argument, Processor::DecodeResult& output);
 
 		void InternalWriteFile();
 		char* PrepLine (char* read_buffer);

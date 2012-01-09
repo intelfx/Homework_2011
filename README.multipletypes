@@ -1,0 +1,15 @@
+1 * Types are enumerated.
+1 * Value type is a structure containing union/type specifier.
+1 * Type control is absent.
+1 * Type conversions will be correct if you use Value::Get() and Value::Set().
+1 * Type conversion will resemble type punning if you directly edit Value::type variable.
+1 * Each instruction specifies type it works with, falling back to default at parse/load stage if none specified.
+1 * There is a dedicated executor module for each data type. They share a common instruction set.
+1 * MMU should maintain a dedicated stack for each data type. This behaviour may be forfeited by MMU.
+1 * Executor selection is performed for each instruction dynamically according to instruction's working type.
+1 * MMU stack selection is performed for each instruction simultaneously with executor selection.
+1 * Registers and memory are dynamically-typed.
+1 * Writing to register/memory changes its type according to value type.
+1 * Writing to stack forces the value to specific (executor's) type, either through correct conversion or type punning.
+-- Last two points: all writes, either to stack or to reg/mem, should write values of executor's type.
+0 * Force-type punning instructions (wr.i $ra / force_ld.f $ra) will bitwise-move data from integer to FP stack.

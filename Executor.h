@@ -20,7 +20,7 @@ namespace ProcessorImplementation
 		static const char* supported_mnemonics[];
 
 		static const size_t temp_size = 4;
-		calc_t temp[temp_size];
+		fp_t temp[temp_size];
 
 		struct Fl
 		{
@@ -40,6 +40,7 @@ namespace ProcessorImplementation
 
 	protected:
 		virtual void OnAttach();
+		virtual Value::Type SupportedType() const;
 
 	public:
 		virtual void ResetImplementations();

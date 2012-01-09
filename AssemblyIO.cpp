@@ -117,7 +117,7 @@ namespace ProcessorImplementation
 		Reference result;
 		init (result);
 
-		if (sscanf (arg, "%c:%zu", &id, &address) == 2)
+		if (sscanf (arg, "%c:%zu", &id, &address) == 2) /* uniform address reference */
 		{
 			result.is_symbol = 0;
 			result.direct.address = address;
@@ -152,15 +152,17 @@ namespace ProcessorImplementation
 			__verify (result.direct.type != S_NONE, "Invalid direct address specifier: '%c'", id);
 		}
 
-		else if (arg[0] == '$')
+		else if (arg[0] == '$') /* symbolic reference to register */
 		{
 			result.is_symbol = 0;
 			result.direct.type = S_REGISTER;
 			result.direct.address = proc_ ->LogicProvider() ->DecodeRegister (arg + 1);
 		}
 
-		else
+		else /* reference to symbol */
 		{
+			result.is_symbol = 1;
+
 			Symbol decoded_symbol;
 			init (decoded_symbol);
 
@@ -224,7 +226,6 @@ namespace ProcessorImplementation
 						ProcDebug::PrintValue (output.data);
 						msg (E_INFO, E_DEBUG, "Declaration: DATA entry = %s", ProcDebug::debug_buffer);
 
-						output.type = DecodeResult::DEC_DATA;
 						break;
 
 					case ':':
@@ -253,7 +254,6 @@ namespace ProcessorImplementation
 
 				msg (E_INFO, E_DEBUG, "Declaration: DATA entry uninitialised");
 
-				output.type = DecodeResult::DEC_DATA;
 				output.mentioned_symbols.insert (PrepareSymbol (name, declaration));
 				break;
 
@@ -299,6 +299,7 @@ namespace ProcessorImplementation
 
 			case A_VALUE:
 			{
+				output.command.arg.value.type = output.command.type;
 				output.command.arg.value.Parse (argument);
 
 				ProcDebug::PrintValue (output.command.arg.value);
@@ -380,7 +381,7 @@ namespace ProcessorImplementation
 		/* get remaining statement */
 
 		command = strtok (current_position, " \t");
-		argument = strtok (0, " \t");
+		argument = strtok (0, "");
 
 		if (!command)
 			return; // no command
@@ -399,13 +400,16 @@ namespace ProcessorImplementation
 		{
 			case 'f':
 				statement_type = Value::V_FLOAT;
+				break;
 
 			case 'd':
 			case 'i':
 				statement_type = Value::V_INTEGER;
+				break;
 
 			default:
 				__asshole ("Invalid command type specification: '%c'", typespec);
+				break;
 		}
 
 		/* determine if we have a declaration or a command and parse accordingly */

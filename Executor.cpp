@@ -121,6 +121,11 @@ namespace ProcessorImplementation
 		ResetImplementations();
 	}
 
+	Value::Type Executor::SupportedType() const
+	{
+		return Value::V_FLOAT;
+	}
+
 	void Executor::ResetImplementations()
 	{
 		ICommandSet* cmdset = proc_ ->CommandSet();
@@ -143,17 +148,17 @@ namespace ProcessorImplementation
 		__assert (count < temp_size, "Too much arguments for temporary processing");
 
 		for (size_t i = 0; i < count; ++i)
-			temp[i] = proc_ ->LogicProvider() ->StackPop();
+			proc_ ->LogicProvider() ->StackPop().Get (temp[i]);
 	}
 
 	inline void Executor::TopArgument()
 	{
-		temp[0] = proc_ ->LogicProvider() ->StackTop();
+		proc_ ->LogicProvider() ->StackTop().Get (temp[0]);
 	}
 
 	inline void Executor::ReadArgument (Reference& ref)
 	{
-		temp[0] = proc_ ->LogicProvider() ->Read (ref);
+		proc_ ->LogicProvider() ->Read (ref).Get (temp[0]);
 	}
 
 	inline void Executor::PushResult()
@@ -180,8 +185,7 @@ namespace ProcessorImplementation
 	{
 		RetrieveFlags();
 
-		size_t cval = reinterpret_cast<size_t> (handle);
-		COMMANDS cmd = static_cast<COMMANDS> (cval);
+		COMMANDS cmd = static_cast<COMMANDS> (reinterpret_cast<ptrdiff_t> (handle));
 		switch (cmd)
 		{
 		case C_INIT:
@@ -190,19 +194,17 @@ namespace ProcessorImplementation
 			break;
 
 		case C_PUSH:
-			temp[0] = argument.value;
+			argument.value.Get (temp[0]);
 			PushResult();
 			break;
 
 		case C_POP:
 			PopArguments (1);
-			AttemptAnalyze();
 			msg (E_INFO, E_VERBOSE, "Popped value: %lg", temp[0]);
 			break;
 
 		case C_TOP:
 			TopArgument();
-			AttemptAnalyze();
 			msg (E_INFO, E_VERBOSE, "Value on top: %lg", temp[0]);
 			break;
 
@@ -270,7 +272,7 @@ namespace ProcessorImplementation
 
 		case C_ANAL:
 			TopArgument();
-			proc_ ->LogicProvider() ->Analyze (temp[0]);
+			temp_flags.analyze_always = 1;
 			break;
 
 		case C_CMP: /* second operand is compared against stack top */
@@ -278,7 +280,7 @@ namespace ProcessorImplementation
 			temp[1] = temp[0];
 			TopArgument();
 			temp[0] -= temp[1];
-			proc_ ->LogicProvider() ->Analyze (temp[0]);
+			temp_flags.analyze_always = 1;
 			break;
 
 		case C_SWAP:
@@ -372,6 +374,8 @@ namespace ProcessorImplementation
 			__asshole ("Switch error");
 			break;
 		}
+
+		AttemptAnalyze();
 	}
 
 }

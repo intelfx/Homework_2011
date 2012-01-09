@@ -55,21 +55,21 @@ namespace ProcessorImplementation
 
 	void MMU::SelectStack (Value::Type type)
 	{
-		verify_method;
-
 		current_stack = 0;
 		frame_stack = 0;
 
-		if ((current_stack_type == Value::V_MAX) && (type != Value::V_MAX))
+		if ((type == Value::V_MAX) ^ (current_stack_type == Value::V_MAX))
 		{
-			msg (E_INFO, E_VERBOSE, "Entering multiple-stack implementation");
 			ClearStacks();
-		}
 
-		else if (type == Value::V_MAX)
-		{
-			msg (E_WARNING, E_VERBOSE, "Reverting to single-stack implementation");
-			ClearStacks();
+			if (!main_stack.empty())
+			{
+				if (type == Value::V_MAX)
+					msg (E_INFO, E_DEBUG, "Reverting to single-stack implementation");
+
+				else
+					msg (E_INFO, E_DEBUG, "Entering multi-stack implementation");
+			}
 		}
 
 		current_stack_type = type;
@@ -77,8 +77,6 @@ namespace ProcessorImplementation
 
 		InternalWrStackPointer (&current_stack, current_stack_type);
 		InternalWrStackPointer (&frame_stack, frame_stack_type);
-
-		verify_method;
 	}
 
 	void MMU::AlterStackTop (short int offset)
@@ -474,7 +472,8 @@ namespace ProcessorImplementation
 			msg (E_INFO, E_DEBUG, "Switched to next context buffer [%zu]", context.buffer);
 
 		else
-			msg (E_INFO, E_DEBUG, "MMU reset (switch to context buffer 0)");
+			msg (E_INFO, E_DEBUG, "MMU reset (switch to context buffer 0): using %s implementation",
+				 (current_stack_type == Value::V_MAX) ? "single-stack" : "multi-stack");
 
 		verify_method;
 	}

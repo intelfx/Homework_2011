@@ -21,7 +21,7 @@
 	 (static_cast <unsigned long long> ( str[6]) << 48) |								\
 	 (static_cast <unsigned long long> ( str[7]) << 56))
 
-#define init(x) memset (&x, 0xDEADBEEF, sizeof (x));
+#define init(x) memset (&x, 0, sizeof (x));
 
 
 namespace Processor
@@ -167,7 +167,7 @@ namespace Processor
 			integer = src;
 		}
 
-		template <typename T> void Get (T& dest)
+		template <typename T> void Get (T& dest) const
 		{
 			switch (type)
 			{
@@ -211,7 +211,7 @@ namespace Processor
 			}
 		}
 
-		abiret_t GetABI()
+		abiret_t GetABI() const
 		{
 			switch (type)
 			{

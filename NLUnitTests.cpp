@@ -36,13 +36,14 @@ int main (int argc, char** argv)
 
 	Processor::calc_t result = api.Exec();
 
-	smsg (E_INFO, E_USER, "Testing has apparently completed OK: result %lg", result);
+	Processor::ProcDebug::PrintValue (result);
+	smsg (E_INFO, E_USER, "Testing has apparently completed OK: result %s", Processor::ProcDebug::debug_buffer);
 
 	delete api.MMU();
 	delete api.Linker();
 	delete api.LogicProvider();
 	delete api.CommandSet();
-	delete api.Executor();
+	delete api.Executor (Processor::Value::V_FLOAT);
 
 	Debug::System::Instance().CloseTargets();
 }

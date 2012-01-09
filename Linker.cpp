@@ -58,6 +58,7 @@ namespace ProcessorImplementation
 						msg (E_INFO, E_DEBUG, "Definition of register alias %s: aliasing register %s",
 							 sym_nm_buf,
 							 proc_ ->LogicProvider() ->EncodeRegister (static_cast<Register> (symbol_desc.ref.direct.address)));
+						break;
 
 					case S_FRAME:
 					case S_FRAME_BACK:

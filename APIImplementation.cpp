@@ -129,10 +129,7 @@ namespace Processor
 							__verify (decode_result.type == DecodeResult::DEC_COMMAND,
 									  "Only commands are allowed in EIP mode");
 
-							IExecutor* executor = executors_[decode_result.command.type];
-							void* handle = cset_ ->GetExecutionHandle (decode_result.command.id, executor ->ID());
-
-							executor ->Execute (handle, decode_result.command.arg);
+							ExecuteCommand (decode_result.command);
 						}
 
 						else
@@ -208,6 +205,21 @@ namespace Processor
 		reader_ ->RdReset (&rd_prop); // close file
 	}
 
+	void ProcessorAPI::ExecuteCommand (Command& command)
+	{
+		mmu_ ->SelectStack (command.type);
+
+		IExecutor* executor = executors_[command.type];
+		void* handle = cset_ ->GetExecutionHandle (command.id, executor ->ID());
+
+		__assert (handle, "Invalid handle detected [command \"%s\" executor \"%s\" type \"%s\"]",
+				  cset_ ->DecodeCommand (command.id).mnemonic,
+				  Debug::API::GetClassName (executor),
+				  ProcDebug::ValueType_ids[command.type]);
+
+		executor ->Execute (handle, command.arg);
+	}
+
 	void ProcessorAPI::Dump (FILE* file)
 	{
 		verify_method;
@@ -265,7 +277,8 @@ namespace Processor
 				abiret_t value = backend_ ->ExecuteImage (chk);
 				result.SetFromABI (value, Value::V_FLOAT); // TODO select correct type here
 
-				msg (E_INFO, E_VERBOSE, "Execution OK: Result = %lg", result);
+				ProcDebug::PrintValue (result);
+				msg (E_INFO, E_VERBOSE, "Execution OK: Result = %s", ProcDebug::debug_buffer);
 				mmu_ ->RestoreContext();
 				return result;
 			}
@@ -290,16 +303,10 @@ namespace Processor
 			if (mmu_ ->GetContext().ip + 1 < mmu_ ->GetTextSize())
 				++mmu_ ->GetContext().ip;
 
-			IExecutor* executor = executors_[command.type];
-			size_t module = executor ->ID();
-
-			void* handle = cset_ ->GetExecutionHandle (command.id, module);
-			__assert (handle, "Invalid handle for command \"%s\"",
-					  cset_ ->DecodeCommand (command.id).mnemonic);
-
-			executor ->Execute (handle, command.arg);
+			ExecuteCommand (command);
 			now_ctx = mmu_ ->GetContext().buffer;
 
+			// Handle context exits.
 			if (mmu_ ->GetContext().flags & MASK (F_EXIT))
 			{
 				last_result = internal_logic_ ->StackTop();
@@ -310,7 +317,8 @@ namespace Processor
 			}
 		} // for (interpreter)
 
-		msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED: Result = %lg", last_result);
+		ProcDebug::PrintValue (last_result);
+		msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED: Result = %s", ProcDebug::debug_buffer);
 		return last_result;
 	}
 }

@@ -46,6 +46,8 @@ namespace Processor
 		void Attach_ (IBackend* backend);
 		void Attach_ (ILogic* logic);
 
+		void ExecuteCommand (Command& command);
+
 	protected:
 		virtual bool _Verify() const;
 
