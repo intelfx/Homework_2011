@@ -738,7 +738,7 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 
 #define __sassert(sta, fmt...) do { if ((sta)) break; dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_BUG, #sta, fmt); } while (0)
 #define __sverify(sta, fmt...) do { if ((sta)) break; dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, #sta, fmt); } while (0)
-#define __sasshole(fmt...)     do {                   dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_BUG, "<none>", fmt); } while (0)
+#define __sasshole(fmt...)     do {                   dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, "<none>", fmt); } while (0)
 
 #define __assert(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_BUG, #sta, fmt); } while (0)
 #define __verify(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, #sta, fmt); } while (0)

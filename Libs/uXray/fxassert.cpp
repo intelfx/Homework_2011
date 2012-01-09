@@ -284,12 +284,14 @@ namespace Debug
 
 	void System::CloseTargets()
 	{
-		if (state == S_READY)
+		if (state != S_UNINITIALIZED)
 		{
 			msg (E_INFO, E_VERBOSE, "Default target is being closed: \"%s\" using %s",
 				 default_target.target_name, API::GetClassName (default_target.target_engine));
 			default_target.Close();
 		}
+
+		state = S_UNINITIALIZED;
 	}
 
 	void System::SetTargetProperties (TargetDescriptor target, LogEngine* logger)
