@@ -66,7 +66,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUG, "Registering implementation driver for command \"%s\" -> %p",
+		msg (E_INFO, E_DEBUG, "Registering implementation driver for command \"%s\" -> module %zx",
 			 mnemonic, module);
 
 		__assert (mnemonic, "NULL mnemonic");
@@ -75,7 +75,7 @@ namespace ProcessorImplementation
 		__assert (cmd_it != by_id.end(), "Registering implementation driver for invalid mnemonic: \"%s\"", mnemonic);
 
 		auto impl_ins_res = cmd_it ->second.execution_handles.insert (std::make_pair (module, handle));
-		__assert (impl_ins_res.second, "Implementation of \"%s\" -> %p has already been registered",
+		__assert (impl_ins_res.second, "Implementation of \"%s\" -> module %zx has already been registered",
 				  mnemonic, module);
 	}
 
@@ -83,9 +83,9 @@ namespace ProcessorImplementation
 	{
 		const CommandTraits& cmd = DecodeCommand (id);
 		auto impl_it = cmd.execution_handles.find (module);
-		__assert (impl_it != cmd.execution_handles.end(),
-				  "Unable to find implementation of \"%s\" -> %p",
-				  cmd.mnemonic, module);
+
+		if (impl_it == cmd.execution_handles.end())
+			return 0;
 
 		return impl_it ->second;
 	}

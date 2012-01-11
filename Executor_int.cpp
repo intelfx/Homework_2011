@@ -16,7 +16,7 @@ namespace ProcessorImplementation
 
 	enum COMMANDS
 	{
-		C_PUSH = 0,
+		C_PUSH = 1,
 		C_POP,
 		C_TOP,
 
@@ -43,6 +43,7 @@ namespace ProcessorImplementation
 
 	const char* IntegerExecutor::supported_mnemonics[C_MAX] =
 	{
+		0,
 		"push",
 		"pop",
 		"top",
@@ -80,7 +81,7 @@ namespace ProcessorImplementation
 	{
 		ICommandSet* cmdset = proc_ ->CommandSet();
 
-		for (size_t cmd = 0; cmd < C_MAX; ++cmd)
+		for (size_t cmd = 1; cmd < C_MAX; ++cmd)
 		{
 			cmdset ->AddCommandImplementation (supported_mnemonics[cmd], ID(),
 											   reinterpret_cast<void*> (cmd));

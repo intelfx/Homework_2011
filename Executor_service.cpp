@@ -16,7 +16,7 @@ namespace ProcessorImplementation
 
 	enum COMMANDS
 	{
-		C_INIT = 0,
+		C_INIT = 1,
 		C_SLEEP,
 
 		C_JE,
@@ -46,6 +46,7 @@ namespace ProcessorImplementation
 
 	const char* ServiceExecutor::supported_mnemonics[C_MAX] =
 	{
+		0,
 		"init",
 		"sleep",
 
@@ -87,7 +88,7 @@ namespace ProcessorImplementation
 	{
 		ICommandSet* cmdset = proc_ ->CommandSet();
 
-		for (size_t cmd = 0; cmd < C_MAX; ++cmd)
+		for (size_t cmd = 1; cmd < C_MAX; ++cmd)
 		{
 			cmdset ->AddCommandImplementation (supported_mnemonics[cmd], ID(),
 											   reinterpret_cast<void*> (cmd));

@@ -213,9 +213,10 @@ namespace Processor
 		if ((executor = executors_[Value::V_MAX]) &&
 			(handle = cset_ ->GetExecutionHandle (command.id, executor ->ID())))
 		{
-			msg (E_INFO, E_DEBUG, "Executing service command \"%s\" in executor \"%s\"",
+			msg (E_INFO, E_DEBUG, "Executing service command \"%s\" in executor \"%s\" (%zx)",
 				 cset_ ->DecodeCommand (command.id).mnemonic,
-				 Debug::API::GetClassName (executor));
+				 Debug::API::GetClassName (executor),
+				 executor ->ID());
 		}
 
 		else
@@ -226,10 +227,11 @@ namespace Processor
 
 			handle = cset_ ->GetExecutionHandle (command.id, executor ->ID());
 
-			__assert (handle, "Invalid handle for command \"%s\" [executor \"%s\" type \"%s\"]",
+			__assert (handle, "Invalid handle for command \"%s\" [executor \"%s\" type \"%s\" id %zx]",
 					  cset_ ->DecodeCommand (command.id).mnemonic,
 					  Debug::API::GetClassName (executor),
-					  ProcDebug::ValueType_ids[command.type]);
+					  ProcDebug::ValueType_ids[executor ->SupportedType()],
+					  executor ->ID());
 		}
 
 		mmu_ ->SelectStack (command.type);

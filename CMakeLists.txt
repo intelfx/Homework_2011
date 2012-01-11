@@ -15,6 +15,7 @@ set (STACK_NL_SRC ${STACK_NL_SRC} Miscellaneous.cpp APIImplementation.cpp)
 set (STACK_NL_SRC ${STACK_NL_SRC} MMU.h MMU.cpp Linker.cpp Linker.h AssemblyIO.cpp AssemblyIO.h)
 set (STACK_NL_SRC ${STACK_NL_SRC} Logic.h Logic.cpp CommandSet_original.h CommandSet_original.cpp)
 set (STACK_NL_SRC ${STACK_NL_SRC} Executor.h Executor.cpp Executor_int.h Executor_int.cpp)
+set (STACK_NL_SRC ${STACK_NL_SRC} Executor_service.h Executor_service.cpp)
 set (STACK_NL_SRC ${STACK_NL_SRC} NLUnitTests.cpp)
 MAIN_ADD_GCH(stdafx.h ${STACK_NL_SRC})
 
