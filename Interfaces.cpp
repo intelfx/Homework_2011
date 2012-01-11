@@ -170,7 +170,7 @@ namespace Processor
 	void ProcessorAPI::Attach_ (IExecutor* executor)
 	{
 		Value::Type supported_type = executor ->SupportedType();
-		__assert (supported_type < Value::V_MAX,
+		__assert (supported_type <= Value::V_MAX,
 					"Invalid supported type (executor module to be registered \"%s\")",
 					Debug::API::GetClassName (executor));
 

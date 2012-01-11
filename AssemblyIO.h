@@ -26,6 +26,7 @@ namespace ProcessorImplementation
 		void InternalWriteFile();
 		char* PrepLine (char* read_buffer);
 		char* ParseLabel (char* current_position);
+		AddrType ReadReferenceSpecifier (char id);
 
 		static const char default_type_specifier = 'f';
 

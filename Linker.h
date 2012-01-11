@@ -1,4 +1,4 @@
-﻿#ifndef _LINKER_H
+#ifndef _LINKER_H
 #define _LINKER_H
 
 // -----------------------------------------------------------------------------
@@ -28,7 +28,7 @@ namespace ProcessorImplementation
 
 		virtual void LinkSymbols (DecodeResult& input);
 
-		virtual Reference::Direct& Resolve (Reference& reference);
+		Reference::Direct Resolve (Reference& reference);
 	};
 }
 

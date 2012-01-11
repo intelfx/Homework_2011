@@ -83,6 +83,8 @@ namespace Processor
 		R_MAX
 	};
 
+	const Register indirect_addressing_register = R_F;
+
 	enum ArgumentType
 	{
 		A_NONE = 0,
@@ -121,11 +123,16 @@ namespace Processor
 
 		union
 		{
-			Direct direct;
+			Direct plain;
 			size_t symbol_hash;
 		};
 
-		bool is_symbol;
+		enum Type
+		{
+			RT_DIRECT,
+			RT_INDIRECT,
+			RT_SYMBOL
+		} type;
 	};
 
 	struct Symbol

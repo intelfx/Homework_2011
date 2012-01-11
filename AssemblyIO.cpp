@@ -108,6 +108,37 @@ namespace ProcessorImplementation
 		return 0;
 	}
 
+	AddrType AsmHandler::ReadReferenceSpecifier (char id)
+	{
+		switch (id)
+		{
+			case 'c':
+				return S_CODE;
+				break;
+
+			case 'd':
+				return S_DATA;
+				break;
+
+			case 'f':
+				return S_FRAME;
+				break;
+
+			case 'p':
+				return S_FRAME_BACK;
+				break;
+
+			case 'r':
+				return S_REGISTER;
+				break;
+
+			default:
+				__asshole ("Invalid plain address specifier: '%c'", id);
+		}
+
+		return S_NONE; /* for GCC not to complain */
+	}
+
 	Reference AsmHandler::ParseReference (Processor::symbol_map& symbols, const char* arg)
 	{
 		verify_method;
@@ -119,49 +150,30 @@ namespace ProcessorImplementation
 
 		if (sscanf (arg, "%c:%zu", &id, &address) == 2) /* uniform address reference */
 		{
-			result.is_symbol = 0;
-			result.direct.address = address;
+			result.type = Reference::RT_DIRECT;
+			result.plain.address = address;
+			result.plain.type = ReadReferenceSpecifier (id);
 
-			switch (id)
-			{
-			case 'c':
-				result.direct.type = S_CODE;
-				break;
-
-			case 'd':
-				result.direct.type = S_DATA;
-				break;
-
-			case 'f':
-				result.direct.type = S_FRAME;
-				break;
-
-			case 'p':
-				result.direct.type = S_FRAME_BACK;
-				break;
-
-			case 'r':
-				result.direct.type = S_REGISTER;
-				__verify (address < R_MAX, "Invalid address in register reference: %zu", address);
-				break;
-
-			default:
-				result.direct.type = S_NONE;
-			}
-
-			__verify (result.direct.type != S_NONE, "Invalid direct address specifier: '%c'", id);
+			if (result.plain.type == S_REGISTER)
+				__assert (result.plain.address < R_MAX, "Invalid register ID: %zu", address);
 		}
 
 		else if (arg[0] == '$') /* symbolic reference to register */
 		{
-			result.is_symbol = 0;
-			result.direct.type = S_REGISTER;
-			result.direct.address = proc_ ->LogicProvider() ->DecodeRegister (arg + 1);
+			result.type = Reference::RT_DIRECT;
+			result.plain.type = S_REGISTER;
+			result.plain.address = proc_ ->LogicProvider() ->DecodeRegister (arg + 1);
+		}
+
+		else if ((arg[0] == '@') && (id = arg[1])) /* uniform indirect reference */
+		{
+			result.type = Reference::RT_INDIRECT;
+			result.plain.type = ReadReferenceSpecifier (id);
 		}
 
 		else /* reference to symbol */
 		{
-			result.is_symbol = 1;
+			result.type = Reference::RT_SYMBOL;
 
 			Symbol decoded_symbol;
 			init (decoded_symbol);
@@ -219,9 +231,9 @@ namespace ProcessorImplementation
 					case '=':
 						output.data.Parse (initialiser); // type of value is already set
 
-						declaration.ref.is_symbol = 0;
-						declaration.ref.direct.type = S_DATA;
-						declaration.ref.direct.address = ILinker::symbol_auto_placement_addr;
+						declaration.ref.type = Reference::RT_DIRECT;
+						declaration.ref.plain.type = S_DATA;
+						declaration.ref.plain.address = ILinker::symbol_auto_placement_addr;
 
 						ProcDebug::PrintValue (output.data);
 						msg (E_INFO, E_DEBUG, "Declaration: DATA entry = %s", ProcDebug::debug_buffer);
@@ -248,9 +260,9 @@ namespace ProcessorImplementation
 			case 1:
 				output.data = Value(); // default initialiser
 
-				declaration.ref.is_symbol = 0;
-				declaration.ref.direct.type = S_DATA;
-				declaration.ref.direct.address = ILinker::symbol_auto_placement_addr;
+				declaration.ref.type = Reference::RT_DIRECT;
+				declaration.ref.plain.type = S_DATA;
+				declaration.ref.plain.address = ILinker::symbol_auto_placement_addr;
 
 				msg (E_INFO, E_DEBUG, "Declaration: DATA entry uninitialised");
 
@@ -362,9 +374,9 @@ namespace ProcessorImplementation
 		while (char* next_chunk = ParseLabel (current_position))
 		{
 			label_symbol.is_resolved = 1; /* defined here */
-			label_symbol.ref.is_symbol = 0; /* it does not reference another symbol */
-			label_symbol.ref.direct.type = S_CODE; /* it points to text */
-			label_symbol.ref.direct.address = ILinker::symbol_auto_placement_addr; /* its address must be determined later */
+			label_symbol.ref.type = Reference::RT_DIRECT; /* it points directly here */
+			label_symbol.ref.plain.type = S_CODE; /* it points to text */
+			label_symbol.ref.plain.address = ILinker::symbol_auto_placement_addr; /* its address must be determined later */
 
 			output.mentioned_symbols.insert (PrepareSymbol (current_position, label_symbol));
 

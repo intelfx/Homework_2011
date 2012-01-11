@@ -3,7 +3,6 @@
 
 namespace Processor
 {
-
 	namespace ProcDebug
 	{
 		const char* FileSectionType_ids[SEC_MAX] =
@@ -37,15 +36,33 @@ namespace Processor
 
 		void PrintReference (const Reference& ref)
 		{
-			if (ref.is_symbol)
-				snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %zx)", ref.symbol_hash);
-
-			else
+			switch (ref.type)
 			{
-				__sassert (ref.direct.type < S_MAX, "Invalid reference type: %zu", ref.direct.type);
+			case Reference::RT_SYMBOL:
+				snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %zx)",
+						  ref.symbol_hash);
+
+				break;
+
+			case Reference::RT_DIRECT:
+				__sassert (ref.plain.type < S_MAX, "Invalid reference type: %zu", ref.plain.type);
 
 				snprintf (debug_buffer, STATIC_LENGTH, "direct %s address %zu",
-						  AddrType_ids[ref.direct.type], ref.direct.address);
+						  AddrType_ids[ref.plain.type], ref.plain.address);
+
+				break;
+
+			case Reference::RT_INDIRECT:
+				__sassert (ref.plain.type < S_MAX, "Invalid reference type: %zu", ref.plain.type);
+
+				snprintf (debug_buffer, STATIC_LENGTH, "indirect %s",
+						  AddrType_ids[ref.plain.type]);
+
+				break;
+
+			default:
+				__sasshole ("Switch error");
+				break;
 			}
 		}
 
@@ -54,18 +71,18 @@ namespace Processor
 		{
 			switch (val.type)
 			{
-				case Value::V_INTEGER:
-					snprintf (debug_buffer, STATIC_LENGTH, "int:%ld", val.integer);
-					break;
+			case Value::V_INTEGER:
+				snprintf (debug_buffer, STATIC_LENGTH, "int:%ld", val.integer);
+				break;
 
-				case Value::V_FLOAT:
-					snprintf (debug_buffer, STATIC_LENGTH, "float:%lg", val.fp);
-					break;
+			case Value::V_FLOAT:
+				snprintf (debug_buffer, STATIC_LENGTH, "float:%lg", val.fp);
+				break;
 
-				case Value::V_MAX:
-				default:
-					__sasshole ("Switch error");
-					break;
+			case Value::V_MAX:
+			default:
+				__sasshole ("Switch error");
+				break;
 			}
 		}
 	}

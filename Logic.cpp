@@ -119,7 +119,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		Reference::Direct& dref = proc_ ->Linker() ->Resolve (ref);
+		Reference::Direct dref = proc_ ->Linker() ->Resolve (ref);
 		__verify (dref.type == S_CODE, "Cannot jump to non-CODE reference to %s",
 				  (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 
@@ -132,7 +132,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		Reference::Direct& dref = proc_ ->Linker() ->Resolve (ref);
+		Reference::Direct dref = proc_ ->Linker() ->Resolve (ref);
 		switch (dref.type)
 		{
 		case S_CODE:
@@ -173,7 +173,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		Reference::Direct& dref = proc_ ->Linker() ->Resolve (ref);
+		Reference::Direct dref = proc_ ->Linker() ->Resolve (ref);
 		switch (dref.type)
 		{
 		case S_CODE:

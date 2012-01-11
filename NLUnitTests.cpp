@@ -7,6 +7,8 @@
 #include "Linker.h"
 #include "Logic.h"
 #include "Executor.h"
+#include "Executor_int.h"
+#include "Executor_service.h"
 
 int main (int argc, char** argv)
 {

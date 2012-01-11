@@ -158,6 +158,8 @@ namespace Processor
 		virtual const CommandTraits& DecodeCommand (const char* mnemonic) const = 0;
 		virtual const CommandTraits& DecodeCommand (cid_t id) const = 0;
 
+		// Returns handle for given command and implementation.
+		// WARNING can return 0 with meaning "no registered handler".
 		virtual void* GetExecutionHandle (cid_t id, size_t module) = 0;
 	};
 
@@ -308,7 +310,7 @@ namespace Processor
 		virtual void LinkSymbols (DecodeResult& input) = 0;
 
 		// Retrieve a direct reference for given arbitary reference.
-		virtual Reference::Direct& Resolve (Reference& reference) = 0; // or get an unresolved symbol error
+		virtual Reference::Direct Resolve (Reference& reference) = 0; // or get an unresolved symbol error
 	};
 
 }
