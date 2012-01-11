@@ -1,28 +1,28 @@
-#ifndef _EXECUTOR_H
-#define _EXECUTOR_H
+#ifndef _EXECUTOR_INT_H
+#define _EXECUTOR_INT_H
 
 // -----------------------------------------------------------------------------
 // Library		Homework
-// File			Executor.h
+// File			Executor_int.h
 // Author		intelfx
-// Description	Main virtual executor implementation
+// Description	Integer type virtual executor implementation
 // -----------------------------------------------------------------------------
 
 #include "build.h"
 #include "Interfaces.h"
 
-DeclareDescriptor (FloatExecutor);
+DeclareDescriptor (IntegerExecutor);
 
 namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class FloatExecutor : LogBase (FloatExecutor), public IExecutor
+	class IntegerExecutor : LogBase (IntegerExecutor), public IExecutor
 	{
 		static const char* supported_mnemonics[];
 
 		static const size_t temp_size = 4;
-		fp_t temp[temp_size];
+		int_t temp[temp_size];
 
 		bool need_to_analyze;
 
@@ -43,4 +43,4 @@ namespace ProcessorImplementation
 	};
 }
 
-#endif // _EXECUTOR_H
+#endif // _EXECUTOR_INT_H

@@ -25,7 +25,9 @@ int main (int argc, char** argv)
 	api.Attach (new ProcessorImplementation::UATLinker);
 	api.Attach (new ProcessorImplementation::Logic);
 	api.Attach (new ProcessorImplementation::CommandSet_mkI);
-	api.Attach (new ProcessorImplementation::Executor);
+	api.Attach (new ProcessorImplementation::FloatExecutor);
+	api.Attach (new ProcessorImplementation::IntegerExecutor);
+	api.Attach (new ProcessorImplementation::ServiceExecutor);
 // 	api.Flush();
 
 	api.Attach (new ProcessorImplementation::AsmHandler);
@@ -44,6 +46,8 @@ int main (int argc, char** argv)
 	delete api.LogicProvider();
 	delete api.CommandSet();
 	delete api.Executor (Processor::Value::V_FLOAT);
+	delete api.Executor (Processor::Value::V_INTEGER);
+	delete api.Executor (Processor::Value::V_MAX);
 
 	Debug::System::Instance().CloseTargets();
 }

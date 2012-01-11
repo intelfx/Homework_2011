@@ -72,7 +72,7 @@ namespace ProcessorImplementation
 		__assert (mnemonic, "NULL mnemonic");
 		cid_t cmd_id = get_id (mnemonic);
 		auto cmd_it = by_id.find (cmd_id);
-		__assert (cmd_it != by_id.end(), "Invalid or unregistered mnemonic: \"%s\"", mnemonic);
+		__assert (cmd_it != by_id.end(), "Registering implementation driver for invalid mnemonic: \"%s\"", mnemonic);
 
 		auto impl_ins_res = cmd_it ->second.execution_handles.insert (std::make_pair (module, handle));
 		__assert (impl_ins_res.second, "Implementation of \"%s\" -> %p has already been registered",
@@ -142,13 +142,13 @@ namespace ProcessorImplementation
 		},
 		{
 			"ld",
-			"Data: load data memory/register",
+			"Data: read (load) data memory/register",
 			A_REFERENCE,
 			0
 		},
 		{
-			"wr",
-			"Data: write data memory/register",
+			"st",
+			"Data: write (store) data memory/register",
 			A_REFERENCE,
 			0
 		},

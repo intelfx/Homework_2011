@@ -172,12 +172,12 @@ namespace Processor
 						switch (decode_result.type)
 						{
 							case DecodeResult::DEC_COMMAND:
-								msg (E_INFO, E_DEBUG, "Adding command");
+								msg (E_INFO, E_DEBUG, "Decode completed - Adding command");
 								mmu_ ->InsertText (decode_result.command);
 								break;
 
 							case DecodeResult::DEC_DATA:
-								msg (E_INFO, E_DEBUG, "Adding data");
+								msg (E_INFO, E_DEBUG, "Decode completed - Adding data");
 								mmu_ ->InsertData (decode_result.data);
 								break;
 
@@ -207,16 +207,32 @@ namespace Processor
 
 	void ProcessorAPI::ExecuteCommand (Command& command)
 	{
+		IExecutor* executor = 0;
+		void* handle = 0;
+
+		if ((executor = executors_[Value::V_MAX]) &&
+			(handle = cset_ ->GetExecutionHandle (command.id, executor ->ID())))
+		{
+			msg (E_INFO, E_DEBUG, "Executing service command \"%s\" in executor \"%s\"",
+				 cset_ ->DecodeCommand (command.id).mnemonic,
+				 Debug::API::GetClassName (executor));
+		}
+
+		else
+		{
+			executor = executors_[command.type];
+			__assert (executor, "No executor is registered for type \"%s\" encountered in command \"%s\"",
+					  ProcDebug::ValueType_ids[command.type], cset_ ->DecodeCommand (command.id).mnemonic);
+
+			handle = cset_ ->GetExecutionHandle (command.id, executor ->ID());
+
+			__assert (handle, "Invalid handle for command \"%s\" [executor \"%s\" type \"%s\"]",
+					  cset_ ->DecodeCommand (command.id).mnemonic,
+					  Debug::API::GetClassName (executor),
+					  ProcDebug::ValueType_ids[command.type]);
+		}
+
 		mmu_ ->SelectStack (command.type);
-
-		IExecutor* executor = executors_[command.type];
-		void* handle = cset_ ->GetExecutionHandle (command.id, executor ->ID());
-
-		__assert (handle, "Invalid handle detected [command \"%s\" executor \"%s\" type \"%s\"]",
-				  cset_ ->DecodeCommand (command.id).mnemonic,
-				  Debug::API::GetClassName (executor),
-				  ProcDebug::ValueType_ids[command.type]);
-
 		executor ->Execute (handle, command.arg);
 	}
 

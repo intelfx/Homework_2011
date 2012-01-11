@@ -30,7 +30,7 @@ namespace Processor
 		IReader* reader_;
 		IWriter* writer_;
 		IMMU* mmu_;
-		StaticAllocator<IExecutor*, Value::V_MAX> executors_;
+		StaticAllocator<IExecutor*, Value::V_MAX + 1> executors_;
 		IBackend* backend_;
 		ILinker* linker_;
 		ICommandSet* cset_;

@@ -1,14 +1,14 @@
 #include "stdafx.h"
-#include "Executor.h"
+#include "Executor_int.h"
 
 // -----------------------------------------------------------------------------
 // Library		Homework
-// File			Executor.cpp
+// File			Executor_int.cpp
 // Author		intelfx
-// Description	Main virtual executor implementation
+// Description	Integer type virtual executor implementation
 // -----------------------------------------------------------------------------
 
-ImplementDescriptor (FloatExecutor, "floating-point executor", MOD_APPMODULE);
+ImplementDescriptor (IntegerExecutor, "integer executor", MOD_APPMODULE);
 
 namespace ProcessorImplementation
 {
@@ -32,7 +32,6 @@ namespace ProcessorImplementation
 		C_DEC,
 
 		C_NEG,
-		C_SQRT,
 
 		C_ANAL,
 		C_CMP,
@@ -42,7 +41,7 @@ namespace ProcessorImplementation
 		C_MAX
 	};
 
-	const char* FloatExecutor::supported_mnemonics[C_MAX] =
+	const char* IntegerExecutor::supported_mnemonics[C_MAX] =
 	{
 		"push",
 		"pop",
@@ -60,7 +59,6 @@ namespace ProcessorImplementation
 		"dec",
 
 		"neg",
-		"sqrt",
 
 		"anal", // Fuck yeah
 		"cmp",
@@ -68,17 +66,17 @@ namespace ProcessorImplementation
 		"dup"
 	};
 
-	void FloatExecutor::OnAttach()
+	void IntegerExecutor::OnAttach()
 	{
 		ResetImplementations();
 	}
 
-	Value::Type FloatExecutor::SupportedType() const
+	Value::Type IntegerExecutor::SupportedType() const
 	{
-		return Value::V_FLOAT;
+		return Value::V_INTEGER;
 	}
 
-	void FloatExecutor::ResetImplementations()
+	void IntegerExecutor::ResetImplementations()
 	{
 		ICommandSet* cmdset = proc_ ->CommandSet();
 
@@ -89,13 +87,13 @@ namespace ProcessorImplementation
 		}
 	}
 
-	inline void FloatExecutor::AttemptAnalyze()
+	inline void IntegerExecutor::AttemptAnalyze()
 	{
 		if (need_to_analyze)
 			proc_ ->LogicProvider() ->Analyze (temp[0]);
 	}
 
-	inline void FloatExecutor::PopArguments (size_t count)
+	inline void IntegerExecutor::PopArguments (size_t count)
 	{
 		__assert (count < temp_size, "Too much arguments for temporary processing");
 
@@ -103,29 +101,29 @@ namespace ProcessorImplementation
 			proc_ ->LogicProvider() ->StackPop().Get (temp[i]);
 	}
 
-	inline void FloatExecutor::TopArgument()
+	inline void IntegerExecutor::TopArgument()
 	{
 		proc_ ->LogicProvider() ->StackTop().Get (temp[0]);
 	}
 
-	inline void FloatExecutor::ReadArgument (Reference& ref)
+	inline void IntegerExecutor::ReadArgument (Reference& ref)
 	{
 		proc_ ->LogicProvider() ->Read (ref).Get (temp[0]);
 	}
 
-	inline void FloatExecutor::PushResult()
+	inline void IntegerExecutor::PushResult()
 	{
 		proc_ ->LogicProvider() ->StackPush (temp[0]);
 	}
 
-	inline void FloatExecutor::WriteResult (Reference& ref)
+	inline void IntegerExecutor::WriteResult (Reference& ref)
 	{
 		proc_ ->LogicProvider() ->Write (ref, temp[0]);
 	}
 
-	void FloatExecutor::Execute (void* handle, Command::Argument& argument)
+	void IntegerExecutor::Execute (void* handle, Command::Argument& argument)
 	{
-		need_to_analyze	= !(proc_ ->MMU() ->GetContext().flags & MASK (F_NFC));
+		need_to_analyze = !(proc_ ->MMU() ->GetContext().flags & MASK (F_NFC));
 
 		COMMANDS cmd = static_cast<COMMANDS> (reinterpret_cast<ptrdiff_t> (handle));
 		switch (cmd)
@@ -137,12 +135,12 @@ namespace ProcessorImplementation
 
 		case C_POP:
 			PopArguments (1);
-			msg (E_INFO, E_VERBOSE, "Popped value: %lg", temp[0]);
+			msg (E_INFO, E_VERBOSE, "Popped value: %ld", temp[0]);
 			break;
 
 		case C_TOP:
 			TopArgument();
-			msg (E_INFO, E_VERBOSE, "Value on top: %lg", temp[0]);
+			msg (E_INFO, E_VERBOSE, "Value on top: %ld", temp[0]);
 			break;
 
 		case C_LOAD:
@@ -194,12 +192,6 @@ namespace ProcessorImplementation
 		case C_NEG:
 			PopArguments (1);
 			temp[0] = -temp[0];
-			PushResult();
-			break;
-
-		case C_SQRT:
-			PopArguments (1);
-			temp[0] = sqrt (temp[0]);
 			PushResult();
 			break;
 
