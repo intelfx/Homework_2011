@@ -23,6 +23,9 @@ namespace ProcessorImplementation
 		C_LOAD,
 		C_STORE,
 
+		C_FLOAD,
+		C_FSTORE,
+
 		C_ADD,
 		C_SUB,
 		C_MUL,
@@ -51,6 +54,9 @@ namespace ProcessorImplementation
 
 		"ld",
 		"st",
+
+		"force_ld",
+		"force_st",
 
 		"add",
 		"sub",
@@ -146,10 +152,29 @@ namespace ProcessorImplementation
 			msg (E_INFO, E_VERBOSE, "Value on top: %lg", temp[0]);
 			break;
 
+		case C_FLOAD:
+			/* force read value to floating-point */
+			temp[0] = proc_ ->LogicProvider() ->Read (argument.ref).fp;
+
+			PushResult();
+			break;
+
 		case C_LOAD:
 			ReadArgument (argument.ref);
 			PushResult();
 			break;
+
+		case C_FSTORE:
+		{
+			PopArguments (1);
+
+			/* retain written value at its original type */
+			calc_t forged_value (temp[0]);
+			forged_value.type = proc_ ->LogicProvider() ->Read (argument.ref).type;
+
+			proc_ ->LogicProvider() ->Write (argument.ref, forged_value);
+			break;
+		}
 
 		case C_STORE:
 			PopArguments (1);

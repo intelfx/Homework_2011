@@ -153,6 +153,18 @@ namespace ProcessorImplementation
 			0
 		},
 		{
+			"force_ld",
+			"Data: read (load) data memory/register, forcing type cast",
+			A_REFERENCE,
+			0
+		},
+		{
+			"force_st",
+			"Data: write (store) data memory/register, forcing type cast",
+			A_REFERENCE,
+			0
+		},
+		{
 			"add",
 			"Arithmetic: addition",
 			A_NONE,
@@ -333,41 +345,17 @@ namespace ProcessorImplementation
 			0
 		},
 		{
-			"invd",
-			"Management: clear (invalidate) next context buffer",
-			A_NONE,
-			0
-		},
-		{
-			"lasm",
-			"Management: load next context buffer [ASM]",
-			A_NONE,
-			0
-		},
-		{
-			"lbin",
-			"Management: load next context buffer [BIN]",
-			A_NONE,
-			0
-		},
-		{
-			"wasm",
-			"Management: write next context buffer [ASM]",
-			A_NONE,
-			0
-		},
-		{
-			"wbin",
-			"Management: write next context buffer [BIN]",
-			A_NONE,
-			0
-		},
-		{
 			"quit",
 			"Management: stop execution/quit context",
 			A_NONE,
 			1
 		},
+		{
+			0,
+			0,
+			A_NONE,
+			0
+		}
 	};
 }
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
