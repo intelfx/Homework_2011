@@ -275,9 +275,9 @@ namespace ProcessorImplementation
 		}
 	}
 
-	void AsmHandler::ReadSingleCommand (const char* command,
-										const char* argument,
-										Processor::DecodeResult& output)
+	const CommandTraits& AsmHandler::ReadSingleCommand (const char* command,
+														const char* argument,
+														Processor::DecodeResult& output)
 	{
 		const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);
 		output.command.id = desc.id;
@@ -328,6 +328,8 @@ namespace ProcessorImplementation
 			} // switch (argument type)
 
 		} // have argument
+
+		return desc;
 	}
 
 	char* AsmHandler::ParseLabel (char* string)
@@ -356,6 +358,7 @@ namespace ProcessorImplementation
 
 		Value::Type statement_type;
 		char *command, *argument, typespec = default_type_specifier, *current_position = PrepLine (input);
+		bool typespec_exists = 0;
 
 
 		/* skip leading space and return if empty string */
@@ -404,6 +407,7 @@ namespace ProcessorImplementation
 		{
 			*dot++ = '\0';
 			typespec = *dot;
+			typespec_exists = 1;
 		}
 
 		/* decode type-specifier */
@@ -417,6 +421,10 @@ namespace ProcessorImplementation
 			case 'd':
 			case 'i':
 				statement_type = Value::V_INTEGER;
+				break;
+
+			case 's':
+				statement_type = Value::V_MAX;
 				break;
 
 			default:
@@ -441,7 +449,10 @@ namespace ProcessorImplementation
 			output.type = DecodeResult::DEC_COMMAND;
 			output.command.type = statement_type;
 
-			ReadSingleCommand (command, argument, output);
+			const CommandTraits& read_cmd = ReadSingleCommand (command, argument, output);
+
+			__assert (!read_cmd.is_service_command || !typespec_exists,
+					  "Service command \"%s\" should not have explicit type specifier ('%c')", input, typespec);
 		}
 	}
 

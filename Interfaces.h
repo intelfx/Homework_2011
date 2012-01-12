@@ -161,6 +161,7 @@ namespace Processor
 		// Returns handle for given command and implementation.
 		// WARNING can return 0 with meaning "no registered handler".
 		virtual void* GetExecutionHandle (cid_t id, size_t module) = 0;
+		virtual void* GetExecutionHandle (const CommandTraits& cmd, size_t module) = 0;
 	};
 
 	// many would want to do a shared R/W handler to share some routines

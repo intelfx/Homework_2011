@@ -210,29 +210,25 @@ namespace Processor
 		IExecutor* executor = 0;
 		void* handle = 0;
 
-		if ((executor = executors_[Value::V_MAX]) &&
-			(handle = cset_ ->GetExecutionHandle (command.id, executor ->ID())))
-		{
-			msg (E_INFO, E_DEBUG, "Executing service command \"%s\" in executor \"%s\" (%zx)",
-				 cset_ ->DecodeCommand (command.id).mnemonic,
-				 Debug::API::GetClassName (executor),
-				 executor ->ID());
-		}
+		const CommandTraits& command_traits = cset_ ->DecodeCommand (command.id);
 
-		else
-		{
+		if (command_traits.is_service_command)
+			executor = executors_[Value::V_MAX];
+
+		if (!executor)
 			executor = executors_[command.type];
-			__assert (executor, "No executor is registered for type \"%s\" encountered in command \"%s\"",
-					  ProcDebug::ValueType_ids[command.type], cset_ ->DecodeCommand (command.id).mnemonic);
 
-			handle = cset_ ->GetExecutionHandle (command.id, executor ->ID());
+		__assert (executor, "No executor is registered for type \"%s\" encountered in command \"%s\"",
+				  ProcDebug::ValueType_ids[command.type],
+				  command_traits.mnemonic);
 
-			__assert (handle, "Invalid handle for command \"%s\" [executor \"%s\" type \"%s\" id %zx]",
-					  cset_ ->DecodeCommand (command.id).mnemonic,
-					  Debug::API::GetClassName (executor),
-					  ProcDebug::ValueType_ids[executor ->SupportedType()],
-					  executor ->ID());
-		}
+		handle = cset_ ->GetExecutionHandle (command_traits, executor ->ID());
+
+		__assert (handle, "Invalid handle for command \"%s\" [executor \"%s\" type \"%s\" id %zx]",
+				  command_traits.mnemonic,
+				  Debug::API::GetClassName (executor),
+				  ProcDebug::ValueType_ids[executor ->SupportedType()],
+				  executor ->ID());
 
 		mmu_ ->SelectStack (command.type);
 		executor ->Execute (handle, command.arg);

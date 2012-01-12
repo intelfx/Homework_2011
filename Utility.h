@@ -355,7 +355,7 @@ namespace Processor
 		ArgumentType arg_type;
 
 		cid_t id; // assigned by command set
-		bool executed_at_decode;
+		bool is_service_command;
 
 		std::map<size_t, void*> execution_handles;
 	};

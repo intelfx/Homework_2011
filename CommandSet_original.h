@@ -24,7 +24,7 @@ namespace ProcessorImplementation
 			const char* name;
 			const char* description;
 			ArgumentType arg_type;
-			bool exec_at_decode;
+			bool is_service_command;
 		};
 
 		static const ICD initial_commands[];
@@ -50,6 +50,7 @@ namespace ProcessorImplementation
 		virtual const CommandTraits& DecodeCommand (cid_t id) const;
 
 		virtual void* GetExecutionHandle (Processor::cid_t id, size_t module);
+		virtual void* GetExecutionHandle (const CommandTraits& cmd, size_t module);
 	};
 }
 

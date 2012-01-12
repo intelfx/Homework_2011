@@ -38,7 +38,7 @@ namespace ProcessorImplementation
 			traits.mnemonic				= dsc ->name;
 			traits.description			= dsc ->description;
 			traits.arg_type				= dsc ->arg_type;
-			traits.executed_at_decode	= dsc ->exec_at_decode;
+			traits.is_service_command	= dsc ->is_service_command;
 			traits.id					= get_id (dsc ->name);
 
 			msg (E_INFO, E_DEBUG, "mkI command: \"%s\" -> %u", dsc ->name, traits.id);
@@ -82,6 +82,11 @@ namespace ProcessorImplementation
 	void* CommandSet_mkI::GetExecutionHandle (cid_t id, size_t module)
 	{
 		const CommandTraits& cmd = DecodeCommand (id);
+		return GetExecutionHandle (cmd, module);
+	}
+
+	void* CommandSet_mkI::GetExecutionHandle (const CommandTraits& cmd, size_t module)
+	{
 		auto impl_it = cmd.execution_handles.find (module);
 
 		if (impl_it == cmd.execution_handles.end())
@@ -114,7 +119,7 @@ namespace ProcessorImplementation
 			"init",
 			"Stack: initialize stack and execution environment",
 			A_NONE,
-			0
+			1
 		},
 		{
 			"push",
@@ -138,7 +143,7 @@ namespace ProcessorImplementation
 			"sleep",
 			"System: hand off control to the OS",
 			A_NONE,
-			0
+			1
 		},
 		{
 			"ld",
@@ -240,97 +245,97 @@ namespace ProcessorImplementation
 			"je",
 			"Address: jump if ZERO",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jne",
 			"Address: jump if not ZERO",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"ja",
 			"Address: jump if ABOVE",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jna",
 			"Address: jump if not ABOVE",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jae",
 			"Address: jump if ABOVE or EQUAL",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jnae",
 			"Address: jump if not ABOVE or EQUAL",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jb",
 			"Address: jump if BELOW",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jnb",
 			"Address: jump if not BELOW",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jbe",
 			"Address: jump if BELOW or EQUAL",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jnbe",
 			"Address: jump if not BELOW or EQUAL",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"jmp",
 			"Address: unconditional jump",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"call",
 			"Address: unconditional call",
 			A_REFERENCE,
-			0
+			1
 		},
 		{
 			"ret",
 			"Address: unconditional return",
 			A_NONE,
-			0
+			1
 		},
 		{
 			"dumpfl",
 			"Flags: dump flag register",
 			A_NONE,
-			0
+			1
 		},
 		{
 			"snfc",
 			"Flags: set No-Flag-Change flag",
 			A_NONE,
-			0
+			1
 		},
 		{
 			"cnfc",
 			"Flags: clear No-Flag-Change flag",
 			A_NONE,
-			0
+			1
 		},
 		{
 			"cswitch",
@@ -342,7 +347,7 @@ namespace ProcessorImplementation
 			"exec",
 			"Management: execute next context buffer",
 			A_NONE,
-			0
+			1
 		},
 		{
 			"quit",
