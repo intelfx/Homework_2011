@@ -320,6 +320,8 @@ namespace Processor
 	} calc_t;
 // 	typedef fp_t calc_t; // until we support multitype
 
+	class IExecutor;
+
 	struct Command
 	{
 		union Argument
@@ -329,6 +331,8 @@ namespace Processor
 		} arg;
 
 		cid_t id;
+		void* cached_handle;
+		IExecutor* cached_executor;
 		Value::Type type;
 	};
 

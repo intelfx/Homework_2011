@@ -205,8 +205,11 @@ namespace Processor
 		reader_ ->RdReset (&rd_prop); // close file
 	}
 
-	void ProcessorAPI::ExecuteCommand (Command& command)
+	void ProcessorAPI::PrepareCommand (Command& command)
 	{
+		if (command.cached_handle)
+			return;
+
 		IExecutor* executor = 0;
 		void* handle = 0;
 
@@ -230,8 +233,17 @@ namespace Processor
 				  ProcDebug::ValueType_ids[executor ->SupportedType()],
 				  executor ->ID());
 
+		command.cached_executor = executor;
+		command.cached_handle = handle;
+	}
+
+	void ProcessorAPI::ExecuteCommand (Command& command)
+	{
+		__assert (command.cached_executor, "Cached executor is absent in command record");
+		__assert (command.cached_handle, "Cached handle is absent in command record");
+
 		mmu_ ->SelectStack (command.type);
-		executor ->Execute (handle, command.arg);
+		command.cached_executor ->Execute (command.cached_handle, command.arg);
 	}
 
 	void ProcessorAPI::Dump (FILE* file)
@@ -305,6 +317,13 @@ namespace Processor
 
 		// Else fall back to the interpreter.
 		msg (E_INFO, E_VERBOSE, "Using interpreter");
+
+		size_t max_cmd = mmu_ ->GetTextSize();
+		for (size_t ip = 0; ip < max_cmd; ++ip)
+		{
+			PrepareCommand (mmu_ ->ACommand (ip));
+		}
+
 		calc_t last_result;
 		for (;;)
 		{
@@ -314,7 +333,7 @@ namespace Processor
 				 mmu_ ->GetContext().ip, cset_ ->DecodeCommand(command.id).mnemonic);
 
 			// TODO this code is invalid since effectively disables MMU IP check and possibly leaves last command to execute forever
-			if (mmu_ ->GetContext().ip + 1 < mmu_ ->GetTextSize())
+			if (mmu_ ->GetContext().ip + 1 < max_cmd)
 				++mmu_ ->GetContext().ip;
 
 			ExecuteCommand (command);
