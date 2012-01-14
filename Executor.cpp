@@ -144,7 +144,7 @@ namespace ProcessorImplementation
 
 		case C_POP:
 			PopArguments (1);
-			msg (E_INFO, E_VERBOSE, "Popped value: %lg", temp[0]);
+			msg (E_INFO, E_DEBUG, "Popped value: %lg", temp[0]);
 			break;
 
 		case C_TOP:

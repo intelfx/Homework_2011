@@ -34,7 +34,7 @@ namespace ProcessorImplementation
 		C_CALL,
 		C_RET,
 
-		C_DFL,
+		C_DCX,
 		C_SNFC,
 		C_CNFC,
 
@@ -65,7 +65,7 @@ namespace ProcessorImplementation
 		"call",
 		"ret",
 
-		"dumpfl",
+		"dump",
 		"snfc",
 		"cnfc",
 
@@ -177,7 +177,7 @@ namespace ProcessorImplementation
 			proc_ ->MMU() ->RestoreContext();
 			break;
 
-		case C_DFL:
+		case C_DCX:
 			proc_ ->MMU() ->DumpContext();
 			break;
 

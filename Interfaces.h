@@ -251,7 +251,7 @@ namespace Processor
 		virtual void ResetBuffers (size_t ctx_id) = 0; // Reset specified context buffer
 		virtual void ResetEverything() = 0; // Reset MMU to its initial state, clearing all stacks.
 
-		virtual void SaveContext() = 0; // Push context on call stack
+		virtual void SaveContext() = 0; // Push context on call stack (PC must point to call instruction)
 		virtual void ClearContext() = 0; // Clear all context data but context ID
 		virtual void RestoreContext() = 0; // Load context from call stack
 

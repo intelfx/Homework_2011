@@ -30,6 +30,7 @@ namespace ProcessorImplementation
 		C_SUB,
 		C_MUL,
 		C_DIV,
+		C_MOD,
 
 		C_INC,
 		C_DEC,
@@ -61,6 +62,7 @@ namespace ProcessorImplementation
 		"sub",
 		"mul",
 		"div",
+		"mod",
 
 		"inc",
 		"dec",
@@ -142,7 +144,7 @@ namespace ProcessorImplementation
 
 		case C_POP:
 			PopArguments (1);
-			msg (E_INFO, E_VERBOSE, "Popped value: %ld", temp[0]);
+			msg (E_INFO, E_DEBUG, "Popped value: %ld", temp[0]);
 			break;
 
 		case C_TOP:
@@ -200,6 +202,12 @@ namespace ProcessorImplementation
 		case C_DIV: /* top is divisor */
 			PopArguments (2);
 			temp[0] = temp[1] / temp[0];
+			PushResult();
+			break;
+
+		case C_MOD:
+			PopArguments (2);
+			temp[0] = temp[1] % temp[0];
 			PushResult();
 			break;
 

@@ -95,7 +95,7 @@ namespace ProcessorImplementation
 		verify_method;
 
 		__assert (offset < current_stack ->size(), "Stack top offset overflow: %zu [max %zu]", offset, current_stack ->size());
-		return current_stack ->at (current_stack ->size() - (offset + 1));
+		return *(current_stack ->rbegin() + offset);
 	}
 
 	calc_t& MMU::AStackFrame (int offset)
@@ -439,7 +439,10 @@ namespace ProcessorImplementation
 
 	void MMU::SaveContext()
 	{
-		if (!context_stack.empty())
+		++context.ip; // increment PC before possible logging
+
+		bool log_save = !context_stack.empty();
+		if (log_save)
 		{
 			verify_method;
 
@@ -451,7 +454,10 @@ namespace ProcessorImplementation
 
 		// Update current context
 		++context.depth;
-		context.frame = current_stack ->size() - 1;
+		context.frame = frame_stack ->size();
+
+		if (log_save)
+			InternalDumpCtx (context);
 	}
 
 	void MMU::ClearContext()
@@ -489,8 +495,9 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_DEBUG, "Restoring execution context [was %zd]", context.buffer);
+		msg (E_INFO, E_DEBUG, "Restoring execution context", context.buffer);
 
+		InternalDumpCtx (context);
 		InternalDumpCtx (context_stack.back());
 
 		if (context_stack.size() == 1)
@@ -502,9 +509,17 @@ namespace ProcessorImplementation
 
 	void MMU::InternalDumpCtx (const Context& w_context) const
 	{
-		msg (E_INFO, E_DEBUG, "Ctx [%zd]: IP [%zu] FL [%zu] FRAME [\"%s\" %zu] DEPTH [%zu]",
-			 w_context.buffer, w_context.ip, w_context.flags, ProcDebug::ValueType_ids[frame_stack_type],
-			 w_context.frame, w_context.depth);
+		msg (E_INFO, E_DEBUG, "Ctx [%zd]: IP [%zu] FL [%zu] FRAME [\"%s\" frm %zu] MAIN [\"%s\" top %zu] DEPTH [%zu]",
+			 w_context.buffer, w_context.ip, w_context.flags,
+			 ProcDebug::ValueType_ids[frame_stack_type], w_context.frame,
+			 ProcDebug::ValueType_ids[current_stack_type], GetStackTop(),
+			 w_context.depth);
+
+		msg (E_INFO, E_DEBUG, "Ctx [%zd]: STACK [integer %zu] [float %zu] [non-typed %zu]",
+			 w_context.buffer,
+			 integer_stack.size(),
+			 fp_stack.size(),
+			 main_stack.size());
 
 // 		if (w_context.buffer < buffers.Capacity())
 // 		{
@@ -594,7 +609,7 @@ namespace ProcessorImplementation
 		verify_statement (frame_stack, "No auxiliary stack selected");
 
 		if (!current_stack ->empty())
-			verify_statement (context.frame < current_stack ->size(), "Invalid stack frame [%zu]: top at %zu",
+			verify_statement (context.frame <= current_stack ->size(), "Invalid stack frame [%zu]: top at %zu",
 							  context.frame, current_stack ->size());
 
 		verify_statement (context.buffer < buffers.Capacity(), "Invalid context buffer ID [%zd]: max %zu",
@@ -635,7 +650,7 @@ namespace ProcessorImplementation
 
 		case S_FRAME_BACK:
 			__verify (context.frame - ref.address < frame_stack ->size(),
-					  "Invalid reference [BACKFRAME:%zu] : offset limit %zu", context.frame + 1);
+					  "Invalid reference [BACKFRAME:%zu] : offset limit %zu", ref.address, context.frame);
 			break;
 
 		case S_NONE:

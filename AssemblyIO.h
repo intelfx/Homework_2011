@@ -21,8 +21,7 @@ namespace ProcessorImplementation
 
 		void			ReadSingleStatement (size_t line_num, char* input, Processor::DecodeResult& output);
 		void			ReadSingleDeclaration (const char* decl_data, Processor::DecodeResult& output);
-		const CommandTraits&
-						ReadSingleCommand (const char* command, const char* argument, Processor::DecodeResult& output);
+		void			ReadSingleCommand (const char* command, const char* argument, Processor::DecodeResult& output);
 
 		void InternalWriteFile();
 		char* PrepLine (char* read_buffer);

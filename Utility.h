@@ -225,13 +225,13 @@ namespace Processor
 			case V_INTEGER:
 			{
 				int_abi_t intermediate = integer;
-				return *reinterpret_cast<abiret_t*> (&intermediate);
+				return reinterpret_cast<abiret_t&> (intermediate);
 			}
 
 			case V_FLOAT:
 			{
 				fp_abi_t intermediate = fp;
-				return *reinterpret_cast<abiret_t*> (&intermediate);
+				return reinterpret_cast<abiret_t&> (intermediate);
 			}
 
 			case V_MAX:
@@ -331,9 +331,10 @@ namespace Processor
 		} arg;
 
 		cid_t id;
+		Value::Type type;
+
 		void* cached_handle;
 		IExecutor* cached_executor;
-		Value::Type type;
 	};
 
 	// This is something like TR1's std::unordered_map with manual hashing,

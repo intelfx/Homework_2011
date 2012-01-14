@@ -60,8 +60,6 @@ namespace Processor
 		while (reader_ ->NextSection (&rd_prop, &sec_type, &sec_size, &req_bytes))
 		{
 			__assert (sec_type < SEC_MAX, "Invalid section type");
-			__assert (sec_size, "Section size is zero");
-			__assert (req_bytes, "Required length is zero");
 
 			msg (E_INFO, E_DEBUG, "Reading section: type \"%s\" size %zu",
 				 ProcDebug::FileSectionType_ids[sec_type], sec_size);
@@ -69,6 +67,9 @@ namespace Processor
 			// Read uniform section as a whole image
 			if (sec_type != SEC_NON_UNIFORM)
 			{
+				__assert (sec_size, "Section size is zero");
+				__assert (req_bytes, "Required length is zero");
+
 				__assert (!execute_stream, "Uniform (image) section in stream execute mode");
 
 				char* data_buffer = reinterpret_cast<char*> (malloc (req_bytes));
@@ -143,12 +144,19 @@ namespace Processor
 						{
 							if (mmu_ ->GetContext().buffer == initial_ctx_n)
 							{
-								msg (E_INFO, E_VERBOSE, "Load and execute OK. Result = %lg",
-									 internal_logic_ ->StackTop());
+								if (mmu_ ->GetStackTop())
+								{
+									ProcDebug::PrintValue (internal_logic_ ->StackTop());
+									msg (E_INFO, E_VERBOSE, "Load and execute OK: Result = %s",
+										ProcDebug::debug_buffer);
+								}
+
+								else
+									msg (E_INFO, E_VERBOSE, "Load and execute OK.");
+
 								break; /* we leave used context for the user */
 							}
 
-							msg (E_INFO, E_DEBUG, "EXIT condition - restoring context");
 							mmu_ ->RestoreContext();
 						}
 					} /* decode loop condition */
@@ -207,9 +215,6 @@ namespace Processor
 
 	void ProcessorAPI::PrepareCommand (Command& command)
 	{
-		if (command.cached_handle)
-			return;
-
 		IExecutor* executor = 0;
 		void* handle = 0;
 
@@ -286,7 +291,7 @@ namespace Processor
 	{
 		verify_method;
 
-		size_t initial_ctx = mmu_ ->GetContext().buffer, now_ctx = initial_ctx;
+		size_t initial_ctx = mmu_ ->GetContext().buffer;
 		size_t chk = internal_logic_ ->ChecksumState();
 
 		msg (E_INFO, E_VERBOSE, "Starting execution of context %zu (system checksum %p)", initial_ctx, chk);
@@ -328,30 +333,53 @@ namespace Processor
 		for (;;)
 		{
 			Command& command = mmu_ ->ACommand();
+			Context& old_context = mmu_ ->GetContext();
+			size_t old_ip;
 
 			msg (E_INFO, E_DEBUG, "Executing : [PC=%zu] : \"%s\"",
-				 mmu_ ->GetContext().ip, cset_ ->DecodeCommand(command.id).mnemonic);
+				 old_context.ip, cset_ ->DecodeCommand(command.id).mnemonic);
 
-			// TODO this code is invalid since effectively disables MMU IP check and possibly leaves last command to execute forever
-			if (mmu_ ->GetContext().ip + 1 < max_cmd)
-				++mmu_ ->GetContext().ip;
-
+			old_ip = old_context.ip;
 			ExecuteCommand (command);
-			now_ctx = mmu_ ->GetContext().buffer;
+
+			Context& new_context = mmu_ ->GetContext();
 
 			// Handle context exits.
-			if (mmu_ ->GetContext().flags & MASK (F_EXIT))
+			if (new_context.flags & MASK (F_EXIT))
 			{
-				last_result = internal_logic_ ->StackTop();
-				mmu_ ->RestoreContext();
+				// Exit the loop if we're off the initial context
+				if (new_context.buffer == initial_ctx)
+					break;
 
-				if (now_ctx == initial_ctx)
-					break; /* exit the loop if we're off the initial context */
+				// Else do context pop
+				mmu_ ->RestoreContext();
+			}
+
+			// If there is no exit (and there was no jump) advance PC.
+			else
+			{
+				// Advance PC if there was no jump
+				if (new_context.ip == old_ip)
+					++new_context.ip;
 			}
 		} // for (interpreter)
 
-		ProcDebug::PrintValue (last_result);
-		msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED: Result = %s", ProcDebug::debug_buffer);
+		if (mmu_ ->GetStackTop())
+		{
+			last_result = internal_logic_ ->StackTop();
+
+			ProcDebug::PrintValue (last_result);
+			msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED: Result = %s", ProcDebug::debug_buffer);
+		}
+
+		else
+		{
+			last_result = calc_t();
+
+			msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED.");
+		}
+
+		mmu_ ->RestoreContext();
 		return last_result;
 	}
 }

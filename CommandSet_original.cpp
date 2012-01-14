@@ -194,6 +194,12 @@ namespace ProcessorImplementation
 			0
 		},
 		{
+			"mod",
+			"Arithmetic: modulo (dividend on top)",
+			A_NONE,
+			0
+		},
+		{
 			"inc",
 			"Arithmetic: increment by one",
 			A_NONE,
@@ -320,8 +326,8 @@ namespace ProcessorImplementation
 			1
 		},
 		{
-			"dumpfl",
-			"Flags: dump flag register",
+			"dump",
+			"System: dump context",
 			A_NONE,
 			1
 		},

@@ -109,8 +109,8 @@ namespace ProcessorImplementation
 				case Reference::RT_INDIRECT:
 					__assert (symbol.ref.plain.type < S_MAX, "Invalid symbol type");
 
-					msg (E_INFO, E_DEBUG, "Definition of %s alias \"%s\": indirect addressing",
-						 ProcDebug::AddrType_ids[symbol.ref.plain.type], sym_nm_buf);
+					msg (E_INFO, E_DEBUG, "Definition of %s alias \"%s\": indirect addressing offset %zu",
+						 ProcDebug::AddrType_ids[symbol.ref.plain.type], sym_nm_buf, symbol.ref.plain.address);
 
 					break;
 
@@ -158,18 +158,17 @@ namespace ProcessorImplementation
 			temp_ref = &symbol.ref;
 		}
 
+		// Initially set type and offset
+		plain_ref = temp_ref ->plain;
+
+		// Add the base address if needed
 		if (temp_ref ->type == Reference::RT_INDIRECT)
 		{
-			plain_ref.type = temp_ref ->plain.type;
-
 			calc_t address = proc_ ->MMU() ->ARegister (indirect_addressing_register);
 			__assert (address.type == Value::V_INTEGER, "Cannot access float address");
 
-			plain_ref.address = address.integer;
+			plain_ref.address += address.integer;
 		}
-
-		else
-			plain_ref = temp_ref ->plain;
 
 		proc_ ->MMU() ->VerifyReference (plain_ref);
 		return plain_ref;
@@ -198,7 +197,7 @@ namespace ProcessorImplementation
 					  current_symbol_record ->first.c_str(), current_symbol_record ->second.hash);
 
 			__assert (current_symbol_record ->second.hash == symbol_iterator.first,
-					  "Internal map inconsistency (%s): hash %p <-> key %p",
+					  "Internal map inconsistency (%s): key %zx",
 					  sym_nm_buf, current_symbol_record ->second.hash, symbol_iterator.first);
 
 			// Recursively (well, not recursively, but can be treated as such)
@@ -210,19 +209,13 @@ namespace ProcessorImplementation
 			do
 			{
 				Symbol& symbol = current_symbol_record ->second;
-
-				__verify (symbol.is_resolved,
-						  "Linker error: Unresolved symbol %s", sym_nm_buf);
-
-				msg (E_INFO, E_DEBUG, "Symbol %s: %s",
-					 sym_nm_buf, (symbol.ref.type == Reference::RT_SYMBOL) ? "alias" : "plain reference");
+				__verify (symbol.is_resolved, "Linker error: Unresolved symbol %s", sym_nm_buf);
 
 				last_encountered_type = symbol.ref.type; // for do-while loop exit condition
 				switch (symbol.ref.type)
 				{
 				case Reference::RT_SYMBOL:
 				{
-					msg (E_INFO, E_DEBUG, "...aliasing hash %p", symbol.ref.symbol_hash);
 					symbol_map::iterator target_iter = temporary_map.find (symbol.ref.symbol_hash);
 
 					__assert (target_iter != temporary_map.end(),
@@ -238,7 +231,6 @@ namespace ProcessorImplementation
 
 				case Reference::RT_DIRECT:
 				{
-
 					Reference::Direct& direct_ref = symbol.ref.plain;
 					__verify (direct_ref.address != symbol_auto_placement_addr,
 							  "Reference has a STUB address assigned");
@@ -246,33 +238,25 @@ namespace ProcessorImplementation
 					switch (direct_ref.type)
 					{
 					case S_CODE:
-						msg (E_INFO, E_DEBUG, "Reference to TEXT segment [%lu]", direct_ref.address);
 						__verify (direct_ref.address < proc_ ->MMU() ->GetTextSize(),
-								  "Reference points beyond TEXT end (%lu)",
+								  "Reference points beyond TEXT end (%zu)",
 								  proc_ ->MMU() ->GetTextSize());
 						break;
 
 					case S_DATA:
-						msg (E_INFO, E_DEBUG, "Reference to DATA segment [%lu]", direct_ref.address);
 						__verify (direct_ref.address < proc_ ->MMU() ->GetDataSize(),
-								  "Reference points beyond DATA end (%lu)",
+								  "Reference points beyond DATA end (%zu)",
 								  proc_ ->MMU() ->GetDataSize());
 						break;
 
 					case S_REGISTER:
-						msg (E_INFO, E_DEBUG, "Reference of register [%d] \"%s\"",
-							 direct_ref.address,
-							 proc_ ->LogicProvider() ->EncodeRegister (static_cast<Register> (direct_ref.address)));
+						__verify (direct_ref.address < R_MAX,
+								  "Reference has invalid register ID (%zu)",
+								  direct_ref.address);
 						break;
 
 					case S_FRAME:
-						msg (E_INFO, E_DEBUG, "Reference of stack frame with offset %ld",
-							 direct_ref.address);
-						break;
-
 					case S_FRAME_BACK:
-						msg (E_INFO, E_DEBUG, "Reference of function parameter #%ld",
-							 direct_ref.address);
 						break;
 
 					case S_NONE:
@@ -289,9 +273,6 @@ namespace ProcessorImplementation
 				}
 
 				case Reference::RT_INDIRECT:
-					msg (E_INFO, E_DEBUG, "Reference of type %s - indirect",
-						 ProcDebug::AddrType_ids[symbol.ref.plain.type]);
-
 					break;
 
 				default:
@@ -299,7 +280,7 @@ namespace ProcessorImplementation
 					break;
 				}
 
-			} while (last_encountered_type == Reference::RT_SYMBOL); // for (while is symbol alias)
+			} while (last_encountered_type == Reference::RT_SYMBOL);
 		} // for (temporary_map)
 
 		msg (E_INFO, E_DEBUG, "Writing temporary map");

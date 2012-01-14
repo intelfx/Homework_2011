@@ -112,28 +112,28 @@ namespace ProcessorImplementation
 	{
 		switch (id)
 		{
-			case 'c':
-				return S_CODE;
-				break;
+		case 'c':
+			return S_CODE;
+			break;
 
-			case 'd':
-				return S_DATA;
-				break;
+		case 'd':
+			return S_DATA;
+			break;
 
-			case 'f':
-				return S_FRAME;
-				break;
+		case 'f':
+			return S_FRAME;
+			break;
 
-			case 'p':
-				return S_FRAME_BACK;
-				break;
+		case 'p':
+			return S_FRAME_BACK;
+			break;
 
-			case 'r':
-				return S_REGISTER;
-				break;
+		case 'r':
+			return S_REGISTER;
+			break;
 
-			default:
-				__asshole ("Invalid plain address specifier: '%c'", id);
+		default:
+			__asshole ("Invalid plain address specifier: '%c'", id);
 		}
 
 		return S_NONE; /* for GCC not to complain */
@@ -143,16 +143,16 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		char id;
-		size_t address;
+		char id = 0;
+		size_t address = 0;
 		Reference result;
 		init (result);
 
 		if (sscanf (arg, "%c:%zu", &id, &address) == 2) /* uniform address reference */
 		{
 			result.type = Reference::RT_DIRECT;
-			result.plain.address = address;
 			result.plain.type = ReadReferenceSpecifier (id);
+			result.plain.address = address;
 
 			if (result.plain.type == S_REGISTER)
 				__assert (result.plain.address < R_MAX, "Invalid register ID: %zu", address);
@@ -165,21 +165,23 @@ namespace ProcessorImplementation
 			result.plain.address = proc_ ->LogicProvider() ->DecodeRegister (arg + 1);
 		}
 
-		else if ((arg[0] == '@') && (id = arg[1])) /* uniform indirect reference */
+		else if (sscanf (arg, "@%c+%zu", &id, &address) >= 1) /* uniform indirect reference */
 		{
 			result.type = Reference::RT_INDIRECT;
 			result.plain.type = ReadReferenceSpecifier (id);
+			result.plain.address = address;
 		}
 
 		else /* reference to symbol */
 		{
+			Symbol referenced_symbol;
+			init (referenced_symbol);
+
+			referenced_symbol.is_resolved = 0; /* symbol is not defined here. */
+			symbols.insert (PrepareSymbol (arg, referenced_symbol, &address)); /* add symbols into mentioned */
+
 			result.type = Reference::RT_SYMBOL;
-
-			Symbol decoded_symbol;
-			init (decoded_symbol);
-
-			decoded_symbol.is_resolved = 0; /* symbol is not defined here. */
-			symbols.insert (PrepareSymbol (arg, decoded_symbol, &result.symbol_hash)); /* add symbols into mentioned and write hash to reference */
+			result.symbol_hash = address;
 		}
 
 		return result;
@@ -189,7 +191,7 @@ namespace ProcessorImplementation
 	{
 		char *begin, *tmp = read_buffer;
 
-		while (isspace (*(begin = tmp++)));
+		while (isspace (* (begin = tmp++)));
 
 		if (*begin == '\0')
 			return 0;
@@ -208,7 +210,8 @@ namespace ProcessorImplementation
 			else
 				*tmp = tolower (*tmp);
 
-		} while (*tmp++);
+		}
+		while (*tmp++);
 
 		return begin;
 	}
@@ -218,66 +221,65 @@ namespace ProcessorImplementation
 		char name[STATIC_LENGTH], initialiser[STATIC_LENGTH], type;
 
 		// Declaration is a symbol itself.
-		Symbol declaration;
-		init (declaration);
-		declaration.is_resolved = 1;
+		Symbol declaration_symbol;
+		init (declaration_symbol);
+		declaration_symbol.is_resolved = 1;
 
 		int arguments = sscanf (decl_data, "%s %c %s", name, &type, initialiser);
 		switch (arguments)
 		{
-			case 3:
-				switch (type)
-				{
-					case '=':
-						output.data.Parse (initialiser); // type of value is already set
+		case 3:
+			switch (type)
+			{
+			case '=':
+				output.data.Parse (initialiser); // type of value is already set
 
-						declaration.ref.type = Reference::RT_DIRECT;
-						declaration.ref.plain.type = S_DATA;
-						declaration.ref.plain.address = ILinker::symbol_auto_placement_addr;
+				declaration_symbol.ref.type = Reference::RT_DIRECT;
+				declaration_symbol.ref.plain.type = S_DATA;
+				declaration_symbol.ref.plain.address = ILinker::symbol_auto_placement_addr;
 
-						ProcDebug::PrintValue (output.data);
-						msg (E_INFO, E_DEBUG, "Declaration: DATA entry = %s", ProcDebug::debug_buffer);
+				ProcDebug::PrintValue (output.data);
+				msg (E_INFO, E_DEBUG, "Declaration: DATA entry = %s", ProcDebug::debug_buffer);
 
-						break;
-
-					case ':':
-						declaration.ref = ParseReference (output.mentioned_symbols, initialiser);
-
-						ProcDebug::PrintReference (declaration.ref);
-						msg (E_INFO, E_DEBUG, "Declaration: alias to %s", ProcDebug::debug_buffer);
-
-						output.type = DecodeResult::DEC_NOTHING; // in this case declaration is not a declaration itself
-						break;
-
-					default:
-						__asshole ("Parse error: \"%s\"", decl_data);
-						break;
-				}
-
-				output.mentioned_symbols.insert (PrepareSymbol (name, declaration));
 				break;
 
-			case 1:
-				output.data = Value(); // default initialiser
+			case ':':
+				declaration_symbol.ref = ParseReference (output.mentioned_symbols, initialiser);
 
-				declaration.ref.type = Reference::RT_DIRECT;
-				declaration.ref.plain.type = S_DATA;
-				declaration.ref.plain.address = ILinker::symbol_auto_placement_addr;
+				ProcDebug::PrintReference (declaration_symbol.ref);
+				msg (E_INFO, E_DEBUG, "Declaration: alias to %s", ProcDebug::debug_buffer);
 
-				msg (E_INFO, E_DEBUG, "Declaration: DATA entry uninitialised");
-
-				output.mentioned_symbols.insert (PrepareSymbol (name, declaration));
+				output.type = DecodeResult::DEC_NOTHING; // in this case declaration is not a declaration itself
 				break;
 
 			default:
 				__asshole ("Parse error: \"%s\"", decl_data);
 				break;
+			}
+
+			break;
+
+		case 1:
+			output.data = Value(); // default initialiser
+
+			declaration_symbol.ref.type = Reference::RT_DIRECT;
+			declaration_symbol.ref.plain.type = S_DATA;
+			declaration_symbol.ref.plain.address = ILinker::symbol_auto_placement_addr;
+
+			msg (E_INFO, E_DEBUG, "Declaration: DATA entry uninitialised");
+			break;
+
+		default:
+			__asshole ("Parse error: \"%s\"", decl_data);
+			break;
 		}
+
+		output.mentioned_symbols.insert (PrepareSymbol (name, declaration_symbol));
 	}
 
-	const CommandTraits& AsmHandler::ReadSingleCommand (const char* command,
-														const char* argument,
-														Processor::DecodeResult& output)
+	void AsmHandler::ReadSingleCommand (const char* command,
+										const char* argument,
+										Processor::DecodeResult& output)
 	{
 		const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);
 		output.command.id = desc.id;
@@ -328,8 +330,6 @@ namespace ProcessorImplementation
 			} // switch (argument type)
 
 		} // have argument
-
-		return desc;
 	}
 
 	char* AsmHandler::ParseLabel (char* string)
@@ -344,7 +344,8 @@ namespace ProcessorImplementation
 				*string = '\0';
 				return string + 1; // found label
 			}
-		} while (*string++);
+		}
+		while (*string++);
 
 		return 0;
 	}
@@ -356,9 +357,8 @@ namespace ProcessorImplementation
 		Symbol label_symbol;
 		init (label_symbol);
 
-		Value::Type statement_type;
+		Value::Type statement_type = Value::V_MAX;
 		char *command, *argument, typespec = default_type_specifier, *current_position = PrepLine (input);
-		bool typespec_exists = 0;
 
 
 		/* skip leading space and return if empty string */
@@ -407,29 +407,28 @@ namespace ProcessorImplementation
 		{
 			*dot++ = '\0';
 			typespec = *dot;
-			typespec_exists = 1;
 		}
 
 		/* decode type-specifier */
 
 		switch (tolower (typespec))
 		{
-			case 'f':
-				statement_type = Value::V_FLOAT;
-				break;
+		case 'f':
+			statement_type = Value::V_FLOAT;
+			break;
 
-			case 'd':
-			case 'i':
-				statement_type = Value::V_INTEGER;
-				break;
+		case 'd':
+		case 'i':
+			statement_type = Value::V_INTEGER;
+			break;
 
-			case 's':
-				statement_type = Value::V_MAX;
-				break;
+		case 's':
+			statement_type = Value::V_MAX;
+			break;
 
-			default:
-				__asshole ("Invalid command type specification: '%c'", typespec);
-				break;
+		default:
+			__asshole ("Invalid command type specification: '%c'", typespec);
+			break;
 		}
 
 		/* determine if we have a declaration or a command and parse accordingly */
@@ -449,10 +448,7 @@ namespace ProcessorImplementation
 			output.type = DecodeResult::DEC_COMMAND;
 			output.command.type = statement_type;
 
-			const CommandTraits& read_cmd = ReadSingleCommand (command, argument, output);
-
-			__assert (!read_cmd.is_service_command || !typespec_exists,
-					  "Service command \"%s\" should not have explicit type specifier ('%c')", input, typespec);
+			ReadSingleCommand (command, argument, output);
 		}
 	}
 
@@ -474,7 +470,8 @@ namespace ProcessorImplementation
 
 			ReadSingleStatement (++prop ->file_description.front().second, read_buffer, *destination);
 
-		} while (destination ->type == DecodeResult::DEC_NOTHING);
+		}
+		while (destination ->type == DecodeResult::DEC_NOTHING);
 
 		return 1;
 	}
