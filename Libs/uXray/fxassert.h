@@ -155,9 +155,9 @@ namespace Debug
 
 	enum ObjectFlags_
 	{
-		OF_FATALVERIFY = 1, // Whether to fail on bad object status immediately
-		OF_USEVERIFY, // Whether to use verification method Verify_()
-		OF_USECHECK // Whether to enable verification interface CheckObject()
+		OF_FATALVERIFY = 1, // Whether to fail on bad object status immediately [ false - internal assertion on _Verify() is disabled ]
+		OF_USEVERIFY, // Whether to use verification method Verify_() [ false - _Verify() is replaced by "return true" ]
+		OF_USECHECK // Whether to enable verification interface CheckObject() [ false - CheckObject() does not call _Verify() ]
 	};
 
 
@@ -733,6 +733,12 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 // __assert is for verifying system-dependent conditions (as pointers),
 // __verify is for checking user-dependent conditions (as input file names and expressions).
 
+#ifdef NDEBUG
+# define _CKLEVEL_(level) if (EventLevelIndex_::level > EventLevelIndex_::E_VERBOSE) break;
+#else
+# define _CKLEVEL_(level)
+#endif
+
 #define __silent(sta, code)  do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dosilentthrow (_GetDynamicDbgInfo (pl), code); } while (0)
 #define __ssilent(sta, code) do { if ((sta)) break; dosilentthrow (Debug::ObjectParameters_ (_specific_dbg_info), code); } while (0)
 
@@ -744,11 +750,17 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 #define __verify(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, #sta, fmt); } while (0)
 #define __asshole(fmt...)     do {                   Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, "<none>", fmt); } while (0)
 
-#define smsg(type, level, ...) call_log (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__)
-#define msg(type, level, ...) do { Debug::SourceDescriptor_ pl = THIS_PLACE; call_log (_GetDynamicDbgInfo (pl), pl, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
+#define smsg(type, level, ...) do { _CKLEVEL_(level); Debug::ObjectParameters_ pm (_specific_dbg_info); call_log (pm,                      THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
+#define msg(type, level, ...)  do { _CKLEVEL_(level); Debug::SourceDescriptor_ pl = THIS_PLACE;         call_log (_GetDynamicDbgInfo (pl), pl,         EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
 
 #define verify_statement(sta, fmt...) if (!(sta)) { seterror (_GetDynamicDbgInfo (THIS_PLACE), fmt); return 0; }
-#define verify_method __verify (_CheckObject (THIS_PLACE), "In-method object verification failed")
+
+#ifndef NDEBUG
+# define verify_method __verify (_CheckObject (THIS_PLACE), "In-method object verification failed")
+#else
+# define verify_method
+#endif
+
 #define verify_foreign(x) __verify ((x)._CheckObject (THIS_PLACE), "External object verification failed")
 
 #define sverify_statement(sta, fmt...) if (!(sta)) { smsg (E_CRITICAL, E_USER, fmt); return 0; }

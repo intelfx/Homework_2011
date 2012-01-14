@@ -9,9 +9,13 @@
 // -----------------------------------------------------------------------------
 
 const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::global_scope_object;
+#ifndef NDEBUG
 const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::default_object (MASK (Debug::OF_FATALVERIFY) |
 																		 MASK (Debug::OF_USEVERIFY) |
 																		 MASK (Debug::OF_USECHECK));
+#else
+const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::default_object (0);
+#endif
 
 const Debug::ObjectDescriptor_* _specific_dbg_info = &Debug::ObjectDescriptor_::global_scope_object;
 
@@ -445,8 +449,11 @@ namespace Debug
 
 	void VerifierBase::_UpdateState (Debug::SourceDescriptor place) const
 	{
+		if (!(dbg_params_.flags & MASK (OF_USEVERIFY)))
+			return;
+
 		// eliminate successive _Verify() calls in case of bad object to reduce log clutter
-		if ( (dbg_params_.flags & MASK (OF_USEVERIFY)) && (dbg_params_.object_status != Debug::OS_BAD))
+		if (dbg_params_.object_status != Debug::OS_BAD)
 		{
 			dbg_params_.object_status = Debug::OS_BAD; // eliminate recursive calls from verify_statement statements
 
@@ -466,7 +473,7 @@ namespace Debug
 
 #else
 
-	void VerifierBase::_VerifyAndSetState (Debug::SourceDescriptor) const
+	void VerifierBase::_UpdateState (Debug::SourceDescriptor) const
 	{
 		dbg_params_.object_status = OS_UNCHECKED;
 	}
