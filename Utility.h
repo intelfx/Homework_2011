@@ -280,39 +280,62 @@ namespace Processor
 			}
 		}
 
-		void Parse (const char* string)
+		static int_t IntParse (const char* string)
 		{
 			char* endptr;
+			unsigned char char_representation;
+			long result;
 
+			if ((string[0] == '\'') &&
+				(char_representation = string[1]) &&
+				(string[2] == '\'') &&
+				!string[3])
+			{
+				result = static_cast<long> (char_representation);
+			}
+
+			else
+			{
+				errno = 0;
+				result = strtol (string, &endptr, 0); /* base autodetermine */
+				__sverify (!errno && (endptr != string) && (*endptr == '\0'),
+						   "Malformed integer: \"%s\": non-ASCII and strtol() says \"%s\"",
+						   string, strerror (errno));
+			}
+
+			return result;
+		}
+
+		static fp_t FPParse (const char* string)
+		{
+			char* endptr;
+			fp_t result;
+			int classification;
+
+			errno = 0;
+			result = strtof (string, &endptr);
+			__sverify (!errno && (endptr != string) && (*endptr == '\0'),
+					   "Malformed floating-point: \"%s\": strtof() says \"%s\"",
+					   string, strerror (errno));
+
+			classification = fpclassify (result);
+			__sverify (classification == FP_NORMAL || classification == FP_ZERO,
+					   "Invalid floating-point value: \"%s\" -> %lg", string, result);
+
+			return result;
+		}
+
+		void Parse (const char* string)
+		{
 			switch (type)
 			{
 			case V_INTEGER:
-			{
-				errno = 0;
-				integer = strtol (string, &endptr, 0); /* autodetermine base */
-
-				__sverify (!errno && (endptr != string) && (*endptr == '\0'),
-						   "Malformed integer value argument: \"%s\": strtol() says %s",
-						   string, strerror (errno));
-
+				integer = IntParse (string);
 				break;
-			}
 
 			case V_FLOAT:
-			{
-				errno = 0;
-				fp = strtof (string, &endptr);
-
-				__sverify (!errno && (endptr != string) && (*endptr == '\0'),
-						   "Malformed floating-point value argument: \"%s\": strtof() says %s",
-						   string, strerror (errno));
-
-				int classification = fpclassify (fp);
-				__sverify (classification == FP_NORMAL || classification == FP_ZERO,
-						   "Invalid floating-point value: \"%s\" -> %lg", string, fp);
-
+				fp = FPParse (string);
 				break;
-			}
 
 			case V_MAX:
 				__sasshole ("Uninitialised value");

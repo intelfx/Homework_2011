@@ -17,13 +17,13 @@ set (STACK_NL_SRC ${STACK_NL_SRC} Logic.h Logic.cpp CommandSet_original.h Comman
 set (STACK_NL_SRC ${STACK_NL_SRC} Executor.h Executor.cpp Executor_int.h Executor_int.cpp)
 set (STACK_NL_SRC ${STACK_NL_SRC} Executor_service.h Executor_service.cpp)
 set (STACK_NL_SRC ${STACK_NL_SRC} NLUnitTests.cpp)
-MAIN_ADD_GCH(stdafx.h ${STACK_NL_SRC})
+# MAIN_ADD_GCH(stdafx.h ${STACK_NL_SRC})
 
 add_executable(homework_stack_nl ${STACK_NL_SRC})
 target_link_libraries(homework_stack_nl ${LIBRARIES})
 
 set (STACK_SRC Verifier.h Verifier.cpp Stack.h Stack.cpp ProcessorTest.cpp Processor.cpp)
-MAIN_ADD_GCH(stdafx.h ${STACK_SRC})
+# MAIN_ADD_GCH(stdafx.h ${STACK_SRC})
 
 add_executable(homework_stack ${STACK_SRC})
 target_link_libraries(homework_stack ${LIBRARIES})

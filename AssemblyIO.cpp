@@ -152,23 +152,23 @@ namespace ProcessorImplementation
 
 		if (char* plus = strchr (arg, '+'))
 		{
-			char* endptr = 0;
 			relative_ptr = plus + 1;
 
 			errno = 0;
-			relative_address = strtol (relative_ptr, &endptr, 0);
-			__verify (!errno, "Relative address parse failed in reference \"%s\": strtol() says \"%s\"", arg, strerror (errno));
+			relative_address = Value::IntParse (relative_ptr);
 
 			*plus = '\0';
 		}
 
-		if (sscanf (arg, "%c:%zu", &id, &address) == 2) /* uniform address reference */
+		if ((id = arg[0]) &&
+			(arg[1] == ':')) /* uniform address reference */
 		{
 			__verify (!relative_ptr, "Relative address is not allowed with address reference in \"%s\"", arg);
+			relative_ptr = arg + 2;
 
 			result.type = Reference::RT_DIRECT;
 			result.plain.type = ReadReferenceSpecifier (id);
-			result.plain.address = address;
+			result.plain.address = Value::IntParse (relative_ptr);
 
 			if (result.plain.type == S_REGISTER)
 				__assert (result.plain.address < R_MAX, "Invalid register ID %zu in reference \"%s\"", address, arg);
@@ -244,7 +244,18 @@ namespace ProcessorImplementation
 		init (declaration_symbol);
 		declaration_symbol.is_resolved = 1;
 
-		int arguments = sscanf (decl_data, "%s %c %s", name, &type, initialiser);
+		// we may get an unnamed declaration
+		if (decl_data[0] == '=')
+		{
+			output.data.Parse (decl_data + 1); // type of value is already set
+
+			ProcDebug::PrintValue (output.data);
+			msg (E_INFO, E_DEBUG, "Declaration: unnamed DATA entry = %s", ProcDebug::debug_buffer);
+
+			return;
+		}
+
+		int arguments = sscanf (decl_data, "%[^:=] %c %s", name, &type, initialiser);
 		switch (arguments)
 		{
 		case 3:
@@ -289,7 +300,7 @@ namespace ProcessorImplementation
 			break;
 
 		default:
-			__asshole ("Parse error: \"%s\"", decl_data);
+			__asshole ("Parse error: \"%s\" - sscanf() says \"%d\"", decl_data, arguments);
 			break;
 		}
 
