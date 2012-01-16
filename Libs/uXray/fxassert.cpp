@@ -88,19 +88,42 @@ namespace Debug
 {
 	namespace API
 	{
-		std::map<size_t, ObjectDescriptor_>* metatype_map;
-
-		void _allocmtm()
+		struct _metatype_map_holder
 		{
-			if (!metatype_map)
-				metatype_map = new std::map<size_t, ObjectDescriptor_>;
-		}
+			std::map<size_t, ObjectDescriptor_>* metatype_map;
 
-		const ObjectDescriptor_* RegisterMetaType (Debug::ObjectDescriptor_ type)
+			void alloc()
+			{
+				if (!metatype_map)
+				{
+					metatype_map = new std::map<size_t, ObjectDescriptor_>;
+
+					fputs ("==== Metatype system initialised ====\n", stderr);
+				}
+			}
+
+			~_metatype_map_holder()
+			{
+				delete metatype_map;
+				metatype_map = 0;
+
+				fputs ("==== Metatype system destroyed ====\n", stderr);
+			}
+
+		} metatype_map_holder;
+
+		const ObjectDescriptor_* RegisterMetaType (ObjectDescriptor type)
 		{
-			_allocmtm();
+			metatype_map_holder.alloc();
 
-			auto insertion_result = metatype_map ->insert (std::pair<size_t, ObjectDescriptor> (type.object_id, type));
+			auto insertion_result = metatype_map_holder.metatype_map ->insert
+							(std::pair<size_t, ObjectDescriptor> (type.object_id, type));
+
+#ifdef METATYPE_DEBUG
+			fprintf (stderr, "==== New type registered: \"%s\" (id %zx) ====\n",
+					 type.object_name, type.object_id);
+#endif
+
 			__sassert (insertion_result.second,
 					   "Type \"%s\" (id %p) already registered in system",
 					   type.object_name, type.object_id);
@@ -110,13 +133,13 @@ namespace Debug
 
 		const ObjectDescriptor_& GetDescriptor (const char* name)
 		{
-			_allocmtm();
+			metatype_map_holder.alloc();
 
 			if (name)
 			{
 				size_t id = ObjectDescriptor_::GetOID (name);
-				std::map<size_t, ObjectDescriptor_>::iterator it = metatype_map ->find (id);
-				__sassert (it != metatype_map ->end(),
+				std::map<size_t, ObjectDescriptor_>::iterator it = metatype_map_holder.metatype_map ->find (id);
+				__sassert (it != metatype_map_holder.metatype_map ->end(),
 						"Type \"%s\" (id %p) was not registered in system",
 						name, id);
 

@@ -674,7 +674,7 @@ namespace Debug
 		inline void SetDefaultVerbosity (EventLevelIndex_ max) { ObjectDescriptor_::default_object.maximum_accepted_level = max; }
 		inline void SetDefaultEvtFilter (EventTypeIndex_ min)  { ObjectDescriptor_::default_object.minimum_accepted_type = min; }
 
-		FXLIB_API const ObjectDescriptor_* RegisterMetaType (Debug::ObjectDescriptor_ type);
+		FXLIB_API const ObjectDescriptor_* RegisterMetaType (ObjectDescriptor type);
 
 		FXLIB_API void SetTypewideVerbosity (const char* desc_name, EventLevelIndex_ max);
 		FXLIB_API void SetTypewideEvtFilter (const char* desc_name, EventTypeIndex_ min);
