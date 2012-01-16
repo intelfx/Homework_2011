@@ -139,37 +139,55 @@ namespace ProcessorImplementation
 		return S_NONE; /* for GCC not to complain */
 	}
 
-	Reference AsmHandler::ParseReference (Processor::symbol_map& symbols, const char* arg)
+	Reference AsmHandler::ParseReference (Processor::symbol_map& symbols, char* arg)
 	{
 		verify_method;
 
 		char id = 0;
-		size_t address = 0;
+		size_t address = 0, hash = 0;
+		char* relative_ptr = 0;
+		size_t relative_address = 0;
 		Reference result;
 		init (result);
 
+		if (char* plus = strchr (arg, '+'))
+		{
+			char* endptr = 0;
+			relative_ptr = plus + 1;
+
+			errno = 0;
+			relative_address = strtol (relative_ptr, &endptr, 0);
+			__verify (!errno, "Relative address parse failed in reference \"%s\": strtol() says \"%s\"", arg, strerror (errno));
+
+			*plus = '\0';
+		}
+
 		if (sscanf (arg, "%c:%zu", &id, &address) == 2) /* uniform address reference */
 		{
+			__verify (!relative_ptr, "Relative address is not allowed with address reference in \"%s\"", arg);
+
 			result.type = Reference::RT_DIRECT;
 			result.plain.type = ReadReferenceSpecifier (id);
 			result.plain.address = address;
 
 			if (result.plain.type == S_REGISTER)
-				__assert (result.plain.address < R_MAX, "Invalid register ID: %zu", address);
+				__assert (result.plain.address < R_MAX, "Invalid register ID %zu in reference \"%s\"", address, arg);
 		}
 
 		else if (arg[0] == '$') /* symbolic reference to register */
 		{
+			__verify (!relative_ptr, "Relative address is not allowed with register reference in \"%s\"", arg);
+
 			result.type = Reference::RT_DIRECT;
 			result.plain.type = S_REGISTER;
 			result.plain.address = proc_ ->LogicProvider() ->DecodeRegister (arg + 1);
 		}
 
-		else if (sscanf (arg, "@%c+%zu", &id, &address) >= 1) /* uniform indirect reference */
+		else if (sscanf (arg, "@%c", &id) == 1) /* uniform indirect reference */
 		{
 			result.type = Reference::RT_INDIRECT;
 			result.plain.type = ReadReferenceSpecifier (id);
-			result.plain.address = address;
+			result.plain.address = relative_address;
 		}
 
 		else /* reference to symbol */
@@ -178,10 +196,11 @@ namespace ProcessorImplementation
 			init (referenced_symbol);
 
 			referenced_symbol.is_resolved = 0; /* symbol is not defined here. */
-			symbols.insert (PrepareSymbol (arg, referenced_symbol, &address)); /* add symbols into mentioned */
+			symbols.insert (PrepareSymbol (arg, referenced_symbol, &hash)); /* add symbols into mentioned */
 
 			result.type = Reference::RT_SYMBOL;
-			result.symbol_hash = address;
+			result.symbol.hash = hash;
+			result.symbol.offset = relative_address;
 		}
 
 		return result;
@@ -191,7 +210,7 @@ namespace ProcessorImplementation
 	{
 		char *begin, *tmp = read_buffer;
 
-		while (isspace (* (begin = tmp++)));
+		while (isspace (*(begin = tmp++)));
 
 		if (*begin == '\0')
 			return 0;
@@ -278,7 +297,7 @@ namespace ProcessorImplementation
 	}
 
 	void AsmHandler::ReadSingleCommand (const char* command,
-										const char* argument,
+										char* argument,
 										Processor::DecodeResult& output)
 	{
 		const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);

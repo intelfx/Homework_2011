@@ -121,10 +121,16 @@ namespace Processor
 			AddrType type;
 		};
 
+		struct SymbolRef
+		{
+			size_t hash;
+			size_t offset;
+		};
+
 		union
 		{
 			Direct plain;
-			size_t symbol_hash;
+			SymbolRef symbol;
 		};
 
 		enum Type

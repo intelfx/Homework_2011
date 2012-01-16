@@ -39,10 +39,10 @@ namespace ProcessorImplementation
 				switch (symbol.ref.type)
 				{
 				case Reference::RT_SYMBOL:
-					msg (E_INFO, E_DEBUG, "Definition of alias %s: aliasing hash %p",
-						 sym_nm_buf, symbol.ref.symbol_hash);
+					msg (E_INFO, E_DEBUG, "Definition of alias %s: aliasing hash %zx + off %zu",
+						 sym_nm_buf, symbol.ref.symbol.hash, symbol.ref.symbol.offset);
 
-					__assert (input.mentioned_symbols.count (symbol.ref.symbol_hash),
+					__assert (input.mentioned_symbols.count (symbol.ref.symbol.hash),
 							  "Input set does not contain aliased symbol");
 
 					break;
@@ -146,10 +146,13 @@ namespace ProcessorImplementation
 	{
 		Reference* temp_ref = &reference;
 		Reference::Direct plain_ref;
+		init (plain_ref);
 
 		while (temp_ref ->type == Reference::RT_SYMBOL)
 		{
-			symbol_type& symbol_record = proc_ ->MMU() ->ASymbol (temp_ref ->symbol_hash);
+			plain_ref.address += temp_ref ->symbol.offset; // add symbol reference offset
+
+			symbol_type& symbol_record = proc_ ->MMU() ->ASymbol (temp_ref ->symbol.hash);
 
 			Symbol& symbol = symbol_record.second;
 			const char* name = symbol_record.first.c_str();
@@ -158,8 +161,9 @@ namespace ProcessorImplementation
 			temp_ref = &symbol.ref;
 		}
 
-		// Initially set type and offset
-		plain_ref = temp_ref ->plain;
+		// Finally add the offset
+		plain_ref.address += temp_ref ->plain.address;
+		plain_ref.type = temp_ref ->plain.type;
 
 		// Add the base address if needed
 		if (temp_ref ->type == Reference::RT_INDIRECT)
@@ -216,7 +220,7 @@ namespace ProcessorImplementation
 				{
 				case Reference::RT_SYMBOL:
 				{
-					symbol_map::iterator target_iter = temporary_map.find (symbol.ref.symbol_hash);
+					symbol_map::iterator target_iter = temporary_map.find (symbol.ref.symbol.hash);
 
 					__assert (target_iter != temporary_map.end(),
 							  "Aliased symbol not found in symbol map");

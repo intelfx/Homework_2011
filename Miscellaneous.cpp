@@ -39,8 +39,8 @@ namespace Processor
 			switch (ref.type)
 			{
 			case Reference::RT_SYMBOL:
-				snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %zx)",
-						  ref.symbol_hash);
+				snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %zx + offset %zu)",
+						  ref.symbol.hash, ref.symbol.offset);
 
 				break;
 
