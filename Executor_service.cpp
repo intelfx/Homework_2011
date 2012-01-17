@@ -30,6 +30,8 @@ namespace ProcessorImplementation
 		C_JBE,
 		C_JNBE,
 
+		C_LEA,
+
 		C_JMP,
 		C_CALL,
 		C_RET,
@@ -60,6 +62,8 @@ namespace ProcessorImplementation
 		"jnb",
 		"jbe",
 		"jnbe",
+
+		"lea",
 
 		"jmp",
 		"call",
@@ -163,6 +167,12 @@ namespace ProcessorImplementation
 				proc_ ->LogicProvider() ->Jump (argument.ref);
 
 			break;
+
+		case C_LEA:
+			proc_ ->MMU() ->ARegister (indirect_addressing_register) =
+				static_cast<int_t> (proc_ ->Linker() ->Resolve (argument.ref).address);
+			break;
+
 
 		case C_JMP:
 			proc_ ->LogicProvider() ->Jump (argument.ref);

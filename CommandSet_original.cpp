@@ -34,12 +34,12 @@ namespace ProcessorImplementation
 
 		for (const ICD* dsc = initial_commands; dsc ->name; ++dsc)
 		{
-			CommandTraits traits;
-			traits.mnemonic				= dsc ->name;
-			traits.description			= dsc ->description;
-			traits.arg_type				= dsc ->arg_type;
-			traits.is_service_command	= dsc ->is_service_command;
-			traits.id					= get_id (dsc ->name);
+			CommandTraits traits { dsc ->name,
+								   dsc ->description,
+								   dsc ->arg_type,
+								   dsc ->is_service_command,
+								   get_id (dsc ->name)
+								 };
 
 			msg (E_INFO, E_DEBUG, "mkI command: \"%s\" -> %u", dsc ->name, traits.id);
 			auto byid_ins_res = by_id.insert (std::make_pair (traits.id, std::move (traits)));
@@ -72,7 +72,12 @@ namespace ProcessorImplementation
 		__assert (mnemonic, "NULL mnemonic");
 		cid_t cmd_id = get_id (mnemonic);
 		auto cmd_it = by_id.find (cmd_id);
-		__assert (cmd_it != by_id.end(), "Registering implementation driver for invalid mnemonic: \"%s\"", mnemonic);
+
+		if (cmd_it == by_id.end())
+		{
+			msg (E_WARNING, E_VERBOSE, "Registering implementation driver for invalid mnemonic: \"%s\"", mnemonic);
+			return;
+		}
 
 		auto impl_ins_res = cmd_it ->second.execution_handles.insert (std::make_pair (module, handle));
 		__assert (impl_ins_res.second, "Implementation of \"%s\" -> module %zx has already been registered",
@@ -340,12 +345,6 @@ namespace ProcessorImplementation
 		{
 			"cnfc",
 			"Flags: clear No-Flag-Change flag",
-			A_NONE,
-			1
-		},
-		{
-			"cswitch",
-			"Management: switch to next context (useful only in decoding mode)",
 			A_NONE,
 			1
 		},

@@ -388,9 +388,10 @@ namespace Processor
 		const char* description;
 		ArgumentType arg_type;
 
-		cid_t id; // assigned by command set
 		bool is_service_command;
 
+		// assigned by command set
+		cid_t id;
 		std::map<size_t, void*> execution_handles;
 	};
 
