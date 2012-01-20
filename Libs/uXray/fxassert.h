@@ -54,7 +54,13 @@ namespace Init
 		T& operator() () // Fuck the world, forgot second pair of brackets
 		{
 			if (!is_available_)
-				throw std::logic_error ("Request for global object after its destruction");
+			{
+				char message [STATIC_LENGTH];
+				snprintf (message, STATIC_LENGTH, "Request for global object after its destruction [typeid %s]",
+						  typeid (T).name());
+
+				throw std::logic_error (message);
+			}
 
 			if (!instance_) instance_ = new T;
 			return *instance_;
@@ -149,9 +155,9 @@ namespace Debug
 
 	enum ObjectFlags_
 	{
-		OF_FATALVERIFY = 1, // Whether to fail on bad object status immediately
-		OF_USEVERIFY, // Whether to use verification method Verify_()
-		OF_USECHECK // Whether to enable verification interface CheckObject()
+		OF_FATALVERIFY = 1, // Whether to fail on bad object status immediately [ false - internal assertion on _Verify() is disabled ]
+		OF_USEVERIFY, // Whether to use verification method Verify_() [ false - _Verify() is replaced by "return true" ]
+		OF_USECHECK // Whether to enable verification interface CheckObject() [ false - CheckObject() does not call _Verify() ]
 	};
 
 
@@ -179,6 +185,20 @@ namespace Debug
 		EventLevelIndex_ event_level;
 		const char* message_format_string;
 		mutable va_list message_args; // mutable, since v*printf() does not accept "const va_list"
+
+		EventDescriptor_ (EventTypeIndex_ type, EventLevelIndex_ level, const char* fmt) :
+		event_type (type),
+		event_level (level),
+		message_format_string (fmt)
+		{
+		}
+
+		bool IsCritical() const
+		{
+			return (event_type == E_CRITICAL) ||
+				   (event_type == E_EXCEPTION) ||
+				   (event_type == E_FUCKING_EPIC_SHIT);
+		}
 	};
 	typedef const EventDescriptor_& EventDescriptor;
 
@@ -193,14 +213,21 @@ namespace Debug
 		mask_t target_typemask;
 		mask_t target_levelmask;
 
-
-
 		TargetDescriptor_ (const char* name, mask_t typemask, mask_t levelmask) :
 		target_name (name),
 		target_descriptor (0),
 		target_engine (0),
 		target_typemask (typemask),
 		target_levelmask (levelmask)
+		{
+		}
+
+		TargetDescriptor_() :
+		target_name (0),
+		target_descriptor (0),
+		target_engine (0),
+		target_typemask (EVERYTHING),
+		target_levelmask (EVERYTHING)
 		{
 		}
 
@@ -214,6 +241,8 @@ namespace Debug
 			return (target_typemask & MASK (event.event_type)) &&
 				   (target_levelmask & MASK (event.event_level));
 		}
+
+		void Close();
 	};
 	typedef const TargetDescriptor_& TargetDescriptor;
 
@@ -368,6 +397,16 @@ namespace Debug
 		SourceDescriptor place; // Source file data (filled by macro)
 		ObjectParameters object; // Initiator object data (filled by macro from Debug::VerifierWrapper)
 		TargetDescriptor target; // Logging target (filled by Debug::System)
+
+		LogAtom_ (EventDescriptor event_, SourceDescriptor place_, ObjectParameters object_, TargetDescriptor target_) :
+		event (event_),
+		place (place_),
+		object (object_),
+		target (target_)
+		{
+		}
+
+		void WriteOut();
 	};
 	typedef const LogAtom_& LogAtom;
 
@@ -534,8 +573,8 @@ namespace Debug
 	{
 		ExceptionType_ type_;
 		const char* expression_;
-		char* a_reason_, *a_message_;
-		const char* reason_, *message_;
+		char* a_reason_, *a_message_, *a_what_message_;
+		const char* reason_, *message_, *what_message_;
 
 	public:
 		Exception (const Exception&) = delete;
@@ -576,12 +615,13 @@ namespace Debug
 	class FXLIB_API System : LogBase (System), public Init::Base<System>
 	{
 		TargetDescriptor_ default_target;
+		TargetDescriptor_ emergency_target;
 
 		enum DbgSystemState
 		{
 			S_UNINITIALIZED = 0,
 			S_READY,
-			S_FATALERROR
+			S_FATAL_ERROR
 		} state;
 
 		// Handles a logging error dependent on circumstances (criticalness, emergency mode)
@@ -589,6 +629,8 @@ namespace Debug
 						  SourceDescriptor place,
 						  ObjectParameters object,
 						  const char* error_string) throw();
+
+		void FatalErrorWrite (EventDescriptor event, SourceDescriptor place, ObjectParameters object);
 
 	public:
 		System();
@@ -604,20 +646,6 @@ namespace Debug
 		void CloseTargets(); // Removes all targets and puts system into uninitialized state
 	};
 
-
-	inline void WriteOutAtom (LogAtom atom, bool emergency_mode)
-	{
-		if (emergency_mode)	atom.target.target_engine ->WriteLogEmergency (atom);
-		else				atom.target.target_engine ->WriteLog (atom);
-	}
-
-	inline void CloseTarget (TargetDescriptor_* target)
-	{
-		target ->target_engine ->CloseTarget (target);
-		target ->target_engine = 0;
-		target ->target_descriptor = 0;
-	}
-
 	namespace API
 	{
 		template <typename T>
@@ -632,13 +660,21 @@ namespace Debug
 			return typeid (*object).name();
 		}
 
+		inline size_t GetObjectID (const VerifierBase* object)
+		{
+			if (!object)
+				return ObjectDescriptor_::GLOBAL_OID;
+
+			return object ->_GetStaticDbgInfo().object_id;
+		}
+
 		inline void SetObjectFlag (VerifierBase* obj, ObjectFlags_ flag) { obj ->_SetFlag (flag); }
 		inline void ClrObjectFlag (VerifierBase* obj, ObjectFlags_ flag) { obj ->_ClrFlag (flag); }
 
 		inline void SetDefaultVerbosity (EventLevelIndex_ max) { ObjectDescriptor_::default_object.maximum_accepted_level = max; }
 		inline void SetDefaultEvtFilter (EventTypeIndex_ min)  { ObjectDescriptor_::default_object.minimum_accepted_type = min; }
 
-		FXLIB_API const ObjectDescriptor_* RegisterMetaType (Debug::ObjectDescriptor_ type);
+		FXLIB_API const ObjectDescriptor_* RegisterMetaType (ObjectDescriptor type);
 
 		FXLIB_API void SetTypewideVerbosity (const char* desc_name, EventLevelIndex_ max);
 		FXLIB_API void SetTypewideEvtFilter (const char* desc_name, EventTypeIndex_ min);
@@ -697,22 +733,34 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 // __assert is for verifying system-dependent conditions (as pointers),
 // __verify is for checking user-dependent conditions (as input file names and expressions).
 
+#ifdef NDEBUG
+# define _CKLEVEL_(level) if (EventLevelIndex_::level > EventLevelIndex_::E_VERBOSE) break;
+#else
+# define _CKLEVEL_(level)
+#endif
+
 #define __silent(sta, code)  do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dosilentthrow (_GetDynamicDbgInfo (pl), code); } while (0)
 #define __ssilent(sta, code) do { if ((sta)) break; dosilentthrow (Debug::ObjectParameters_ (_specific_dbg_info), code); } while (0)
 
 #define __sassert(sta, fmt...) do { if ((sta)) break; dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_BUG, #sta, fmt); } while (0)
 #define __sverify(sta, fmt...) do { if ((sta)) break; dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, #sta, fmt); } while (0)
-#define __sasshole(fmt...)     do {                   dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_BUG, "<none>", fmt); } while (0)
+#define __sasshole(fmt...)     do {                   dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, "<none>", fmt); } while (0)
 
 #define __assert(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_BUG, #sta, fmt); } while (0)
 #define __verify(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, #sta, fmt); } while (0)
 #define __asshole(fmt...)     do {                   Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, "<none>", fmt); } while (0)
 
-#define smsg(type, level, ...) call_log (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__)
-#define msg(type, level, ...) do { Debug::SourceDescriptor_ pl = THIS_PLACE; call_log (_GetDynamicDbgInfo (pl), pl, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
+#define smsg(type, level, ...) do { _CKLEVEL_(level); Debug::ObjectParameters_ pm (_specific_dbg_info); call_log (pm,                      THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
+#define msg(type, level, ...)  do { _CKLEVEL_(level); Debug::SourceDescriptor_ pl = THIS_PLACE;         call_log (_GetDynamicDbgInfo (pl), pl,         EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
 
 #define verify_statement(sta, fmt...) if (!(sta)) { seterror (_GetDynamicDbgInfo (THIS_PLACE), fmt); return 0; }
-#define verify_method __verify (_CheckObject (THIS_PLACE), "In-method object verification failed")
+
+#ifndef NDEBUG
+# define verify_method __verify (_CheckObject (THIS_PLACE), "In-method object verification failed")
+#else
+# define verify_method
+#endif
+
 #define verify_foreign(x) __verify ((x)._CheckObject (THIS_PLACE), "External object verification failed")
 
 #define sverify_statement(sta, fmt...) if (!(sta)) { smsg (E_CRITICAL, E_USER, fmt); return 0; }

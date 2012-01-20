@@ -10,19 +10,22 @@
 // -----------------------------------------------------------------------------
 
 #define _ObjectDescName(var_name) _ ## var_name ## _dbginfo
+#define _ObjectVarName(var_name) _ ## var_name ## _dbgobject
 
 #define DoExternBaseClass(var_name) extern template class  ::Debug::VerifierWrapper<_ObjectDescName(var_name)>
-#define DoExternDescriptor(var_name) struct  _ObjectDescName(var_name) 	\
+#define DoExternDescriptor(var_name) struct  _ObjectDescName(var_name)					\
 	{																					\
-	static const ::Debug::ObjectDescriptor_* desc;										\
-	const ::Debug::ObjectDescriptor_* operator()() { return desc;}						\
+	static const ::Debug::ObjectDescriptor_ desc;										\
+	static const bool metatype_register_result;											\
+	const ::Debug::ObjectDescriptor_* operator()() { return &desc; }					\
 	}
 
 
 #define DoImplementBaseClass(var_name) template class ::Debug::VerifierWrapper<_ObjectDescName(var_name)>
 
 #define DoImplementDescriptor(var_name, object_name, object_type)						\
-	const Debug::ObjectDescriptor_* _ObjectDescName(var_name)::desc = ::Debug::API::RegisterMetaType (::Debug::ObjectDescriptor_ (object_name, object_type, #var_name))
+	const ::Debug::ObjectDescriptor_ _ObjectDescName(var_name)::desc (object_name, object_type, #var_name); \
+	const bool _ObjectDescName(var_name)::metatype_register_result = ::Debug::API::RegisterMetaType (desc)
 
 // Derives the logged class from base helper
 #define LogBase(var_name) public ::Debug::VerifierWrapper<_ObjectDescName(var_name)>

@@ -48,20 +48,20 @@ FXConLog::~FXConLog()
 
 void FXConLog::RegisterTarget (Debug::TargetDescriptor_* target)
 {
-	bool ready_for_init = target && target ->isOK();
+	bool ready_for_init = target && !target ->isOK();
 	if (!ready_for_init) return;
 
 
 	const char* filename = target ->target_name;
-	void* descriptor = 0;
+	FILE* descriptor = 0;
 
 	// Try to open the file, if name string looks good.
 	if (filename && filename[0])
 		descriptor = OpenFile (filename);
 
-	// If file is not opened for some reason, fall back to static file descriptor.
-	if (!descriptor)
-		descriptor = FALLBACK_FILE;
+	__assert (descriptor && !ferror (descriptor), "Failed to open stream (name \"%s\"): fopen() says \"%s\"",
+			  filename,
+			  strerror (errno));
 
 	target ->target_descriptor	= descriptor;
 	target ->target_engine		= this;
@@ -75,9 +75,7 @@ void FXConLog::CloseTarget (Debug::TargetDescriptor_* target)
 
 
 	FILE* descriptor = reinterpret_cast<FILE*> (target ->target_descriptor);
-
-	if (descriptor != FALLBACK_FILE)
-		CloseFile (descriptor);
+	CloseFile (descriptor);
 }
 
 // -----------------------------------------------------------------------------
@@ -86,7 +84,11 @@ void FXConLog::CloseTarget (Debug::TargetDescriptor_* target)
 
 FILE* FXConLog::OpenFile (const char* filename)
 {
-	// We'll handle "stdout" and "stderr" as user hopes
+	errno = 0;
+
+	if (!strcmp (filename, "stdin"))
+		return stdin; // who knows, maybe there are some perverts...
+
 	if (!strcmp (filename, "stderr"))
 		return stderr;
 
@@ -98,10 +100,16 @@ FILE* FXConLog::OpenFile (const char* filename)
 
 void FXConLog::CloseFile (FILE* descriptor)
 {
+	if (descriptor == FALLBACK_FILE)
+		return;
+
 	if (descriptor == stdout)
 		return;
 
 	if (descriptor == stderr)
+		return;
+
+	if (descriptor == stdin)
 		return;
 
 	fclose (descriptor);
@@ -426,11 +434,7 @@ void FXConLog::WriteLogEmergency (Debug::LogAtom atom) throw()
 	Debug::EventDescriptor	event = atom.event;
 	Debug::SourceDescriptor	place = atom.place;
 	Debug::ObjectParameters	object = atom.object;
-	FILE*					target = reinterpret_cast<FILE*> (atom.target.target_descriptor);
-
-	bool stream_error = 0;
-	target || (stream_error = 1, target = stderr);
-	ferror (target) && (stream_error = 1, target = stderr);
+	FILE*					target = FALLBACK_FILE;
 
 	ConsoleExtendedData_ emerg_data;
 	emerg_data.background = CCC_BLACK;
@@ -439,7 +443,7 @@ void FXConLog::WriteLogEmergency (Debug::LogAtom atom) throw()
 
 	pthread_mutex_lock (&output_mutex);
 	SetExtended (target, emerg_data);
-	fprintf (target, "(EMERG)%s ", stream_error ? " (STREAM FAULT)" : "");
+	fprintf (target, "(EMERG) ");
 
 	InternalWrite (event, place, object, target);
 	pthread_mutex_unlock (&output_mutex);

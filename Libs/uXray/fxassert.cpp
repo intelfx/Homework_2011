@@ -9,9 +9,13 @@
 // -----------------------------------------------------------------------------
 
 const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::global_scope_object;
+#ifndef NDEBUG
 const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::default_object (MASK (Debug::OF_FATALVERIFY) |
 																		 MASK (Debug::OF_USEVERIFY) |
 																		 MASK (Debug::OF_USECHECK));
+#else
+const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::default_object (0);
+#endif
 
 const Debug::ObjectDescriptor_* _specific_dbg_info = &Debug::ObjectDescriptor_::global_scope_object;
 
@@ -70,10 +74,7 @@ FXLIB_API int call_log (Debug::ObjectParameters object,
 	__sassert (event_type != Debug::E_UNDEFINED_TYPE, "Message has undefined type");
 	__sassert (event_level != Debug::E_UNDEFINED_VERBOSITY, "Message has undefined verbosity");
 
-	Debug::EventDescriptor_ event;
-	event.event_type = event_type;
-	event.event_level = event_level;
-	event.message_format_string = fmt;
+	Debug::EventDescriptor_ event (event_type, event_level, fmt);
 
 	va_start (event.message_args, fmt);
 
@@ -87,12 +88,42 @@ namespace Debug
 {
 	namespace API
 	{
-		typedef Init::Base< std::map<size_t, ObjectDescriptor_> > MetatypeMap;
-
-
-		const ObjectDescriptor_* RegisterMetaType (Debug::ObjectDescriptor_ type)
+		struct _metatype_map_holder
 		{
-			auto insertion_result = MetatypeMap::Instance().insert (std::pair<size_t, ObjectDescriptor> (type.object_id, type));
+			std::map<size_t, ObjectDescriptor_>* metatype_map;
+
+			void alloc()
+			{
+				if (!metatype_map)
+				{
+					metatype_map = new std::map<size_t, ObjectDescriptor_>;
+
+					fputs ("==== Metatype system initialised ====\n", stderr);
+				}
+			}
+
+			~_metatype_map_holder()
+			{
+				delete metatype_map;
+				metatype_map = 0;
+
+				fputs ("==== Metatype system destroyed ====\n", stderr);
+			}
+
+		} metatype_map_holder;
+
+		const ObjectDescriptor_* RegisterMetaType (ObjectDescriptor type)
+		{
+			metatype_map_holder.alloc();
+
+			auto insertion_result = metatype_map_holder.metatype_map ->insert
+							(std::pair<size_t, ObjectDescriptor> (type.object_id, type));
+
+#ifdef METATYPE_DEBUG
+			fprintf (stderr, "==== New type registered: \"%s\" (id %zx) ====\n",
+					 type.object_name, type.object_id);
+#endif
+
 			__sassert (insertion_result.second,
 					   "Type \"%s\" (id %p) already registered in system",
 					   type.object_name, type.object_id);
@@ -102,11 +133,13 @@ namespace Debug
 
 		const ObjectDescriptor_& GetDescriptor (const char* name)
 		{
+			metatype_map_holder.alloc();
+
 			if (name)
 			{
 				size_t id = ObjectDescriptor_::GetOID (name);
-				std::map<size_t, ObjectDescriptor_>::iterator it = MetatypeMap::Instance().find (id);
-				__sassert (it != MetatypeMap::Instance().end(),
+				std::map<size_t, ObjectDescriptor_>::iterator it = metatype_map_holder.metatype_map ->find (id);
+				__sassert (it != metatype_map_holder.metatype_map ->end(),
 						"Type \"%s\" (id %p) was not registered in system",
 						name, id);
 
@@ -125,9 +158,29 @@ namespace Debug
 		void SetTypewideVerbosity (const char* desc_name, EventLevelIndex_ max) { GetDescriptor (desc_name).maximum_accepted_level = max; }
 	}
 
+	void TargetDescriptor_::Close()
+	{
+		if (isOK())
+		{
+			target_engine ->CloseTarget (this);
+			target_engine = 0;
+			target_descriptor = 0;
+		}
+	}
+
+	void LogAtom_::WriteOut()
+	{
+		if (object.is_emergency_mode)
+			target.target_engine ->WriteLogEmergency (*this);
+
+		else
+			target.target_engine ->WriteLog (*this);
+	}
+
+
 	SilentException::SilentException (SilentException && that) :
-		error_code_ (that.error_code_),
-		a_code_ (that.a_code_)
+	error_code_ (that.error_code_),
+	a_code_ (that.a_code_)
 	{
 		that.a_code_ = 0;
 	}
@@ -163,12 +216,14 @@ namespace Debug
 						  ExceptionType_ type,
 						  const char* expression,
 						  const char* fmt, va_list args) :
-		type_ (type),
-		expression_ (expression),
-		a_reason_ (0),
-		a_message_ (0),
-		reason_ (0),
-		message_ (0)
+	type_ (type),
+	expression_ (expression),
+	a_reason_ (0),
+	a_message_ (0),
+	a_what_message_ (0),
+	reason_ (0),
+	message_ (0),
+	what_message_ (0)
 	{
 		// Construct (assemble) the user-supplied reason string.
 		// We can't just fail the whole program on *asprintf fail.
@@ -179,165 +234,198 @@ namespace Debug
 			reason_ = a_reason_;
 
 		// Construct the whole message string (including both user-supplied reason and technical details).
-		// We must select the appropriate format string according to the exception type.
-		// First argument is reason, second is failed expression.
-		const char* msg_fmt = 0;
-
-		switch (type_)
+		if (type == EX_BUG)
 		{
-		case EX_BUG:
-			msg_fmt = "Assertion failed on \"%2$s\": %1$s."; // Notice %*$ !!!
-			break;
+			if (!fx_asprintf (&a_message_, "Assertion failed on \"%s\": %s.", expression_, reason_))
+				message_ = "Message can't be constructed due to internal vasprintf failure";
 
-		case EX_INPUT:
-			msg_fmt = "%1$s.";
-			break;
+			else
+				message_ = a_message_;
 
-		default:
-			msg_fmt = 0;
-			break;
+
+			if (!fx_asprintf (&a_what_message_, "%s (object \"%s\" function \"%s\" line %d)",
+				message_, object.object_descriptor ->object_name, place.function, place.source_line))
+				what_message_ = "what() message can't be constructed due to internal vasprintf failure";
+
+			else
+				what_message_ = a_what_message_;
 		}
 
-		if (!fx_asprintf (&a_message_, msg_fmt, reason_, expression_))
-			message_ = "Message can't be constructed due to internal vasprintf failure";
-
 		else
-			message_ = a_message_;
+		{
+			message_ = reason_;
+			what_message_ = reason_;
+		}
 
-		// Perform exception logging
+
+		// Write the log.
 		call_log (object, place,
 				  E_EXCEPTION, E_USER,
 				  message_);
 	}
 
-	Exception::Exception (Exception && that) :
-		type_ (that.type_),
-		expression_ (that.expression_),
-		a_reason_ (that.a_reason_),
-		a_message_ (that.a_message_),
-		reason_ (that.reason_),
-		message_ (that.message_)
+	Exception::Exception (Exception&& that) :
+	type_ (that.type_),
+	expression_ (that.expression_),
+	a_reason_ (that.a_reason_),
+	a_message_ (that.a_message_),
+	a_what_message_ (that.a_what_message_),
+	reason_ (that.reason_),
+	message_ (that.message_),
+	what_message_ (that.what_message_)
 	{
 		that.expression_ = 0;
 		that.a_reason_ = 0;
 		that.a_message_ = 0;
+		that.a_what_message_ = 0;
 		that.reason_ = 0;
 		that.message_ = 0;
+		that.what_message_ = 0;
 	}
 
 	Exception::~Exception() throw()
 	{
 		free (a_reason_);
 		free (a_message_);
+		free (a_what_message_);
 	}
 
 	const char* Exception::what() const throw()
 	{
-		return message_;
+		return reason_;
 	}
 
 	System::System() :
-	default_target ("", EVERYTHING, EVERYTHING),
+	default_target(),
+	emergency_target(),
 	state (S_UNINITIALIZED)
 	{
 	}
 
 	System::~System()
 	{
-		state = S_UNINITIALIZED;
-
 		// By destructor, the logger backend has probably gone off already.
 		// TODO: make some detection when logger backend is still available or not
-		// CloseTargets();
+		CloseTargets();
 	}
 
 	void System::CloseTargets()
 	{
-		if (default_target.isOK())
+		if (state != S_UNINITIALIZED)
 		{
-			msg (E_INFO, E_VERBOSE, "Target is being closed (destination \"%s\")",
-				 default_target.target_name);
-
-			state = S_UNINITIALIZED; // Avoid biting our own tail in numerous situations.
-			Debug::CloseTarget (&default_target);
+			msg (E_INFO, E_VERBOSE, "Default target is being closed: \"%s\" using %s",
+				 default_target.target_name, API::GetClassName (default_target.target_engine));
+			default_target.Close();
 		}
+
+		state = S_UNINITIALIZED;
 	}
 
 	void System::SetTargetProperties (TargetDescriptor target, LogEngine* logger)
 	{
-		CloseTargets();
+		// Set emergency logger if it has not been set already
+		if (!emergency_target.target_engine)
+			emergency_target.target_engine = logger;
 
+		// Register the default target
+		default_target.Close();
 		default_target = target;
 		logger ->RegisterTarget (&default_target);
 
-		if (state != S_READY)
+		// Reset the state
+		state = S_READY;
+
+		// Verify the newly-registered target
+		if (!default_target.isOK())
 		{
-			state = S_READY;
-			msg (E_INFO, E_VERBOSE, "Logger becomes operational");
+			msg (E_CRITICAL, E_USER, "Failed to register target (\"%s\" using %s)",
+				 target.target_name, API::GetClassName (logger));
+
+			return;
 		}
 
-		msg (E_INFO, E_VERBOSE, "New target initialized using %s, destination \"%s\"",
-			 API::GetClassName (logger),
-			 target.target_name);
+		msg (E_INFO, E_VERBOSE, "Default target set -> \"%s\" using %s",
+			 target.target_name, API::GetClassName (logger));
+	}
+
+	void System::FatalErrorWrite (EventDescriptor event,
+								  SourceDescriptor place,
+								  ObjectParameters object)
+	{
+		const char* message_source = object.object_descriptor -> object_name;
+		const char* function = place.function;
+		unsigned line = place.source_line;
+
+		fprintf (stderr,
+				 "[FATAL ERROR] message from %s (%s:%d) (type %d level %d): ",
+				 message_source, function, line, event.event_type, event.event_level);
+
+		vfprintf (stderr, event.message_format_string, event.message_args);
+
+		fputc ('\n', stderr);
 	}
 
 	void System::DoLogging (EventDescriptor event,
 							SourceDescriptor place,
 							ObjectParameters object)
 	{
+		// ---- special mode handlers ----
+
+		// If we're in fatal error mode, do special write and quit.
+		if (state == S_FATAL_ERROR)
+		{
+			FatalErrorWrite (event, place, object);
+			return;
+		}
+
+		// ---- main logging ----
+
+		// If mode is other than "ready", quit -- special handlers are completed.
+		if (state != S_READY)
+			return;
+
+		// If event is not accepted by runtime filters, quit.
+		if (!object.object_descriptor ->AcceptsEvent (event))
+			return;
+
+		// Continue to collect information.
+		DbgSystemState saved_state = state;
 		bool is_emergency_mode = object.is_emergency_mode;
-		bool is_critical_message = (event.event_type >= E_CRITICAL);
-		bool is_message_allowed = object.object_descriptor ->AcceptsEvent (event);
 		TargetDescriptor_* current_target = 0;
 
-		if (!is_message_allowed)
-			return;
-
-		// In this state we will simply discard the message.
-		if (state == S_UNINITIALIZED)
-			return;
-
-		// This is the special mode of debug system.
-		// Critical messages are dumped to stderr, others are ignored.
-		if (state == S_FATALERROR)
-		{
-			if (is_critical_message)
-				vfprintf (stderr, event.message_format_string, event.message_args);
-
-			return;
-		}
-
-		// In emergency state we will use default target.
-		if (is_emergency_mode)
-			current_target = &default_target;
-
-		else
-		{
-			// Current implementation does not support multiple targets.
-			if (default_target.AcceptsEvent (event)) return;
-			current_target = &default_target;
-		}
-
-		// The following code will do error handling in case of debug system/target/logger failures.
-		// I know that it's overkill for just one target.
-		if (!current_target || !current_target ->isOK())
-		{
-			HandleError (event, place, object, "Invalid target");
-			return;
-		}
-
-		// Finally construct and write the atom.
+		// Continue to main action.
+		state = S_UNINITIALIZED; // Exceptions thrown from here should not be written to log
 		try
 		{
-			LogAtom_ atom = {event, place, object, *current_target};
+			do
+			{
+				// Further actions depend on operating mode.
+				if (!is_emergency_mode)
+				{
+					// Current implementation does not support multiple targets.
+					if (!default_target.AcceptsEvent (event))
+						break;
 
-			// If there is an exception in WriteOutAtom, it won't cause endless recursion.
-			state = S_UNINITIALIZED;
-			WriteOutAtom (atom, is_emergency_mode);
-			state = S_READY;
+					current_target = &default_target;
+
+					__verify (current_target ->isOK(), "Invalid target (\"%s\" in %s)",
+							  current_target ->target_name,
+							  API::GetClassName (current_target ->target_engine));
+				}
+
+				else
+				{
+					current_target = &emergency_target;
+
+					__verify (current_target ->target_engine, "Invalid emergency target (no engine)");
+				}
+
+				// Currently just write out the atom.
+				LogAtom_ (event, place, object, *current_target).WriteOut();
+			} while (0);
 		}
 
-		catch (std::exception e)
+		catch (std::exception& e)
 		{
 			HandleError (event, place, object, e.what());
 		}
@@ -346,48 +434,49 @@ namespace Debug
 		{
 			HandleError (event, place, object, "Unknown logger error");
 		}
+
+		// Restore saved state (if state was not changed by HandleError())
+		if (state == S_UNINITIALIZED)
+			state = saved_state;
 	}
 
 	void System::HandleError (EventDescriptor event, SourceDescriptor place, ObjectParameters object,
 							  const char* error_string) throw()
 	{
 		bool is_emergency_mode = object.is_emergency_mode;
-		bool is_critical_message = (event.event_type >= E_CRITICAL);
-
 
 		if (is_emergency_mode) // the worst-case situation: failed emergency write
 		{
-			fprintf (stderr, "\n\n"
+			state = S_FATAL_ERROR;
+
+			fprintf (stderr,
 					 "---- DEBUG SYSTEM FATAL ERROR ----\n"
-					 "%s while in emergency mode.\n"
-					 "The original message follows.\n\n", error_string);
-
-			vfprintf (stderr, event.message_format_string, event.message_args);
-
-			fprintf (stderr, "\n\n"
-					 "---- THE LOGGING SYSTEM IS IN FATAL ERROR MODE ----\n"
-					 "All critical messages will be reported to stderr from now on.\n"
-					 "Press Enter.\n\n");
-
-			state = S_FATALERROR;
-			getchar();
+					 "---- %s while in emergency mode ----\n"
+					 "---- switching to internal logger ----\n",
+					 error_string);
 		}
 
 		else // failed non-emergency write
 		{
-			// Non-critical messages are "lost".
-			// Critical ones are reposted in emergency mode.
-			if (is_critical_message)
-				DoLogging (event, place, object.ToEmergency());
+			state = S_READY;
+
+			fprintf (stderr,
+					 "---- Debug system error: %s. Attempting emergency mode.\n",
+					 error_string);
 		}
+
+		DoLogging (event, place, object.ToEmergency());
 	}
 
 #ifndef NDEBUG
 
 	void VerifierBase::_UpdateState (Debug::SourceDescriptor place) const
 	{
+		if (!(dbg_params_.flags & MASK (OF_USEVERIFY)))
+			return;
+
 		// eliminate successive _Verify() calls in case of bad object to reduce log clutter
-		if ( (dbg_params_.flags & MASK (OF_USEVERIFY)) && (dbg_params_.object_status != Debug::OS_BAD))
+		if (dbg_params_.object_status != Debug::OS_BAD)
 		{
 			dbg_params_.object_status = Debug::OS_BAD; // eliminate recursive calls from verify_statement statements
 
@@ -407,7 +496,7 @@ namespace Debug
 
 #else
 
-	void VerifierBase::_VerifyAndSetState (Debug::SourceDescriptor) const
+	void VerifierBase::_UpdateState (Debug::SourceDescriptor) const
 	{
 		dbg_params_.object_status = OS_UNCHECKED;
 	}
