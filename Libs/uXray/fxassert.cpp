@@ -112,12 +112,12 @@ namespace Debug
 
 		} metatype_map_holder;
 
-		const ObjectDescriptor_* RegisterMetaType (ObjectDescriptor type)
+		const ObjectDescriptor_* RegisterMetaType (ObjectDescriptor_ type)
 		{
 			metatype_map_holder.alloc();
 
 			auto insertion_result = metatype_map_holder.metatype_map ->insert
-							(std::pair<size_t, ObjectDescriptor> (type.object_id, type));
+							(std::pair<size_t, ObjectDescriptor_> (type.object_id, type));
 
 #ifdef METATYPE_DEBUG
 			fprintf (stderr, "==== New type registered: \"%s\" (id %zx) ====\n",
@@ -131,7 +131,7 @@ namespace Debug
 			return &insertion_result.first ->second;
 		}
 
-		const ObjectDescriptor_& GetDescriptor (const char* name)
+		ObjectDescriptor GetDescriptor (const char* name)
 		{
 			metatype_map_holder.alloc();
 
