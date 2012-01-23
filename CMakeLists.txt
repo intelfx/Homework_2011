@@ -22,9 +22,14 @@ set (HTABLE_SRC Hashtable.h Hashtable.cpp)
 set (HASHTEST_SRC Hashtest.cpp)
 set (HASHDICT_SRC Dictionary.cpp DictOpImpl.h DictOpImpl.cpp DictReader.h DictOperations.h DictStructures.h)
 
+# set (HUFFMAN_SRC Huffman.cpp Huffman.h)
+
 add_subdirectory(MTServerClientApp)
 
-main_add_gch(stdafx.h "${OVERALL_SRC} ${STACK_SRC} ${QUEUE_SRC} ${QSERVER_SRC} ${LIST_SRC} ${HTABLE_SRC}")
+main_add_gch(stdafx.h "${OVERALL_SRC} ${STACK_SRC} ${QUEUE_SRC} ${QSERVER_SRC} ${LIST_SRC} ${HTABLE_SRC} ${HUFFMAN_SRC}")
+
+# add_executable(homework_huffman ${OVERALL_SRC} ${HUFFMAN_SRC})
+# target_link_libraries(homework_huffman ${THREADLIBS} ${LIBRARIES})
 
 add_executable(homework_queue_server ${OVERALL_SRC} ${QUEUE_SRC} ${QSERVER_SRC})
 target_link_libraries(homework_queue_server ${THREADLIBS} ${LIBRARIES})
