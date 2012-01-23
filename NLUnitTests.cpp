@@ -20,7 +20,7 @@ int main (int argc, char** argv)
 	Debug::API::SetTypewideVerbosity ("MallocAllocator", Debug::E_USER);
 	Debug::API::SetTypewideVerbosity ("StaticAllocator", Debug::E_USER);
 
-	Debug::API::SetDefaultVerbosity (Debug::E_VERBOSE);
+// 	Debug::API::SetDefaultVerbosity (Debug::E_VERBOSE);
 
 
 	Processor::ProcessorAPI api;
@@ -31,6 +31,7 @@ int main (int argc, char** argv)
 	api.Attach (new ProcessorImplementation::CommandSet_mkI);
 
 	api.CommandSet() ->AddCommand ({ "lea", "Address: Load effective address", Processor::A_REFERENCE, 1 });
+	api.CommandSet() ->AddCommand ({ "sys", "System: do system interpreter call", Processor::A_VALUE, 1 });
 
 	api.Attach (new ProcessorImplementation::FloatExecutor);
 	api.Attach (new ProcessorImplementation::IntegerExecutor);

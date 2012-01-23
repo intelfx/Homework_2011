@@ -20,7 +20,7 @@ namespace Processor
 	ICommandSet::~ICommandSet() = default;
 	ILogic::~ILogic() = default;
 
-	IExecutor* ICommandSet::default_exec_ = 0;
+	ProcessorAPI* ICommandSet::callback_procapi = 0;
 
 	void ProcessorAPI::Attach (IModuleBase* module)
 	{
@@ -279,15 +279,6 @@ namespace Processor
 			verify_statement (backend_ ->CheckObject(), "native compiler verification failure");
 
 		return 1;
-	}
-
-	void ICommandSet::SetFallbackExecutor (IExecutor* exec)
-	{
-		if (!exec)
-			default_exec_ = 0;
-
-		else
-			default_exec_ = exec;
 	}
 
 	ProcessorAPI::ProcessorAPI() :

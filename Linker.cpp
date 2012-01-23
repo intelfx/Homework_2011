@@ -53,7 +53,7 @@ namespace ProcessorImplementation
 						{
 						case S_CODE:
 						case S_DATA:
-							msg (E_INFO, E_DEBUG, "Definition of %s label \"%s\": user-defined address %lu",
+							msg (E_INFO, E_DEBUG, "Definition of %s label \"%s\": user-defined address %zu",
 								 ProcDebug::AddrType_ids [symbol.ref.plain.type], sym_nm_buf, symbol.ref.plain.address);
 							break;
 
@@ -65,8 +65,13 @@ namespace ProcessorImplementation
 
 						case S_FRAME:
 						case S_FRAME_BACK:
-							msg (E_INFO, E_DEBUG, "Definition of %s stack alias \"%s\": local address %lu",
+							msg (E_INFO, E_DEBUG, "Definition of %s stack alias \"%s\": local address %zu",
 								 ProcDebug::AddrType_ids [symbol.ref.plain.type], sym_nm_buf, symbol.ref.plain.address);
+							break;
+
+						case S_BYTEPOOL:
+							msg (E_INFO, E_DEBUG, "Definition of bytepool address \"%s\": offset %zx",
+								 sym_nm_buf, symbol.ref.plain.address);
 							break;
 
 						case S_NONE:
@@ -93,6 +98,7 @@ namespace ProcessorImplementation
 						case S_REGISTER:
 						case S_FRAME:
 						case S_FRAME_BACK:
+						case S_BYTEPOOL:
 							__asshole ("Definition of symbol \"%s\" : type %s with STUB address, cannot auto-assign",
 									   sym_nm_buf, ProcDebug::AddrType_ids [symbol.ref.plain.type]);
 							break;
@@ -257,6 +263,12 @@ namespace ProcessorImplementation
 						__verify (direct_ref.address < R_MAX,
 								  "Reference has invalid register ID (%zu)",
 								  direct_ref.address);
+						break;
+
+					case S_BYTEPOOL:
+						__verify (direct_ref.address < proc_ ->MMU() ->GetPoolSize(),
+								  "Reference points beyond allocated end (%zx)",
+								  proc_ ->MMU() ->GetPoolSize());
 						break;
 
 					case S_FRAME:

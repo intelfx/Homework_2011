@@ -19,6 +19,12 @@ namespace ProcessorImplementation
 	{
 	}
 
+	MMU::~MMU()
+	{
+		for (size_t buf_id = 0; buf_id < BUFFER_NUM; ++buf_id)
+			free (buffers[buf_id].bytepool_data);
+	}
+
 	void MMU::OnAttach()
 	{
 		ResetEverything();
@@ -29,6 +35,32 @@ namespace ProcessorImplementation
 		main_stack.clear();
 		integer_stack.clear();
 		fp_stack.clear();
+	}
+
+	void MMU::AllocBytes (size_t base, size_t length)
+	{
+		size_t destination_size = base + length;
+		InternalContextBuffer& icb = CurrentBuffer();
+
+		if (destination_size > icb.bytepool_length)
+		{
+			msg (E_INFO, E_DEBUG, "Reallocating bytepool memory [ctx %zd] %p:%zu -> %zu to accomplish access at %zu+%zu",
+				 context.buffer, icb.bytepool_data, icb.bytepool_length, destination_size, base, length);
+
+			char* new_bytepool = reinterpret_cast<char*> (realloc (icb.bytepool_data, destination_size));
+			__assert (new_bytepool,
+					  "Failed to reallocate bytepool [ctx %zd] %p:%zu -> %zu",
+					  context.buffer, icb.bytepool_data, icb.bytepool_length, length);
+
+			icb.bytepool_data = new_bytepool;
+			icb.bytepool_length = destination_size;
+		}
+	}
+
+	void MMU::SetBytes (size_t base, size_t length, const char* data)
+	{
+		AllocBytes (base, length);
+		memcpy (CurrentBuffer().bytepool_data + base, data, length);
 	}
 
 	void MMU::InternalWrStackPointer (std::vector<calc_t>** ptr, Value::Type type)
@@ -145,7 +177,18 @@ namespace ProcessorImplementation
 
 		__assert (addr < GetDataSize(), "Data offset overflow: %zu [max %zu]", addr, GetDataSize());
 		return CurrentBuffer().data.at (addr);
+	}
 
+	char* MMU::ABytepool (size_t offset)
+	{
+		verify_method;
+		InternalContextBuffer& icb = CurrentBuffer();
+
+		__assert (offset < icb.bytepool_length,
+				  "Cannot reference bytepool address %zu: allocated size %zu",
+			offset, icb.bytepool_length);
+
+		return icb.bytepool_data + offset;
 	}
 
 	void MMU::ReadStack (calc_t* image, size_t size, bool selected_only)
@@ -421,6 +464,10 @@ namespace ProcessorImplementation
 		buffer_dest.data.clear();
 		buffer_dest.sym_table.clear();
 
+		free (buffer_dest.bytepool_data);
+		buffer_dest.bytepool_data = 0;
+		buffer_dest.bytepool_length = 0;
+
 		for (size_t reg_id = 0; reg_id < R_MAX; ++reg_id)
 			buffer_dest.registers[reg_id] = Value();
 	}
@@ -594,6 +641,13 @@ namespace ProcessorImplementation
 		return CurrentBuffer().commands.size();
 	}
 
+	size_t MMU::GetPoolSize() const
+	{
+		verify_method;
+
+		return CurrentBuffer().bytepool_length;
+	}
+
 	size_t MMU::GetStackTop() const
 	{
 		verify_method;
@@ -651,6 +705,11 @@ namespace ProcessorImplementation
 		case S_FRAME_BACK:
 			__verify (context.frame - ref.address < frame_stack ->size(),
 					  "Invalid reference [BACKFRAME:%zu] : offset limit %zu", ref.address, context.frame);
+			break;
+
+		case S_BYTEPOOL:
+			__verify (ref.address < CurrentBuffer().bytepool_length,
+					  "Invalid reference [BYTEPOOL:%zx] : allocated %zx bytes", ref.address, CurrentBuffer().bytepool_length);
 			break;
 
 		case S_NONE:

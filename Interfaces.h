@@ -47,7 +47,6 @@ namespace Processor
 		void Attach_ (ILogic* logic);
 
 		void PrepareCommand (Command& command);
-		void ExecuteCommand (Command& command);
 
 	protected:
 		virtual bool _Verify() const;
@@ -78,6 +77,8 @@ namespace Processor
 		void	Delete(); // Return to previous context/buffer
 		void	Compile(); // Invoke backend to compile the bytecode
 		calc_t	Exec(); // Execute current system state whatever it is now
+
+		void ExecuteCommand_ (Command& command); // to be internally used by Exec() and backend
 	};
 
 	class IModuleBase : LogBase (IModuleBase)
@@ -137,12 +138,12 @@ namespace Processor
 
 	class ICommandSet : LogBase (ICommandSet), public IModuleBase
 	{
-		static IExecutor* default_exec_;
+		static ProcessorAPI* callback_procapi;
 
 	public:
 		virtual ~ICommandSet();
 
-		static void SetFallbackExecutor (IExecutor* exec);
+		static void SetProcAPI_Fallback (ProcessorAPI* procapi);
 		abiret_t ExecFallbackCallback (Processor::Command* cmd); // look, what a great name!
 
 
@@ -225,6 +226,7 @@ namespace Processor
 		Command&				ACommand	() { return ACommand (GetContext().ip); }
 		virtual calc_t&			AData		(size_t addr) = 0;   // Access DATA section
 		virtual symbol_type&	ASymbol		(size_t hash) = 0;   // Access symbol buffer
+		virtual char*			ABytepool	(size_t offset) = 0; // Access byte pool
 
 		virtual void			ReadStack	(calc_t* image, size_t size, bool selected_only) = 0; // Read stack(s) data (closer to image end is closer to top).
 		virtual void			ReadData	(calc_t* image, size_t size) = 0; // Read data buffer
@@ -240,8 +242,12 @@ namespace Processor
 		virtual void			WriteText	(Command* image) const = 0; // write code buffer
 		virtual void			WriteSyms	(void** image, size_t* bytes, size_t* count) const = 0; // serialize symbol map
 
+		virtual void			AllocBytes	(size_t base, size_t length) = 0; // request byte pool to be at least this long
+		virtual void			SetBytes	(size_t base, size_t length, const char* data) = 0; // fill byte pool, allocating as necessary
+
 		virtual size_t			GetTextSize	() const = 0;
 		virtual size_t			GetDataSize	() const = 0;
+		virtual size_t			GetPoolSize () const = 0;
 		virtual size_t			GetStackTop () const = 0;
 
 		virtual void			AlterStackTop (short offset) = 0; // Change stack top relatively (-1 is pop).

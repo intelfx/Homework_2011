@@ -130,7 +130,7 @@ namespace Processor
 							__verify (decode_result.type == DecodeResult::DEC_COMMAND,
 									  "Only commands are allowed in EIP mode");
 
-							ExecuteCommand (decode_result.command);
+							ExecuteCommand_ (decode_result.command);
 						}
 
 						else
@@ -242,7 +242,7 @@ namespace Processor
 		command.cached_handle = handle;
 	}
 
-	void ProcessorAPI::ExecuteCommand (Command& command)
+	void ProcessorAPI::ExecuteCommand_ (Command& command)
 	{
 		__assert (command.cached_executor, "Cached executor is absent in command record");
 		__assert (command.cached_handle, "Cached handle is absent in command record");
@@ -340,7 +340,7 @@ namespace Processor
 				 old_context.ip, cset_ ->DecodeCommand(command.id).mnemonic);
 
 			old_ip = old_context.ip;
-			ExecuteCommand (command);
+			ExecuteCommand_ (command);
 
 			Context& new_context = mmu_ ->GetContext();
 

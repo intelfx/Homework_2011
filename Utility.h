@@ -100,6 +100,7 @@ namespace Processor
 		S_REGISTER,
 		S_FRAME,
 		S_FRAME_BACK, // Parameters to function
+		S_BYTEPOOL,
 		S_MAX
 	};
 

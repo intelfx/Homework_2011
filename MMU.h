@@ -20,6 +20,9 @@ namespace ProcessorImplementation
 		{
 			std::vector<calc_t> data;
 			std::vector<Command> commands;
+			char* bytepool_data;
+			size_t bytepool_length;
+
 			symbol_map sym_table;
 
 			calc_t registers[R_MAX];
@@ -46,6 +49,7 @@ namespace ProcessorImplementation
 
 	public:
 		MMU();
+		~MMU();
 
 		virtual Context&		GetContext	();
 		virtual void			DumpContext	() const;
@@ -58,6 +62,7 @@ namespace ProcessorImplementation
 		virtual Command&		ACommand	(size_t ip);
 		virtual calc_t&			AData		(size_t addr);
 		virtual symbol_type&	ASymbol		(size_t hash);
+		virtual char*			ABytepool	(size_t offset);
 
 		virtual void			ReadStack	(calc_t* image, size_t size, bool selected_only);
 		virtual void			ReadData	(calc_t* image, size_t size);
@@ -73,8 +78,12 @@ namespace ProcessorImplementation
 		virtual void 			WriteText	(Command* image) const;
 		virtual void			WriteSyms	(void** image, size_t* bytes, size_t* count) const;
 
+		virtual void			AllocBytes	(size_t base, size_t length);
+		virtual void			SetBytes	(size_t base, size_t length, const char* data);
+
 		virtual size_t			GetTextSize	() const;
 		virtual size_t			GetDataSize	() const;
+		virtual size_t			GetPoolSize () const;
 		virtual size_t			GetStackTop	() const;
 
 		virtual void			AlterStackTop (short int offset);

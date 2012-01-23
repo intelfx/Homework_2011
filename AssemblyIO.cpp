@@ -150,6 +150,8 @@ namespace ProcessorImplementation
 		Reference result;
 		init (result);
 
+		msg (E_INFO, E_DEBUG, "Parsing reference \"%s\"", arg);
+
 		if (char* plus = strchr (arg, '+'))
 		{
 			relative_ptr = plus + 1;
@@ -181,6 +183,90 @@ namespace ProcessorImplementation
 			result.type = Reference::RT_DIRECT;
 			result.plain.type = S_REGISTER;
 			result.plain.address = proc_ ->LogicProvider() ->DecodeRegister (arg + 1);
+		}
+
+		else if (arg[0] == '"') /* string is a kind of reference */
+		{
+			std::string output_string;
+
+			char *input_ptr = arg + 1, current, output;
+			while ((current = *input_ptr++) != '"')
+			{
+				if (current == '\\') // escape-sequence
+					switch (current = *input_ptr++)
+					{
+					case '\\': // slash
+						output = '\\';
+						break;
+
+					case '\'': // single-quote
+						output = '\'';
+						break;
+
+					case '\"': // double-quote
+						output = '\"';
+						break;
+
+					case '\0': // NUL
+						output = '\0';
+						break;
+
+					case 't': // Horizontal tabulator
+						output = '\t';
+						break;
+
+					case 'v': // Vertical tabulator
+						output = '\v';
+						break;
+
+					case 'n': // Newline
+						output = '\n';
+						break;
+
+					case 'r': // Carriage return
+						output = '\r';
+						break;
+
+					case 'f': // Form-feed
+						output = '\f';
+						break;
+
+					case 'a': // Audible bell
+						output = '\a';
+						break;
+
+					case 'b': // Backspace
+						output = '\b';
+						break;
+
+					case 'x': // Hexadecimal
+						output = strtol (input_ptr, &input_ptr, 16);
+						break;
+
+					default:
+						output = strtol (input_ptr, &input_ptr, 8);
+						break;
+					} // escape sequence parse
+
+				else
+					output = current;
+
+				// Commit the char
+				output_string.push_back (output);
+			} // while not closing double-apostrophe
+
+			output_string.push_back ('\0');
+
+			msg (E_INFO, E_DEBUG, "Adding string \"%s\" (length %zu)",
+				 output_string.c_str(), output_string.size());
+
+			// Insert the reference to the MMU
+			size_t current_pointer = proc_ ->MMU() ->GetPoolSize();
+			proc_ ->MMU() ->SetBytes (current_pointer, output_string.size() + 1, output_string.c_str());
+
+			result.type = Reference::RT_DIRECT;
+			result.plain.type = S_BYTEPOOL;
+			result.plain.address = current_pointer + relative_address;
 		}
 
 		else if (sscanf (arg, "@%c", &id) == 1) /* uniform indirect reference */
@@ -255,7 +341,7 @@ namespace ProcessorImplementation
 			return;
 		}
 
-		int arguments = sscanf (decl_data, "%[^:=] %c %s", name, &type, initialiser);
+		int arguments = sscanf (decl_data, "%[^:= ] %c %s", name, &type, initialiser);
 		switch (arguments)
 		{
 		case 3:
@@ -269,7 +355,7 @@ namespace ProcessorImplementation
 				declaration_symbol.ref.plain.address = ILinker::symbol_auto_placement_addr;
 
 				ProcDebug::PrintValue (output.data);
-				msg (E_INFO, E_DEBUG, "Declaration: DATA entry = %s", ProcDebug::debug_buffer);
+				msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" = %s", name, ProcDebug::debug_buffer);
 
 				break;
 
@@ -277,7 +363,7 @@ namespace ProcessorImplementation
 				declaration_symbol.ref = ParseReference (output.mentioned_symbols, initialiser);
 
 				ProcDebug::PrintReference (declaration_symbol.ref);
-				msg (E_INFO, E_DEBUG, "Declaration: alias to %s", ProcDebug::debug_buffer);
+				msg (E_INFO, E_DEBUG, "Declaration: alias \"%s\" to %s", name, ProcDebug::debug_buffer);
 
 				output.type = DecodeResult::DEC_NOTHING; // in this case declaration is not a declaration itself
 				break;
@@ -313,6 +399,15 @@ namespace ProcessorImplementation
 	{
 		const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);
 		output.command.id = desc.id;
+
+		if (output.command.type == Value::V_MAX)
+		{
+			if (desc.is_service_command)
+				output.command.type = Value::V_INTEGER;
+
+			else
+				output.command.type = Value::V_FLOAT;
+		}
 
 		if (!argument)
 		{
@@ -388,14 +483,14 @@ namespace ProcessorImplementation
 		init (label_symbol);
 
 		Value::Type statement_type = Value::V_MAX;
-		char *command, *argument, typespec = default_type_specifier, *current_position = PrepLine (input);
+		char *command, *argument, typespec = 0, *current_position = PrepLine (input);
 
 
 		/* skip leading space and return if empty string */
 
 		if (!current_position)
 		{
-			msg (E_INFO, E_DEBUG, "Not decoding empty line");
+			msg (E_INFO, E_DEBUG, "Decoding line %zu: empty line", line_num);
 			return;
 		}
 
@@ -452,7 +547,7 @@ namespace ProcessorImplementation
 			statement_type = Value::V_INTEGER;
 			break;
 
-		case 's':
+		case '\0':
 			statement_type = Value::V_MAX;
 			break;
 
@@ -468,7 +563,12 @@ namespace ProcessorImplementation
 			__verify (argument, "Empty declaration");
 
 			output.type = DecodeResult::DEC_DATA;
-			output.data.type = statement_type;
+
+			if (statement_type != '\0')
+				output.data.type = statement_type;
+
+			else
+				output.data.type = Value::V_FLOAT;
 
 			ReadSingleDeclaration (argument, output);
 		}
@@ -477,6 +577,9 @@ namespace ProcessorImplementation
 		{
 			output.type = DecodeResult::DEC_COMMAND;
 			output.command.type = statement_type;
+
+			// in case of undefined type it will be set in ReadSingleCommand()
+			// depending on command flavor (service/normal).
 
 			ReadSingleCommand (command, argument, output);
 		}

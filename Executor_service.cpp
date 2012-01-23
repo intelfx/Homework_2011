@@ -31,6 +31,7 @@ namespace ProcessorImplementation
 		C_JNBE,
 
 		C_LEA,
+		C_SYSCALL,
 
 		C_JMP,
 		C_CALL,
@@ -64,6 +65,7 @@ namespace ProcessorImplementation
 		"jnbe",
 
 		"lea",
+		"sys",
 
 		"jmp",
 		"call",
@@ -171,6 +173,11 @@ namespace ProcessorImplementation
 		case C_LEA:
 			proc_ ->MMU() ->ARegister (indirect_addressing_register) =
 				static_cast<int_t> (proc_ ->Linker() ->Resolve (argument.ref).address);
+			break;
+
+		case C_SYSCALL:
+			__assert (argument.value.type == Value::V_INTEGER, "Non-integer syscall argument");
+			proc_ ->LogicProvider() ->Syscall (argument.value.integer);
 			break;
 
 

@@ -22,7 +22,8 @@ namespace Processor
 			"data",
 			"register",
 			"stack frame",
-			"parameter"
+			"parameter",
+			"byte-granular pool"
 		};
 
 		const char* ValueType_ids[Value::V_MAX + 1] =
@@ -80,6 +81,9 @@ namespace Processor
 				break;
 
 			case Value::V_MAX:
+				snprintf (debug_buffer, STATIC_LENGTH, "uninitialised");
+				break;
+
 			default:
 				__sasshole ("Switch error");
 				break;
@@ -100,14 +104,18 @@ namespace Processor
 		return std::make_pair (prep_hash, std::make_pair (std::move (label), sym));
 	}
 
+	void ICommandSet::SetProcAPI_Fallback (ProcessorAPI* procapi)
+	{
+		callback_procapi = procapi;
+	}
+
 	abiret_t ICommandSet::ExecFallbackCallback (Processor::Command* cmd)
 	{
-		ICommandSet* cset = default_exec_ ->GetProcessor() ->CommandSet();
-		void* handle = cset ->GetExecutionHandle (cmd ->id, default_exec_ ->ID());
+		callback_procapi ->ExecuteCommand_ (*cmd);
 
-		default_exec_ ->Execute (handle, cmd ->arg);
+		// stack is still set to the last type
+		calc_t temporary_result = callback_procapi ->LogicProvider() ->StackPop();
 
-		calc_t temporary_result = default_exec_ ->GetProcessor() ->LogicProvider() ->StackPop();
 		return temporary_result.GetABI();
 	}
 

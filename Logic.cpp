@@ -161,6 +161,11 @@ namespace ProcessorImplementation
 			proc_ ->MMU() ->ARegister (static_cast<Register> (dref.address)) = value;
 			break;
 
+		case S_BYTEPOOL:
+			__assert (value.type == Value::V_INTEGER, "Attempt to write non-integer to the byte pool at address %zx", dref.address);
+			*proc_ ->MMU() ->ABytepool (dref.address) = reinterpret_cast<char&> (value.integer); // truncation
+			break;
+
 		case S_NONE:
 		case S_MAX:
 		default:
@@ -192,6 +197,9 @@ namespace ProcessorImplementation
 
 		case S_REGISTER:
 			return proc_ ->MMU() ->ARegister (static_cast<Register> (dref.address));
+
+		case S_BYTEPOOL:
+			return static_cast<int_t> (*proc_ ->MMU() ->ABytepool (dref.address));
 
 		case S_NONE:
 		case S_MAX:
@@ -240,8 +248,18 @@ namespace ProcessorImplementation
 
 		switch (index)
 		{
+			case 0:
+			{
+				calc_t input_data = proc_ ->MMU() ->ARegister (R_F);
+				__assert (input_data.type == Value::V_INTEGER, "Non-integer value in register $rf");
+
+				msg (E_WARNING, E_VERBOSE, "Dumping bytepool from address in $rf [%zx]", input_data.integer);
+				printf ("== STRING OUTPUT ==: \"%s\"\n", proc_ ->MMU() ->ABytepool (input_data.integer));
+				break;
+			}
+
 			default:
-				msg (E_WARNING, E_VERBOSE, "Undefined index: %zu", index);
+				msg (E_WARNING, E_VERBOSE, "Undefined syscall index: %zu", index);
 				break;
 		}
 	}
