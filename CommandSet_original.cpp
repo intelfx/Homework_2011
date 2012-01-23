@@ -122,8 +122,20 @@ namespace ProcessorImplementation
 	{
 		{
 			"init",
-			"Stack: initialize stack and execution environment",
+			"System: initialize stack and execution environment",
 			A_NONE,
+			1
+		},
+		{
+			"sleep",
+			"System: hand off control to the OS",
+			A_NONE,
+			1
+		},
+		{
+			"sys",
+			"System: invoke execution environment",
+			A_VALUE,
 			1
 		},
 		{
@@ -145,9 +157,9 @@ namespace ProcessorImplementation
 			0
 		},
 		{
-			"sleep",
-			"System: hand off control to the OS",
-			A_NONE,
+			"lea",
+			"Data: load effective address",
+			A_REFERENCE,
 			1
 		},
 		{

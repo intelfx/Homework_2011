@@ -29,10 +29,6 @@ int main (int argc, char** argv)
 	api.Attach (new ProcessorImplementation::UATLinker);
 	api.Attach (new ProcessorImplementation::Logic);
 	api.Attach (new ProcessorImplementation::CommandSet_mkI);
-
-	api.CommandSet() ->AddCommand ({ "lea", "Address: Load effective address", Processor::A_REFERENCE, 1 });
-	api.CommandSet() ->AddCommand ({ "sys", "System: do system interpreter call", Processor::A_VALUE, 1 });
-
 	api.Attach (new ProcessorImplementation::FloatExecutor);
 	api.Attach (new ProcessorImplementation::IntegerExecutor);
 	api.Attach (new ProcessorImplementation::ServiceExecutor);
