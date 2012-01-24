@@ -195,20 +195,11 @@ namespace ProcessorImplementation
 				if (current == '\\') // escape-sequence
 					switch (current = *input_ptr++)
 					{
-					case '\\': // slash
-						output = '\\';
-						break;
-
+					case '\\': // backward slash
 					case '\'': // single-quote
-						output = '\'';
-						break;
-
 					case '\"': // double-quote
-						output = '\"';
-						break;
-
 					case '\0': // NUL
-						output = '\0';
+						output = current;
 						break;
 
 					case 't': // Horizontal tabulator
@@ -243,7 +234,7 @@ namespace ProcessorImplementation
 						output = strtol (input_ptr, &input_ptr, 16);
 						break;
 
-					default:
+					default: // Octal
 						output = strtol (input_ptr, &input_ptr, 8);
 						break;
 					} // escape sequence parse
