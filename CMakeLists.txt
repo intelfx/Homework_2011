@@ -10,8 +10,6 @@ find_assert_library ("uXray" LIBRARIES)
 
 # Target specification
 # ----
-set (STACK_SRC Verifier.h Verifier.cpp Stack.h Stack.cpp ProcessorTest.cpp Processor.cpp)
-
 set (STACK_NL_SRC Verifier.h Verifier.cpp Utility.h Interfaces.cpp Interfaces.h)
 set (STACK_NL_SRC ${STACK_NL_SRC} Miscellaneous.cpp APIImplementation.cpp)
 set (STACK_NL_SRC ${STACK_NL_SRC} MMU.h MMU.cpp Linker.cpp Linker.h AssemblyIO.cpp AssemblyIO.h)
@@ -24,9 +22,6 @@ set (STACK_NL_SRC ${STACK_NL_SRC} NLUnitTests.cpp)
 
 add_executable(homework_stack_nl ${STACK_NL_SRC})
 target_link_libraries(homework_stack_nl ${LIBRARIES})
-
-add_executable(homework_stack ${STACK_SRC})
-target_link_libraries(homework_stack ${LIBRARIES})
 
 #file (GLOB VM_SRC mi_vm_*.cpp)
 #MAIN_ADD_GCH(stdafx.h VM_SRC)
