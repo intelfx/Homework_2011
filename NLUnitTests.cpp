@@ -20,7 +20,7 @@ int main (int argc, char** argv)
 	Debug::API::SetTypewideVerbosity ("MallocAllocator", Debug::E_USER);
 	Debug::API::SetTypewideVerbosity ("StaticAllocator", Debug::E_USER);
 
-// 	Debug::API::SetDefaultVerbosity (Debug::E_VERBOSE);
+	Debug::API::SetDefaultVerbosity (Debug::E_USER);
 
 
 	Processor::ProcessorAPI api;

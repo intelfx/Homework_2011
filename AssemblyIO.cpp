@@ -326,8 +326,7 @@ namespace ProcessorImplementation
 		{
 			output.data.Parse (decl_data + 1); // type of value is already set
 
-			ProcDebug::PrintValue (output.data);
-			msg (E_INFO, E_DEBUG, "Declaration: unnamed DATA entry = %s", ProcDebug::debug_buffer);
+			msg (E_INFO, E_DEBUG, "Declaration: unnamed DATA entry = %s", (ProcDebug::PrintValue (output.data), ProcDebug::debug_buffer));
 
 			return;
 		}
@@ -345,8 +344,7 @@ namespace ProcessorImplementation
 				declaration_symbol.ref.plain.type = S_DATA;
 				declaration_symbol.ref.plain.address = ILinker::symbol_auto_placement_addr;
 
-				ProcDebug::PrintValue (output.data);
-				msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" = %s", name, ProcDebug::debug_buffer);
+				msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" = %s", name, (ProcDebug::PrintValue (output.data), ProcDebug::debug_buffer));
 
 				break;
 
@@ -354,7 +352,7 @@ namespace ProcessorImplementation
 				declaration_symbol.ref = ParseReference (output.mentioned_symbols, initialiser);
 
 				ProcDebug::PrintReference (declaration_symbol.ref);
-				msg (E_INFO, E_DEBUG, "Declaration: alias \"%s\" to %s", name, ProcDebug::debug_buffer);
+				msg (E_INFO, E_DEBUG, "Declaration: alias \"%s\" to %s", name, (ProcDebug::PrintValue (output.data), ProcDebug::debug_buffer));
 
 				output.type = DecodeResult::DEC_NOTHING; // in this case declaration is not a declaration itself
 				break;
@@ -420,9 +418,8 @@ namespace ProcessorImplementation
 			{
 				output.command.arg.ref = ParseReference (output.mentioned_symbols, argument);
 
-				ProcDebug::PrintReference (output.command.arg.ref);
 				msg (E_INFO, E_DEBUG, "Command: \"%s\" reference to %s",
-					 desc.mnemonic, ProcDebug::debug_buffer);
+					 desc.mnemonic, (ProcDebug::PrintReference (output.command.arg.ref), ProcDebug::debug_buffer));
 
 				break;
 			}
@@ -432,9 +429,8 @@ namespace ProcessorImplementation
 				output.command.arg.value.type = output.command.type;
 				output.command.arg.value.Parse (argument);
 
-				ProcDebug::PrintValue (output.command.arg.value);
 				msg (E_INFO, E_DEBUG, "Command: \"%s\" argument %s",
-					 desc.mnemonic, ProcDebug::debug_buffer);
+					 desc.mnemonic, (ProcDebug::PrintValue (output.command.arg.value), ProcDebug::debug_buffer));
 
 				break;
 			}

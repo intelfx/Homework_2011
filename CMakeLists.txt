@@ -20,12 +20,8 @@ set (STACK_NL_SRC ${STACK_NL_SRC} NLUnitTests.cpp)
 
 # MAIN_ADD_GCH(stdafx.h "${STACK_NL_SRC} ${STACK_SRC}")
 
+add_subdirectory(language_parser)
+add_subdirectory(x86_codegen)
+
 add_executable(homework_stack_nl ${STACK_NL_SRC})
 target_link_libraries(homework_stack_nl ${LIBRARIES})
-
-#file (GLOB VM_SRC mi_vm_*.cpp)
-#MAIN_ADD_GCH(stdafx.h VM_SRC)
-
-# add_executable(homework_vm ${VM_SRC})
-# target_link_libraries(homework_vm ${LIBRARIES})
-# ----

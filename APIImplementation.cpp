@@ -34,7 +34,7 @@ namespace Processor
 		mmu_ ->RestoreContext();
 	}
 
-	void ProcessorAPI::Load (FILE* file, bool execute_stream)
+	void ProcessorAPI::Load (FILE* file)
 	{
 		verify_method;
 
@@ -114,95 +114,43 @@ namespace Processor
 			{
 				DecodeResult decode_result;
 
-				if (execute_stream)
+				linker_ ->InitLinkSession();
+
+				msg (E_INFO, E_DEBUG, "Non-uniform section decode start");
+
+				while (reader_ ->ReadStream (&rd_prop, &decode_result))
 				{
-					size_t initial_ctx_n = mmu_ ->GetContext().buffer;
-
-					/* while (mmu_ ->DecodeLoopCondition (initial_ctx_n)) */
-
-					for (;;) // since we've got an extra check to exit
+					if (!decode_result.mentioned_symbols.empty())
 					{
-						if (reader_ ->ReadStream (&rd_prop, &decode_result))
-						{
-							__verify (decode_result.mentioned_symbols.empty(),
-									  "Symbols are not allowed in EIP mode");
-
-							__verify (decode_result.type == DecodeResult::DEC_COMMAND,
-									  "Only commands are allowed in EIP mode");
-
-							ExecuteCommand_ (decode_result.command);
-						}
-
-						else
-						{
-							msg (E_WARNING, E_VERBOSE, "Preliminary EOS reading and executing stream");
-							mmu_ ->GetContext().flags |= MASK (F_EXIT);
-						}
-
-
-						if (mmu_ ->GetContext().flags & MASK (F_EXIT)) /* we are marked to exit context, do it */
-						{
-							if (mmu_ ->GetContext().buffer == initial_ctx_n)
-							{
-								if (mmu_ ->GetStackTop())
-								{
-									ProcDebug::PrintValue (internal_logic_ ->StackTop());
-									msg (E_INFO, E_VERBOSE, "Load and execute OK: Result = %s",
-										ProcDebug::debug_buffer);
-								}
-
-								else
-									msg (E_INFO, E_VERBOSE, "Load and execute OK.");
-
-								break; /* we leave used context for the user */
-							}
-
-							mmu_ ->RestoreContext();
-						}
-					} /* decode loop condition */
-
-				} /* if in in-place execution mode */
-
-				else /* normal decode */
-				{
-					linker_ ->InitLinkSession();
-
-					msg (E_INFO, E_DEBUG, "Non-uniform section decode start");
-
-					while (reader_ ->ReadStream (&rd_prop, &decode_result))
-					{
-						if (!decode_result.mentioned_symbols.empty())
-						{
-							msg (E_INFO, E_DEBUG, "Adding symbols");
-							linker_ ->LinkSymbols (decode_result);
-						}
-
-						switch (decode_result.type)
-						{
-							case DecodeResult::DEC_COMMAND:
-								msg (E_INFO, E_DEBUG, "Decode completed - Adding command");
-								mmu_ ->InsertText (decode_result.command);
-								break;
-
-							case DecodeResult::DEC_DATA:
-								msg (E_INFO, E_DEBUG, "Decode completed - Adding data");
-								mmu_ ->InsertData (decode_result.data);
-								break;
-
-							case DecodeResult::DEC_NOTHING:
-								msg (E_WARNING, E_DEBUG,
-									 "Reader returned no primary data in decoded set");
-								break;
-
-							default:
-								__asshole ("Switch error");
-								break;
-						}
+						msg (E_INFO, E_DEBUG, "Adding symbols");
+						linker_ ->LinkSymbols (decode_result);
 					}
 
-					msg (E_INFO, E_DEBUG, "Non-uniform section decode OK, linking phase");
-					linker_ ->Finalize();
+					switch (decode_result.type)
+					{
+					case DecodeResult::DEC_COMMAND:
+						msg (E_INFO, E_DEBUG, "Decode completed - Adding command");
+						mmu_ ->InsertText (decode_result.command);
+						break;
+
+					case DecodeResult::DEC_DATA:
+						msg (E_INFO, E_DEBUG, "Decode completed - Adding data");
+						mmu_ ->InsertData (decode_result.data);
+						break;
+
+					case DecodeResult::DEC_NOTHING:
+						msg (E_WARNING, E_DEBUG,
+							 "Reader returned no primary data in decoded set");
+						break;
+
+					default:
+						__asshole ("Switch error");
+						break;
+					}
 				}
+
+				msg (E_INFO, E_DEBUG, "Non-uniform section decode OK, linking phase");
+				linker_ ->Finalize();
 
 			} // non-uniform section
 
@@ -211,44 +159,6 @@ namespace Processor
 		msg (E_INFO, E_VERBOSE, "Reading completed");
 
 		reader_ ->RdReset (&rd_prop); // close file
-	}
-
-	void ProcessorAPI::PrepareCommand (Command& command)
-	{
-		IExecutor* executor = 0;
-		void* handle = 0;
-
-		const CommandTraits& command_traits = cset_ ->DecodeCommand (command.id);
-
-		if (command_traits.is_service_command)
-			executor = executors_[Value::V_MAX];
-
-		if (!executor)
-			executor = executors_[command.type];
-
-		__assert (executor, "No executor is registered for type \"%s\" encountered in command \"%s\"",
-				  ProcDebug::ValueType_ids[command.type],
-				  command_traits.mnemonic);
-
-		handle = cset_ ->GetExecutionHandle (command_traits, executor ->ID());
-
-		__assert (handle, "Invalid handle for command \"%s\" [executor \"%s\" type \"%s\" id %zx]",
-				  command_traits.mnemonic,
-				  Debug::API::GetClassName (executor),
-				  ProcDebug::ValueType_ids[executor ->SupportedType()],
-				  executor ->ID());
-
-		command.cached_executor = executor;
-		command.cached_handle = handle;
-	}
-
-	void ProcessorAPI::ExecuteCommand_ (Command& command)
-	{
-		__assert (command.cached_executor, "Cached executor is absent in command record");
-		__assert (command.cached_handle, "Cached handle is absent in command record");
-
-		mmu_ ->SelectStack (command.type);
-		command.cached_executor ->Execute (command.cached_handle, command.arg);
 	}
 
 	void ProcessorAPI::Dump (FILE* file)
@@ -323,61 +233,36 @@ namespace Processor
 		// Else fall back to the interpreter.
 		msg (E_INFO, E_VERBOSE, "Using interpreter");
 
-		size_t max_cmd = mmu_ ->GetTextSize();
-		for (size_t ip = 0; ip < max_cmd; ++ip)
-		{
-			PrepareCommand (mmu_ ->ACommand (ip));
-		}
-
 		calc_t last_result;
 		for (;;)
 		{
 			Command& command = mmu_ ->ACommand();
-			Context& old_context = mmu_ ->GetContext();
-			size_t old_ip;
 
-			msg (E_INFO, E_DEBUG, "Executing : [PC=%zu] : \"%s\"",
-				 old_context.ip, cset_ ->DecodeCommand(command.id).mnemonic);
+			msg (E_INFO, E_DEBUG, "Executing: [PC=%zu] : \"%s\"",
+				 mmu_ ->GetContext().ip, cset_ ->DecodeCommand (command.id).mnemonic);
 
-			old_ip = old_context.ip;
-			ExecuteCommand_ (command);
+			internal_logic_ ->ExecuteSingleCommand (command);
+			Context& command_context = mmu_ ->GetContext();
 
-			Context& new_context = mmu_ ->GetContext();
-
-			// Handle context exits.
-			if (new_context.flags & MASK (F_EXIT))
+			if (command_context.flags & MASK (F_EXIT))
 			{
-				// Exit the loop if we're off the initial context
-				if (new_context.buffer == initial_ctx)
+				if (command_context.buffer == initial_ctx)
 					break;
 
-				// Else do context pop
 				mmu_ ->RestoreContext();
 			}
 
-			// If there is no exit (and there was no jump) advance PC.
-			else
+			else if (!(command_context.flags & MASK (F_WAS_JUMP)))
 			{
-				// Advance PC if there was no jump
-				if (new_context.ip == old_ip)
-					++new_context.ip;
+				++command_context.ip;
 			}
+
 		} // for (interpreter)
 
+		msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED.");
+
 		if (mmu_ ->GetStackTop())
-		{
-			last_result = internal_logic_ ->StackTop();
-
-			ProcDebug::PrintValue (last_result);
-			msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED: Result = %s", ProcDebug::debug_buffer);
-		}
-
-		else
-		{
-			last_result = calc_t();
-
-			msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED.");
-		}
+			last_result = mmu_ ->AStackTop (0);
 
 		mmu_ ->RestoreContext();
 		return last_result;

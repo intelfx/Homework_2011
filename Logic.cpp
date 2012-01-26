@@ -8,6 +8,43 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
+	void Logic::ExecuteSingleCommand (Command& command)
+	{
+		verify_method;
+
+		if (!command.cached_executor || !command.cached_handle)
+		{
+			// Perform caching of executor/handle since execution must be O(1)
+
+			ICommandSet* command_set = proc_ ->CommandSet();
+			const CommandTraits& command_traits = command_set ->DecodeCommand (command.id);
+
+			// Select valid executor based on command flavor
+			if (command_traits.is_service_command)
+				command.cached_executor = proc_ ->Executor (Value::V_MAX);
+
+			else
+				command.cached_executor = proc_ ->Executor (command.type);
+
+			__assert (command.cached_executor, "Was unable to select executor for command type \"%s\"",
+					  ProcDebug::ValueType_ids[command.type]);
+
+			command.cached_handle = command_set ->GetExecutionHandle (command_traits, command.cached_executor ->ID());
+			__assert (command.cached_handle,
+					  "Was unable to retrieve exec handle for command \"%s\" [type \"%s\" execid %zx]",
+					  command_traits.mnemonic,
+					  ProcDebug::ValueType_ids[command.type],
+					  command.cached_executor ->ID());
+		}
+
+		IMMU* mmu = proc_ ->MMU();
+
+		mmu ->GetContext().flags &= ~MASK (F_WAS_JUMP);
+		mmu ->SelectStack (command.type);
+
+		command.cached_executor ->Execute (command.cached_handle, command.arg);
+	}
+
 	size_t Logic::ChecksumState()
 	{
 		verify_method;
@@ -125,8 +162,11 @@ namespace ProcessorImplementation
 
 		msg (E_INFO, E_DEBUG, "Jumping -> %zu", dref.address);
 
-		proc_ ->MMU() ->GetContext().ip = dref.address;
-	}
+		Context& ctx = proc_ ->MMU() ->GetContext();
+
+		ctx.ip = dref.address;
+		ctx.flags |= MASK (F_WAS_JUMP);
+ }
 
 	void Logic::Write (Reference& ref, calc_t value)
 	{
@@ -136,9 +176,8 @@ namespace ProcessorImplementation
 		switch (dref.type)
 		{
 		case S_CODE:
-			ProcDebug::PrintReference (ref);
 			msg (E_CRITICAL, E_VERBOSE, "Attempt to write to CODE section: reference to %s",
-				 ProcDebug::debug_buffer);
+				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 			msg (E_CRITICAL, E_VERBOSE, "Write will not be performed");
 			break;
 
@@ -150,9 +189,8 @@ namespace ProcessorImplementation
 			proc_ ->MMU() ->AStackFrame (dref.address) = value;
 
 		case S_FRAME_BACK:
-			ProcDebug::PrintReference (ref);
 			msg (E_WARNING, E_VERBOSE, "Attempt to write to function parameter: reference to %s",
-				 ProcDebug::debug_buffer);
+				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 
 			proc_ ->MMU() ->AStackFrame (-dref.address) = value;
 			break;

@@ -81,7 +81,7 @@ namespace Processor
 				break;
 
 			case Value::V_MAX:
-				snprintf (debug_buffer, STATIC_LENGTH, "uninitialised");
+				snprintf (debug_buffer, STATIC_LENGTH, "<uninitialised>");
 				break;
 
 			default:
@@ -111,11 +111,11 @@ namespace Processor
 
 	abiret_t ICommandSet::ExecFallbackCallback (Processor::Command* cmd)
 	{
-		callback_procapi ->ExecuteCommand_ (*cmd);
+		ILogic* logic = callback_procapi ->LogicProvider();
+		logic ->ExecuteSingleCommand (*cmd);
 
 		// stack is still set to the last type
-		calc_t temporary_result = callback_procapi ->LogicProvider() ->StackPop();
-
+		calc_t temporary_result = logic ->StackPop();
 		return temporary_result.GetABI();
 	}
 

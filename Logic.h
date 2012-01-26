@@ -29,6 +29,8 @@ namespace ProcessorImplementation
 		virtual void StackPush (calc_t value);
 
 		virtual size_t ChecksumState();
+
+		virtual void ExecuteSingleCommand (Command& command);
 	};
 }
 

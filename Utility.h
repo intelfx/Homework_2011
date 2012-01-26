@@ -64,7 +64,7 @@ namespace Processor
 
 	enum ProcessorFlags
 	{
-		F_EIP = 1, // Execute In Place
+		F_WAS_JUMP = 1, // Last instruction executed had changed the Program Counter
 		F_EXIT, // Context exit condition
 		F_NFC, // No Flag Change - prohibits flag file from being changed as side-effect
 		F_ZERO, // Zero Flag - set if last result was zero (or equal)
@@ -365,6 +365,9 @@ namespace Processor
 
 		void* cached_handle;
 		IExecutor* cached_executor;
+
+		Command() :
+		arg ({}), id (0), type (Value::V_MAX), cached_handle (0), cached_executor (0) {}
 	};
 
 	// This is something like TR1's std::unordered_map with manual hashing,
@@ -412,14 +415,14 @@ namespace Processor
 
 		enum
 		{
+			DEC_NOTHING = 0,
 			DEC_COMMAND,
-			DEC_DATA,
-			DEC_NOTHING
+			DEC_DATA
 		} type;
 
 		symbol_map mentioned_symbols;
 
-		DecodeResult() : type (DEC_NOTHING) {}
+		DecodeResult() : command(), type (DEC_NOTHING), mentioned_symbols() {}
 	};
 
 	namespace ProcDebug

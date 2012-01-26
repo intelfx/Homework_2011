@@ -126,7 +126,8 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		__assert (offset < current_stack ->size(), "Stack top offset overflow: %zu [max %zu]", offset, current_stack ->size());
+		__assert (offset < current_stack ->size(), "Stack top offset overflow: %zu [max %zu]",
+				  offset, current_stack ->size());
 		return *(current_stack ->rbegin() + offset);
 	}
 
@@ -388,8 +389,8 @@ namespace ProcessorImplementation
 			/* commit */
 			__assert (sym ->is_resolved, "Deserialize failed: unresolved symbol \"%s\"", name.c_str());
 
-			ProcDebug::PrintReference (sym ->ref);
-			msg (E_INFO, E_DEBUG, "Symbol load: name \"%s\" -> %s", name.c_str(), ProcDebug::debug_buffer);
+			msg (E_INFO, E_DEBUG, "Symbol load: name \"%s\" -> %s",
+				 name.c_str(), (ProcDebug::PrintReference (sym ->ref), ProcDebug::debug_buffer));
 
 			dest.insert (std::make_pair (sym ->hash, std::make_pair (std::move (name), *sym)));
 		}
@@ -486,8 +487,6 @@ namespace ProcessorImplementation
 
 	void MMU::SaveContext()
 	{
-		++context.ip; // increment PC before possible logging
-
 		bool log_save = !context_stack.empty();
 		if (log_save)
 		{

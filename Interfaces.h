@@ -1,4 +1,4 @@
-﻿#ifndef _INTERFACES_H
+#ifndef _INTERFACES_H
 #define _INTERFACES_H
 
 // -----------------------------------------------------------------------------
@@ -46,8 +46,6 @@ namespace Processor
 		void Attach_ (IBackend* backend);
 		void Attach_ (ILogic* logic);
 
-		void PrepareCommand (Command& command);
-
 	protected:
 		virtual bool _Verify() const;
 
@@ -72,13 +70,11 @@ namespace Processor
 		void	Flush(); // Completely reset and reinitialise the system
 		void	Reset(); // Reset current execution context
 		void	Clear(); // Clear current execution buffers
-		void	Load (FILE* file, bool execute_stream = 0); // Load into a new context/buffer
+		void	Load (FILE* file); // Load into a new context/buffer
 		void	Dump (FILE* file); // Dump current context/buffer
 		void	Delete(); // Return to previous context/buffer
 		void	Compile(); // Invoke backend to compile the bytecode
 		calc_t	Exec(); // Execute current system state whatever it is now
-
-		void ExecuteCommand_ (Command& command); // to be internally used by Exec() and backend
 	};
 
 	class IModuleBase : LogBase (IModuleBase)
@@ -134,6 +130,8 @@ namespace Processor
 		virtual calc_t	StackTop() = 0; // Calculation stack "top" operation
 		virtual calc_t	StackPop() = 0; // Calculation stack "pop" operation
 		virtual void	StackPush (calc_t value) = 0; // Calculation stack "push" operation
+
+		virtual void	ExecuteSingleCommand (Command& command) = 0; // Execute a single command
 	};
 
 	class ICommandSet : LogBase (ICommandSet), public IModuleBase
