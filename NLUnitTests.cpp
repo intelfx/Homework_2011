@@ -1,5 +1,7 @@
 ﻿#include "stdafx.h"
 
+#include "time_ops.h"
+
 #include <uXray/fxlog_console.h>
 #include "MMU.h"
 #include "AssemblyIO.h"
@@ -21,6 +23,7 @@ int main (int argc, char** argv)
 	Debug::API::SetTypewideVerbosity ("StaticAllocator", Debug::E_USER);
 
 	Debug::API::SetDefaultVerbosity (Debug::E_USER);
+	Debug::API::SetTypewideVerbosity (0, Debug::E_DEBUG);
 
 
 	Processor::ProcessorAPI api;
@@ -36,14 +39,19 @@ int main (int argc, char** argv)
 
 	api.Attach (new ProcessorImplementation::AsmHandler);
 	FILE* read = fopen ("input.dasm", "rt");
-	api.Load (read, 0);
+	api.Load (read);
 
 	delete api.Reader();
+
+	calibrate_and_setup_clock();
+	clock_measure_start ("Execution");
 
 	Processor::calc_t result = api.Exec();
 
 	Processor::ProcDebug::PrintValue (result);
 	smsg (E_INFO, E_USER, "Testing has apparently completed OK: result %s", Processor::ProcDebug::debug_buffer);
+
+	clock_measure_end ();
 
 	delete api.MMU();
 	delete api.Linker();

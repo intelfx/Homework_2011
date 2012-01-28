@@ -38,18 +38,8 @@ namespace Processor
 	{
 		verify_method;
 
-		if (!execute_stream)
-		{
-			mmu_ ->AllocContextBuffer();
-			msg (E_INFO, E_VERBOSE, "Loading from stream -> context %zu", mmu_ ->GetContext().buffer);
-		}
-
-		else
-		{
-			msg (E_INFO, E_VERBOSE, "Reading and executing stream in temporary context");
-			mmu_ ->SaveContext();
-			mmu_ ->ClearContext();
-		}
+		mmu_ ->AllocContextBuffer();
+		msg (E_INFO, E_VERBOSE, "Loading from stream -> context %zu", mmu_ ->GetContext().buffer);
 
 		__assert (reader_, "Reader module is not attached");
 
@@ -69,8 +59,6 @@ namespace Processor
 			{
 				__assert (sec_size, "Section size is zero");
 				__assert (req_bytes, "Required length is zero");
-
-				__assert (!execute_stream, "Uniform (image) section in stream execute mode");
 
 				char* data_buffer = reinterpret_cast<char*> (malloc (req_bytes));
 				__assert (data_buffer, "Unable to malloc() read buffer");
