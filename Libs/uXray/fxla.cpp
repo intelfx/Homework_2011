@@ -55,7 +55,10 @@ void fxla::setup (const config* conf_)
 	conf = conf_;
 
 	// Initialize search engine
-	finder.load (conf ->tokens, conf ->tokenCnt);
+	unsigned t_count;
+	for (t_count = 0; (t_count < config::tokenMax) && (conf ->tokens[t_count]); ++t_count) {}
+
+	finder.load (conf ->tokens, t_count);
 }
 
 void fxla::stream (const char* src_ /*= 0*/)
@@ -72,7 +75,7 @@ void fxla::stream (const char* src_ /*= 0*/)
 	// Else we do parsing
 	__assert (main_ptr, "Invalid pointer");
 
-	last.type = 0;
+	last.type = token::T_NONE;
 
 	do
 	{
@@ -82,10 +85,10 @@ void fxla::stream (const char* src_ /*= 0*/)
 			// Save it (skipping delimiters)
 			if (stoken_what >= conf ->word_offset)
 			{
-				last.type = 1; // S-token
+				last.type = token::T_WORD;
 				last.sdata = stoken_what - conf ->word_offset;
 				last.udata = stoken_ptr;
-				last.ulen = stoken_length;
+				last.length = stoken_length;
 				last.pos = pos;
 			}
 
@@ -184,10 +187,10 @@ void fxla::stream (const char* src_ /*= 0*/)
 			if (utoken_len)
 			{
 				// Save it
-				last.type = 2; // U-token
+				last.type = token::T_UTOKEN; // U-token
 				last.sdata = -1;
 				last.udata = main_ptr + utoken_cq;
-				last.ulen = utoken_len - 2 * utoken_cq;
+				last.length = utoken_len - 2 * utoken_cq;
 				last.pos = pos;
 
 				// Update internal parameters
@@ -200,17 +203,7 @@ void fxla::stream (const char* src_ /*= 0*/)
 			// stoken_length - length of following S-token, or 0 if re-pass required.
 			// stoken_what - S-token index (or garbage if !stoken_length)
 		}
-	} while (!last.type); // We will repeat until we get a token
-}
-
-void fxla::vect (const char* src_, pvect<token>& tokens)
-{
-	__assert (src_, "Invalid pointer");
-	tokens.clear();
-	stream (src_);
-
-	while (stream(), last.type)
-		tokens.push_back (new token (last));
+	} while (last.type == token::T_NONE); // We will repeat until we get a token
 }
 
 void fxla::init_lexer (const char* src_)
@@ -223,34 +216,20 @@ void fxla::init_lexer (const char* src_)
 	dc_status = dce_token = utoken_len = stoken_length = stoken_what = 0;
 }
 
-unsigned fxla::get_token (const char* text, const config& conf)
-{
-	for (unsigned i = conf.word_offset; i < conf.tokenCnt; ++i)
-		if (!strcmp (text, conf.tokens[i]))
-			return i - conf.word_offset;
-
-	return -1;
-}
-
 bool fxla::token::compare (const char* str) const
 {
 	__assert (str, "Invalid pointer");
 
-	char c;
-	unsigned i;
-
-	if (type != 2)
+	if (type != token::T_UTOKEN)
 		return 0;
 
-	for (i = 0; (c = str[i]) && (c == udata[i]); ++i);
-	return !c && (i == ulen);
+	return !strncmp (udata, str, length);
 }
 
 fxla::token::token() :
 udata (0),
-ulen (0),
-sdata (0),
-type (0),
+length (0),
+type (T_NONE),
 pos()
 {
 }
@@ -261,8 +240,7 @@ fxla::token::~token()
 
 fxla::token::token (const fxla::token& that) :
 udata (that.udata),
-ulen (that.ulen),
-sdata (that.sdata),
+length (that.length),
 type (that.type),
 pos (that.pos)
 {
@@ -271,7 +249,7 @@ pos (that.pos)
 fxla::token& fxla::token::operator= (const fxla::token& that)
 {
 	udata = that.udata;
-	ulen = that.ulen;
+	length = that.length;
 	sdata = that.sdata;
 	type = that.type;
 	pos = that.pos;

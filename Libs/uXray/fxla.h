@@ -68,8 +68,6 @@ public:
 	struct FXLIB_API config
 	{
 		static const unsigned	tokenMax = 40;
-		static const unsigned	dcMax = 4;
-		const unsigned			tokenCnt;
 		const unsigned			word_offset;
 
 		const char*			tokens[tokenMax]; // S-tokens array
@@ -99,10 +97,20 @@ public:
 	class FXLIB_API token : LogBase(fxla_token)
 	{
 	public:
-		const char*	udata;
-		unsigned	ulen;
-		unsigned	sdata;
-		unsigned	type;
+		union
+		{
+			const char*	udata;
+			unsigned	sdata;
+		};
+
+		unsigned	length;
+		enum
+		{
+			T_NONE = 0,
+			T_WORD,
+			T_UTOKEN
+		} type;
+
 		position	pos;
 
 		// This function compares U-token with an ASCIZ string.
@@ -115,7 +123,24 @@ public:
 		// You can take length in member ulen (it always contains valid length).
 		inline const char* get_data (const config& conf) const
 		{
-			return (type == 2) ? udata : conf.tokens[sdata + conf.word_offset];
+			switch (type)
+			{
+				case T_WORD:
+					return conf.tokens [sdata + conf.word_offset];
+
+				case T_UTOKEN:
+					return udata;
+
+				case T_NONE:
+					__asshole ("Empty token");
+					break;
+
+				default:
+					__asshole ("Undefined token type");
+					break;
+			}
+
+			return 0;
 		}
 
 		token();
@@ -124,8 +149,6 @@ public:
 		token (const token&);
 		token& operator= (const token&);
 	};
-
-	typedef pvect<token>::const_iterator token_iterator;
 
 	// Main data
 	const config*		conf;
@@ -142,14 +165,6 @@ public:
 	// When called with non-null pointer, sets input string.
 	// When called with null pointer, parses next token leaving it in last field.
 	void				stream (const char* src_ = 0);
-
-	// Used to parse in the non-streaming mode - all tokens per call.
-	// Must be called with non-null pointer, sets input string and pushes tokens
-	// into given vector.
-	void				vect (const char* src_, pvect<token>& tokens);
-
-	// Used to parse one word. It is slow because it doesn't use search engine.
-	static unsigned		get_token (const char* text, const config& conf);
 };
 
 #endif // _FXLA_H_
