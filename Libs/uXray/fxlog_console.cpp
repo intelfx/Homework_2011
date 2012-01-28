@@ -357,6 +357,14 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 		msgspec = "GLOBAL\t";
 	}
 
+	else if (object.object_descriptor ->IsDefault())
+	{
+		status_data.background = CCC_BLACK;
+		status_data.foreground = CCC_RED;
+		status_data.brightness = 0;
+		msgspec = "UNDEFINED\t";
+	}
+
 	else switch (object.object_status)
 	{
 		default:

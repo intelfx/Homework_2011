@@ -98,10 +98,6 @@ namespace Init
 
 namespace Debug
 {
-
-
-
-
 	// ---------------------------------------
 	// Enumerations
 	// ---------------------------------------
@@ -255,6 +251,8 @@ namespace Debug
 	struct FXLIB_API ObjectDescriptor_
 	{
 		static const size_t GLOBAL_OID = -1;
+		static const size_t DEFAULT_OID = 0;
+
 		static size_t GetOID (const char* name) { return std::_Hash_impl::hash (name, strlen (name)); }
 
 		size_t object_id; // hash of the name
@@ -270,7 +268,8 @@ namespace Debug
 		static const ObjectDescriptor_ default_object;
 		static const ObjectDescriptor_ global_scope_object;
 
-
+		// Registers the object in the meta-type system
+		void _MetatypeRegisterMyself();
 
 		// Creates a specific object descriptor
 		ObjectDescriptor_ (const char* name, ModuleType_ type, const char* descriptor_name) :
@@ -281,17 +280,19 @@ namespace Debug
 		minimum_accepted_type (E_UNDEFINED_TYPE),
 		type_flags (default_object.type_flags)
 		{
+			_MetatypeRegisterMyself();
 		}
 
 		// Creates a default object descriptor
 		ObjectDescriptor_ (size_t default_flags) :
-		object_id (GLOBAL_OID),
+		object_id (DEFAULT_OID),
 		object_name ("undefined object"),
 		object_type (MOD_INTERNAL),
 		maximum_accepted_level (E_UNDEFINED_VERBOSITY),
 		minimum_accepted_type (E_UNDEFINED_TYPE),
 		type_flags (default_flags)
 		{
+			_MetatypeRegisterMyself();
 		}
 
 		// Creates a global object descriptor
@@ -303,11 +304,17 @@ namespace Debug
 		minimum_accepted_type (E_UNDEFINED_TYPE),
 		type_flags (0)
 		{
+			_MetatypeRegisterMyself();
 		}
 
 		bool IsGlobal() const
 		{
 			return object_id == GLOBAL_OID;
+		}
+
+		bool IsDefault() const
+		{
+			return object_id == DEFAULT_OID;
 		}
 
 		bool AcceptsEvent (EventDescriptor event) const
@@ -417,8 +424,6 @@ namespace Debug
 		TargetDescriptor target;
 	};
 	typedef const DumpEntity_& DumpEntity;
-
-
 
 
 	// ---------------------------------------
@@ -672,9 +677,7 @@ namespace Debug
 		inline void ClrObjectFlag (VerifierBase* obj, ObjectFlags_ flag) { obj ->_ClrFlag (flag); }
 
 		inline void SetDefaultVerbosity (EventLevelIndex_ max) { ObjectDescriptor_::default_object.maximum_accepted_level = max; }
-		inline void SetDefaultEvtFilter (EventTypeIndex_ min)  { ObjectDescriptor_::default_object.minimum_accepted_type = min; }
-
-		FXLIB_API const ObjectDescriptor_* RegisterMetaType (ObjectDescriptor_ type);
+		inline void SetDefaultEvtFilter (EventTypeIndex_ min)  { ObjectDescriptor_::default_object.minimum_accepted_type = min;  }
 
 		FXLIB_API void SetTypewideVerbosity (const char* desc_name, EventLevelIndex_ max);
 		FXLIB_API void SetTypewideEvtFilter (const char* desc_name, EventTypeIndex_ min);
@@ -734,34 +737,36 @@ FXLIB_API int seterror (Debug::ObjectParameters object,
 // __verify is for checking user-dependent conditions (as input file names and expressions).
 
 #ifdef NDEBUG
-# define _CKLEVEL_(level) if (EventLevelIndex_::level > EventLevelIndex_::E_VERBOSE) break;
+# define _CKLEVEL_(level) if (Debug::EventLevelIndex_::level > Debug::EventLevelIndex_::E_VERBOSE) break;
 #else
 # define _CKLEVEL_(level)
 #endif
 
-#define __silent(sta, code)  do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dosilentthrow (_GetDynamicDbgInfo (pl), code); } while (0)
-#define __ssilent(sta, code) do { if ((sta)) break; dosilentthrow (Debug::ObjectParameters_ (_specific_dbg_info), code); } while (0)
+#define _PLACE_ Debug::SourceDescriptor_ pl = THIS_PLACE;
 
-#define __sassert(sta, fmt...) do { if ((sta)) break; dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_BUG, #sta, fmt); } while (0)
-#define __sverify(sta, fmt...) do { if ((sta)) break; dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, #sta, fmt); } while (0)
-#define __sasshole(fmt...)     do {                   dothrow (Debug::ObjectParameters_ (_specific_dbg_info), THIS_PLACE, Debug::EX_INPUT, "<none>", fmt); } while (0)
+#define __silent(sta, code)    do { _PLACE_; if ((sta)) break; dosilentthrow (_GetDynamicDbgInfo (pl), code); } while (0)
+#define __ssilent(sta, code)   do { _PLACE_; if ((sta)) break; dosilentthrow (_specific_dbg_info,      code); } while (0)
 
-#define __assert(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_BUG, #sta, fmt); } while (0)
-#define __verify(sta, fmt...) do { if ((sta)) break; Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, #sta, fmt); } while (0)
-#define __asshole(fmt...)     do {                   Debug::SourceDescriptor_ pl = THIS_PLACE; dothrow (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, "<none>", fmt); } while (0)
+#define __sassert(sta, fmt...) do { _PLACE_; if ((sta)) break; dothrow       (_specific_dbg_info,      pl, Debug::EX_BUG,   #sta,     fmt); } while (0)
+#define __sverify(sta, fmt...) do { _PLACE_; if ((sta)) break; dothrow       (_specific_dbg_info,      pl, Debug::EX_INPUT, #sta,     fmt); } while (0)
+#define __sasshole(fmt...)     do { _PLACE_;                   dothrow       (_specific_dbg_info,      pl, Debug::EX_INPUT, "<none>", fmt); } while (0)
 
-#define smsg(type, level, ...) do { _CKLEVEL_(level); Debug::ObjectParameters_ pm (_specific_dbg_info); call_log (pm,                      THIS_PLACE, EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
-#define msg(type, level, ...)  do { _CKLEVEL_(level); Debug::SourceDescriptor_ pl = THIS_PLACE;         call_log (_GetDynamicDbgInfo (pl), pl,         EventTypeIndex_::type, EventLevelIndex_::level, __VA_ARGS__); } while (0)
+#define __assert(sta, fmt...)  do { _PLACE_; if ((sta)) break; dothrow       (_GetDynamicDbgInfo (pl), pl, Debug::EX_BUG,   #sta,     fmt); } while (0)
+#define __verify(sta, fmt...)  do { _PLACE_; if ((sta)) break; dothrow       (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, #sta,     fmt); } while (0)
+#define __asshole(fmt...)      do { _PLACE_;                   dothrow       (_GetDynamicDbgInfo (pl), pl, Debug::EX_INPUT, "<none>", fmt); } while (0)
+
+#define smsg(type, level, ...) do { _PLACE_; _CKLEVEL_(level); call_log      (_specific_dbg_info,      pl, Debug::type, Debug::level, __VA_ARGS__); } while (0)
+#define msg(type, level, ...)  do { _PLACE_; _CKLEVEL_(level); call_log      (_GetDynamicDbgInfo (pl), pl, Debug::type, Debug::level, __VA_ARGS__); } while (0)
 
 #define verify_statement(sta, fmt...) if (!(sta)) { seterror (_GetDynamicDbgInfo (THIS_PLACE), fmt); return 0; }
 
 #ifndef NDEBUG
-# define verify_method __verify (_CheckObject (THIS_PLACE), "In-method object verification failed")
+# define verify_method     __verify (    _CheckObject (THIS_PLACE), "In-method object verification failed")
+# define verify_foreign(x) __verify ((x)._CheckObject (THIS_PLACE), "External object verification failed")
 #else
 # define verify_method
+# define verify_foreign(x)
 #endif
-
-#define verify_foreign(x) __verify ((x)._CheckObject (THIS_PLACE), "External object verification failed")
 
 #define sverify_statement(sta, fmt...) if (!(sta)) { smsg (E_CRITICAL, E_USER, fmt); return 0; }
 

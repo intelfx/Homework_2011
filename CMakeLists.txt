@@ -7,6 +7,7 @@ INCLUDE(${PROJECT_SOURCE_DIR}/Precompiled.cmake)
 set_local_devel_tree (Libs)
 
 find_assert_library ("uXray" LIBRARIES)
+find_assert_library ("rt" LIBRARIES)
 
 # Target specification
 # ----

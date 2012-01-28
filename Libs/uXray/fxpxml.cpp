@@ -10,12 +10,11 @@
 
 const fxla::config fxpxml::fxla_xml =
 {
-	12,
 	8,
 	{
-		" ",
-		"\n", // Standard
-		"\r", // delimiters
+		" ", // Standard delimiters
+		"\n",
+		"\r",
 		"\t",
 		"<?", // Declaration begin
 		"?>", // Declaration end
@@ -31,9 +30,9 @@ const fxla::config fxpxml::fxla_xml =
 		0,
 		0,
 		0,
-		-1, // 4th token '<?' is DCS in delimiter mode
+		-1, // 4th token '<?' is DCS in comment mode
 		0,
-		-1 // 6th token '<!--' is DCS in delimiter mode
+		-1 // 6th token '<!--' is DCS in comment mode
 	},
 	{
 		0,
@@ -268,7 +267,7 @@ fxpxml::state fxpxml::dostate_tag (const fxla& lexer, pvect<tag>& taglist)
 		__verify (lexer.last.sdata == 3,
 				  "Invalid token (in tag, before name) '%.*s' @ %d : %d, "
 				  "expected '%s' or tag name",
-				  lexer.last.ulen,
+				  lexer.last.length,
 				  lexer.last.get_data (fxla_xml),
 				  lexer.last.pos.row,
 				  lexer.last.pos.col,
@@ -280,7 +279,7 @@ fxpxml::state fxpxml::dostate_tag (const fxla& lexer, pvect<tag>& taglist)
 	else
 	{
 		// Token is supposed to be a tag name.
-		taglist.push_back (new tag (lexer.last.udata, lexer.last.ulen, lexer.last.pos));
+		taglist.push_back (new tag (lexer.last.udata, lexer.last.length, lexer.last.pos));
 		return S_PARMS; // After name we expect parameters.
 	}
 }
@@ -290,7 +289,7 @@ fxpxml::state fxpxml::dostate_cl_cn (const fxla& lexer, const char* name)
 	__verify (lexer.last.compare (name),
 			  "Invalid token (in closing tag, tag name) '%.*s' @ %d : %d, "
 			  "expected '%s': Check hierarchy",
-			  lexer.last.ulen,
+			  lexer.last.length,
 			  lexer.last.get_data (fxla_xml),
 			  lexer.last.pos.row,
 			  lexer.last.pos.col,
@@ -304,7 +303,7 @@ fxpxml::state fxpxml::dostate_cl_cp (const fxla& lexer, bool selfclosing)
 	__verify (lexer.last.type == 1 && lexer.last.sdata == 1,
 			  "Invalid token (in closing tag, after name) '%.*s' @ %d : %d, "
 			  "expected '%s': Garbage in closing tag",
-			  lexer.last.ulen,
+			  lexer.last.length,
 			  lexer.last.get_data (fxla_xml),
 			  lexer.last.pos.row,
 			  lexer.last.pos.col,
@@ -324,7 +323,7 @@ fxpxml::state fxpxml::dostate_parms (const fxla& lexer, pvect<param>& parlist, b
 					  lexer.last.sdata == 3,
 					  "Invalid token (in tag, after par. name) '%.*s' @ %d : %d, "
 					  "expected '%s' '%s' '%s': Generic syntax error",
-					  lexer.last.ulen,
+					  lexer.last.length,
 					  lexer.last.get_data (fxla_xml),
 					  lexer.last.pos.row,
 					  lexer.last.pos.col,
@@ -339,7 +338,7 @@ fxpxml::state fxpxml::dostate_parms (const fxla& lexer, pvect<param>& parlist, b
 					  lexer.last.sdata == 3,
 					  "Invalid token (in tag, after name) '%.*s' @ %d : %d, "
 					  "expected '%s' '%s' or parameter value",
-					  lexer.last.ulen,
+					  lexer.last.length,
 					  lexer.last.get_data (fxla_xml),
 					  lexer.last.pos.row,
 					  lexer.last.pos.col,
@@ -370,7 +369,7 @@ fxpxml::state fxpxml::dostate_parms (const fxla& lexer, pvect<param>& parlist, b
 	{
 		// Current token is supposed to be a parameter name.
 		parlist.push_back (new param (lexer.last.get_data (fxla_xml),
-									  lexer.last.ulen,
+									  lexer.last.length,
 									  lexer.last.pos));
 		return S_PARM2; // Now we expect for equal sign or for next par name.
 	}
@@ -383,14 +382,14 @@ fxpxml::state fxpxml::dostate_parmv (const fxla& lexer, param* parameter)
 	__verify (lexer.last.type == 2,
 			  "Invalid token (in tag, after equal sign) '%.*s' @ %d : %d, "
 			  "expected parameter value",
-			  lexer.last.ulen,
+			  lexer.last.length,
 			  lexer.last.get_data (fxla_xml),
 			  lexer.last.pos.row,
 			  lexer.last.pos.col);
 
 	// Current data is supposed to be a parameter value.
 	parameter ->storeVal (lexer.last.get_data (fxla_xml),
-						  lexer.last.ulen,
+						  lexer.last.length,
 						  lexer.last.pos);
 	return S_PARMS; // Now we expect new parameter or tag end.
 }

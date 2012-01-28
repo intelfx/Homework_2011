@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::global_scope_object;
+
 #ifndef NDEBUG
 const Debug::ObjectDescriptor_ Debug::ObjectDescriptor_::default_object (MASK (Debug::OF_FATALVERIFY) |
 																		 MASK (Debug::OF_USEVERIFY) |
@@ -90,13 +91,13 @@ namespace Debug
 	{
 		struct _metatype_map_holder
 		{
-			std::map<size_t, ObjectDescriptor_>* metatype_map;
+			std::map<size_t, ObjectDescriptor>* metatype_map;
 
 			void alloc()
 			{
 				if (!metatype_map)
 				{
-					metatype_map = new std::map<size_t, ObjectDescriptor_>;
+					metatype_map = new std::map<size_t, ObjectDescriptor>;
 
 					fputs ("==== Metatype system initialised ====\n", stderr);
 				}
@@ -112,25 +113,6 @@ namespace Debug
 
 		} metatype_map_holder;
 
-		const ObjectDescriptor_* RegisterMetaType (ObjectDescriptor_ type)
-		{
-			metatype_map_holder.alloc();
-
-			auto insertion_result = metatype_map_holder.metatype_map ->insert
-							(std::pair<size_t, ObjectDescriptor_> (type.object_id, type));
-
-#ifdef METATYPE_DEBUG
-			fprintf (stderr, "==== New type registered: \"%s\" (id %zx) ====\n",
-					 type.object_name, type.object_id);
-#endif
-
-			__sassert (insertion_result.second,
-					   "Type \"%s\" (id %p) already registered in system",
-					   type.object_name, type.object_id);
-
-			return &insertion_result.first ->second;
-		}
-
 		ObjectDescriptor GetDescriptor (const char* name)
 		{
 			metatype_map_holder.alloc();
@@ -138,12 +120,12 @@ namespace Debug
 			if (name)
 			{
 				size_t id = ObjectDescriptor_::GetOID (name);
-				std::map<size_t, ObjectDescriptor_>::iterator it = metatype_map_holder.metatype_map ->find (id);
-				__sassert (it != metatype_map_holder.metatype_map ->end(),
+				auto iter = metatype_map_holder.metatype_map ->find (id);
+				__sassert (iter != metatype_map_holder.metatype_map ->end(),
 						"Type \"%s\" (id %p) was not registered in system",
 						name, id);
 
-				return it ->second;
+				return iter ->second;
 			}
 
 			else
@@ -166,6 +148,23 @@ namespace Debug
 			target_engine = 0;
 			target_descriptor = 0;
 		}
+	}
+
+	void ObjectDescriptor_::_MetatypeRegisterMyself()
+	{
+		API::metatype_map_holder.alloc();
+
+		auto insertion_result = API::metatype_map_holder.metatype_map ->insert
+		(std::pair<size_t, ObjectDescriptor> (object_id, *this));
+
+		#ifdef METATYPE_DEBUG
+		fprintf (stderr, "==== New type registered: \"%s\" (id %zx) ====\n",
+				 object_name, object_id);
+		#endif
+
+		__sassert (insertion_result.second,
+				   "Type \"%s\" (id %p) already registered in system",
+				   object_name, object_id);
 	}
 
 	void LogAtom_::WriteOut()
