@@ -487,6 +487,7 @@ namespace Debug
 
 		// Checks and sets the debug descriptor on "first come" basis -
 		// first fed descriptor is saved, others discarded.
+		// Performs the construction logging.
 		void _SetDynamicDbgInfo (const ObjectDescriptor_* info);
 
 		VerifierBase() :
@@ -547,7 +548,7 @@ namespace Debug
 		static void _SetStaticDbgInfo()
 		{
 			// Initialize the static data if it hasn't been done already (once per type).
-			if (_specific_dbg_info ->IsGlobal())
+			if (_specific_dbg_info ->IsDefault())
 				_specific_dbg_info = InfoHolderType() ();
 		}
 

@@ -16,15 +16,6 @@ DeclareDescriptor(PluginSystem);
 DeclareDescriptor(PluginEngine);
 DeclareDescriptor(PluginSystem_Plugin);
 
-// Cast to function pointer
-template <typename fptr>
-inline fptr Fcast (void* ptr)
-{
-	// Cast pointer-to-pointer-to-void to pointer-to-pointer-to-function.
-	// Since they are all pointers to data, cast is apparently permitted by C99 and so forth.
-	return *reinterpret_cast<fptr*> (&ptr);
-}
-
 // TODO lurk about PLT and windows' equivalent for transparent runtime linkage.
 
 // The plugin engine - first abstraction layer.

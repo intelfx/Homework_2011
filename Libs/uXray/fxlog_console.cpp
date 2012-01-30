@@ -225,14 +225,14 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 	{
 	case EventTypeIndex_::E_INFO:
 		data.foreground = CCC_GREEN;
-		data.brightness = 1;
+		data.brightness = 0;
 
 		switch (event.event_level)
 		{
 		default:
 		case EventLevelIndex_::E_USER:
 			msgspec = "INFO\t";
-			data.brightness = 0;
+			data.brightness = 1;
 			break;
 
 		case EventLevelIndex_::E_VERBOSE:
@@ -264,13 +264,13 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	case EventTypeIndex_::E_OBJCREATION:
 		data.foreground = CCC_BLUE;
-		data.brightness = 0;
+		data.brightness = 1;
 		msgspec = "-- CTOR\t";
 		break;
 
 	case EventTypeIndex_::E_OBJDESTRUCTION:
 		data.foreground = CCC_RED;
-		data.brightness = 0;
+		data.brightness = 1;
 		msgspec = "-- DTOR\t";
 		break;
 
@@ -370,9 +370,9 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 		default:
 		case Debug::OS_UNCHECKED:
 			status_data.background = CCC_TRANSPARENT;
-			status_data.foreground = CCC_WHITE;
+			status_data.foreground = CCC_GREEN;
 			status_data.brightness = 0;
-			msgspec = "UNKNOWN\t";
+			msgspec = "UNTESTED\t";
 			break;
 
 		case Debug::OS_MOVED:

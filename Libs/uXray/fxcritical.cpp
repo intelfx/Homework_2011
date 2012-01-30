@@ -10,6 +10,23 @@
 
 FXLIB_API bool fx_vasprintf (char** dest, const char* fmt, va_list args)
 {
+	if (!args)
+	{
+#ifdef _POSIX_C_SOURCE
+		*dest = strdup (fmt);
+		if (!*dest)
+			return 0;
+#else
+		*dest = reinterpret_cast<char*> (malloc (strlen (fmt) + 1));
+		if (!*dest)
+			return 0;
+
+		strcpy (*dest, fmt);
+#endif
+		return 1;
+	}
+
+
 #ifdef _GNU_SOURCE
 	int vasprintf_result = vasprintf (dest, fmt, args);
 
@@ -26,7 +43,7 @@ FXLIB_API bool fx_vasprintf (char** dest, const char* fmt, va_list args)
 		length = STATIC_LENGTH;
 
 	// Allocate the memory.
-	char* staticmem = reinterpret_cast<char*> (malloc (length +1));
+	char* staticmem = reinterpret_cast<char*> (malloc (length + 1));
 	if (!staticmem)
 	{
 		// We can't do much if calloc() fails.
