@@ -18,11 +18,6 @@ void illegal_function (int* p)
 	volatile int i = *p;
 }
 
-void illegal_function_wrapper()
-{
-	illegal_function (reinterpret_cast<int*> (0));
-}
-
 int main (int argc, char** argv)
 {
 	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr",
@@ -48,9 +43,7 @@ int main (int argc, char** argv)
 
 		try
 		{
-			smsg (E_INFO, E_VERBOSE, "Attempting to do segmentation fault");
-			illegal_function_wrapper();
-			smsg (E_INFO, E_VERBOSE, "Exit from segfault function");
+			nexec.SafeExecute (reinterpret_cast<void*> (&illegal_function), 0);
 		}
 
 		catch (NativeException& e)
