@@ -87,7 +87,7 @@ SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -fipa-pta -fipa-matrix-reorg -floop-interchange
 SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -floop-block -floop-strip-mine -ftree-loop-distribution")
 SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -funsafe-loop-optimizations -ftree-parallelize-loops=2")
 SET(FX_INSTR_ARGS	"-mfpmath=both -march=native")
-SET(FX_LD_OPT_ARGS	"-O3 -Wl,-O1")
+SET(FX_LD_OPT_ARGS	"-Wl,-O1")
 SET(FX_DBG_ARGS		"")
 SET(FX_LD_FLAGS		"-Wl,--sort-common,--as-needed,-z,relro,--hash-style=gnu")
 # ----
@@ -96,6 +96,7 @@ SET(FX_LD_FLAGS		"-Wl,--sort-common,--as-needed,-z,relro,--hash-style=gnu")
 # ----
 SET(BUILD_SHARED_LIBS ON)
 SET(CMAKE_STRIP ON)
+SET(CMAKE_USE_RELATIVE_PATHS ON)
 # ----
 
 

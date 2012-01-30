@@ -41,7 +41,7 @@ namespace Processor
 		mmu_ ->AllocContextBuffer();
 		msg (E_INFO, E_VERBOSE, "Loading from stream -> context %zu", mmu_ ->GetContext().buffer);
 
-		__assert (reader_, "Reader module is not attached");
+		__assert (reader_, "Loader module is not attached");
 
 		FileProperties rd_prop = reader_ ->RdSetup (file);
 		FileSectionType sec_type = FileSectionType::SEC_MAX;
@@ -51,7 +51,7 @@ namespace Processor
 		{
 			__assert (sec_type < SEC_MAX, "Invalid section type");
 
-			msg (E_INFO, E_DEBUG, "Reading section: type \"%s\" size %zu",
+			msg (E_INFO, E_DEBUG, "Loading section: type \"%s\" size %zu",
 				 ProcDebug::FileSectionType_ids[sec_type], sec_size);
 
 			// Read uniform section as a whole image
@@ -144,7 +144,7 @@ namespace Processor
 
 		} // while (nextsection)
 
-		msg (E_INFO, E_VERBOSE, "Reading completed");
+		msg (E_INFO, E_VERBOSE, "Loading completed");
 
 		reader_ ->RdReset (&rd_prop); // close file
 	}

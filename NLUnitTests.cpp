@@ -2,6 +2,7 @@
 
 #include "time_ops.h"
 
+#include <uXray/fxjitruntime.h>
 #include <uXray/fxlog_console.h>
 #include "MMU.h"
 #include "AssemblyIO.h"
@@ -12,21 +13,58 @@
 #include "Executor_int.h"
 #include "Executor_service.h"
 
+void illegal_function (int* p)
+{
+	volatile int i = *p;
+}
+
+void illegal_function_wrapper()
+{
+	illegal_function (reinterpret_cast<int*> (0));
+}
+
 int main (int argc, char** argv)
 {
 	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr",
-																		EVERYTHING,
+																		EVERYTHING & ~(MASK (Debug::E_OBJCREATION) | MASK (Debug::E_OBJDESTRUCTION)),
 																		EVERYTHING),
 												   &FXConLog::Instance());
 
 	Debug::API::SetTypewideVerbosity ("MallocAllocator", Debug::E_USER);
 	Debug::API::SetTypewideVerbosity ("StaticAllocator", Debug::E_USER);
 
-	Debug::API::SetDefaultVerbosity (Debug::E_USER);
+	Debug::API::SetDefaultVerbosity (Debug::E_VERBOSE);
 	Debug::API::SetTypewideVerbosity (0, Debug::E_DEBUG);
+	Debug::API::SetTypewideVerbosity ("NativeExecutionManager", Debug::E_VERBOSE);
 
 
 	Processor::ProcessorAPI api;
+
+	NativeExecutionManager nexec;
+	if (nexec.ExceptionHandlingAvailable())
+	{
+		smsg (E_WARNING, E_VERBOSE, "Exception handler self-tests");
+		nexec.EnableExceptionHandling();
+
+		try
+		{
+			smsg (E_INFO, E_VERBOSE, "Attempting to do segmentation fault");
+			illegal_function_wrapper();
+			smsg (E_INFO, E_VERBOSE, "Exit from segfault function");
+		}
+
+		catch (NativeException& e)
+		{
+			smsg (E_INFO, E_VERBOSE, "Native exception caught: %s", e.what());
+		}
+
+		catch (...)
+		{
+			smsg (E_CRITICAL, E_USER, "Unknown exception caught");
+		}
+
+		smsg (E_WARNING, E_VERBOSE, "Segfault handler self-test OK");
+	}
 
 	api.Attach (new ProcessorImplementation::MMU);
 	api.Attach (new ProcessorImplementation::UATLinker);

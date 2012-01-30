@@ -299,7 +299,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSE, "Attaching symbol map (size %zu) -> ctx %zu", syms.size(), context.buffer);
+		msg (E_INFO, E_DEBUG, "Attaching symbol map (size %zu) -> ctx %zu", syms.size(), context.buffer);
 		CurrentBuffer().sym_table = std::move (syms);
 	}
 

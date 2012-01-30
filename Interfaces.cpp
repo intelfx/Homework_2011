@@ -139,10 +139,6 @@ namespace Processor
 		if (!was_detach)
 			msg (E_WARNING, E_VERBOSE, "Not detaching \"%s\" (%p) - has not been attached",
 				 Debug::API::GetClassName (module), module);
-
-		else
-			msg (E_WARNING, E_VERBOSE, "Detached module \"%s\" (%p)",
-				 Debug::API::GetClassName (module), module);
 	}
 
 	void ProcessorAPI::Attach_ (IBackend* backend)

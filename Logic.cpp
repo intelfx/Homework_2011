@@ -291,9 +291,16 @@ namespace ProcessorImplementation
 				calc_t input_data = proc_ ->MMU() ->ARegister (R_F);
 				__assert (input_data.type == Value::V_INTEGER, "Non-integer value in register $rf");
 
-				msg (E_WARNING, E_VERBOSE, "Dumping bytepool from address in $rf [%zx]", input_data.integer);
-				printf ("== STRING OUTPUT ==: \"%s\"\n", proc_ ->MMU() ->ABytepool (input_data.integer));
+				msg (E_INFO, E_USER, "Application output: \"%s\"", proc_ ->MMU() ->ABytepool (input_data.integer));
 				break;
+			}
+
+			case 1:
+			{
+				msg (E_INFO, E_USER, "Reading integer from command-line");
+				char buffer[STATIC_LENGTH];
+				gets (buffer);
+				StackPush (static_cast<int_t> (atoi (buffer)));
 			}
 
 			default:
