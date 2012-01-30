@@ -24,6 +24,9 @@ class FXLIB_API NativeExecutionManager : LogBase (NativeExecutionManager)
 
 	static void ExceptionHandler (int, const char*, char**);
 
+	bool default_eh_state;
+	unsigned reentrant_eh_count;
+
 public:
 	NativeExecutionManager();
 	~NativeExecutionManager();
@@ -58,6 +61,9 @@ public:
 	// Disables all set custom handlers, returning exception handling to the platform.
 	void DisableExceptionHandling();
 
+	void ReentrantEnableEH();
+	void ReentrantDisableEH();
+
 	void* AllocateMemory (size_t length, bool is_readable, bool is_writeable, bool is_executable);
 	void DeallocateMemory (void* address, size_t length);
 
@@ -66,6 +72,10 @@ public:
 	// and returning its return value.
 	// Throws a C++ exception in case of a native exception.
 	int SafeExecute (void* address, void* argument);
+
+	// Execute self-tests of exception handling mechanism.
+	// Returns test result (1 if succeeded).
+	int EHSelftest();
 };
 
 class FXLIB_API NativeException : public Debug::Exception

@@ -555,19 +555,24 @@ namespace Debug
 	protected:
 
 		// Constructor used to signal object move
-		VerifierWrapper (const VerifierBase* src)
-		{
-			_MoveDynamicDbgInfo (src);
-		}
+		VerifierWrapper (const VerifierBase* src);
 
-		VerifierWrapper()
-		{
-			_SetStaticDbgInfo();
-			_SetDynamicDbgInfo (_specific_dbg_info);
-		}
-
-		virtual ~VerifierWrapper();
+		// Constructor used in normal object creation
+		VerifierWrapper();
 	};
+
+	template <typename T>
+	VerifierWrapper<T>::VerifierWrapper (const VerifierBase* src)
+	{
+		_MoveDynamicDbgInfo (src);
+	}
+
+	template <typename T>
+	VerifierWrapper<T>::VerifierWrapper()
+	{
+		_SetStaticDbgInfo();
+		_SetDynamicDbgInfo (_specific_dbg_info);
+	}
 
 	// ---------------------------------------
 	// The mess ends here
@@ -692,9 +697,6 @@ namespace Debug
 
 	template <typename InfoHolderType>
 	const ObjectDescriptor_* VerifierWrapper<InfoHolderType>::_specific_dbg_info = &ObjectDescriptor_::default_object;
-
-	template <typename InfoHolderType>
-	VerifierWrapper<InfoHolderType>::~VerifierWrapper() = default;
 
 } // namespace Debug
 

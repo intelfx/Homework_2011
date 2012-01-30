@@ -193,12 +193,46 @@ bool SignalHandler::handlers_set = 0;
 NativeExecutionManager::NativeExecutionManager() :
 #if defined(TARGET_POSIX)
 exceptions (new SignalHandler),
-memory (new MmapImplementation)
+memory (new MmapImplementation),
 #else
 exceptions (0),
-memory (0)
+memory (0),
 #endif
+default_eh_state (0),
+reentrant_eh_count (0)
 {
+}
+
+void NativeExecutionManager::ReentrantEnableEH()
+{
+	__assert (exceptions, "No exception handling interface is available");
+
+	if (!reentrant_eh_count)
+		default_eh_state = exceptions ->IsSet();
+
+	EnableExceptionHandling();
+	++reentrant_eh_count;
+}
+
+void NativeExecutionManager::ReentrantDisableEH()
+{
+	__assert (exceptions, "No exception handling interface is available");
+
+	if (!reentrant_eh_count)
+		return;
+
+	--reentrant_eh_count;
+
+	if (!reentrant_eh_count)
+	{
+		if (default_eh_state)
+			EnableExceptionHandling();
+
+		else
+			DisableExceptionHandling();
+
+		default_eh_state = 0;
+	}
 }
 
 NativeExecutionManager::~NativeExecutionManager()
@@ -208,6 +242,43 @@ NativeExecutionManager::~NativeExecutionManager()
 
 	delete exceptions;
 	delete memory;
+}
+
+static int selftest_function (int* ptr)
+{
+	return *ptr;
+}
+
+int NativeExecutionManager::EHSelftest()
+{
+	msg (E_WARNING, E_VERBOSE, "Exception handler self-tests");
+
+	if (!exceptions)
+	{
+		msg (E_WARNING, E_VERBOSE, "Exception handler is not available");
+		return 0;
+	}
+
+	ReentrantEnableEH();
+
+	try
+	{
+		SafeExecute (reinterpret_cast<void*> (&selftest_function), 0);
+	}
+
+	catch (NativeException& e)
+	{
+		msg (E_INFO, E_VERBOSE, "Native exception caught: %s", e.what());
+	}
+
+	catch (...)
+	{
+		msg (E_CRITICAL, E_USER, "Unknown exception caught");
+		return 0;
+	}
+
+	msg (E_WARNING, E_VERBOSE, "Segfault handler self-test OK");
+	return 1;
 }
 
 void* NativeExecutionManager::AllocateMemory (size_t length, bool, bool is_writeable, bool is_executable)
