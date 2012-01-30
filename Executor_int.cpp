@@ -75,6 +75,9 @@ namespace ProcessorImplementation
 		"dup"
 	};
 
+	IntegerExecutor::IntegerExecutor() = default;
+	IntegerExecutor::~IntegerExecutor() = default;
+
 	void IntegerExecutor::OnAttach()
 	{
 		ResetImplementations();

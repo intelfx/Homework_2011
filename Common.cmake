@@ -89,7 +89,7 @@ SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -funsafe-loop-optimizations -ftree-parallelize-
 SET(FX_INSTR_ARGS	"-mfpmath=both -march=native")
 SET(FX_LD_OPT_ARGS	"-Wl,-O1")
 SET(FX_DBG_ARGS		"")
-SET(FX_LD_FLAGS		"-Wl,--sort-common,--as-needed,-z,relro,--hash-style=gnu")
+SET(FX_LD_FLAGS		"-Wl,--sort-common,--export-dynamic,--as-needed,-z,relro,--hash-style=gnu")
 # ----
 
 # CMake flags

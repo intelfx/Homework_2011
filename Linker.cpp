@@ -12,6 +12,9 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
+	UATLinker::UATLinker() = default;
+	UATLinker::~UATLinker() = default;
+
 	void UATLinker::LinkSymbols (DecodeResult& input)
 	{
 		msg (E_INFO, E_DEBUG, "Linking symbols: %zu", input.mentioned_symbols.size());

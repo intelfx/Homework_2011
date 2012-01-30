@@ -17,7 +17,7 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class FloatExecutor : LogBase (FloatExecutor), public IExecutor
+	class INTERPRETER_API FloatExecutor : LogBase (FloatExecutor), public IExecutor
 	{
 		static const char* supported_mnemonics[];
 
@@ -38,6 +38,9 @@ namespace ProcessorImplementation
 		virtual Value::Type SupportedType() const;
 
 	public:
+		FloatExecutor();
+		virtual ~FloatExecutor();
+
 		virtual void ResetImplementations();
 		virtual void Execute (void* handle, Command::Argument& argument);
 	};

@@ -8,11 +8,13 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class Logic : public ILogic
+	class INTERPRETER_API Logic : public ILogic
 	{
 		static const char* RegisterIDs [R_MAX];
 
 	public:
+		Logic();
+		virtual ~Logic();
 
 		virtual void Analyze (calc_t value);
 		virtual void Syscall (size_t index);

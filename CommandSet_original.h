@@ -15,7 +15,7 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class CommandSet_mkI : public ICommandSet
+	class INTERPRETER_API CommandSet_mkI : public ICommandSet
 	{
 		std::map<cid_t, CommandTraits> by_id;
 

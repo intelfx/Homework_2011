@@ -14,7 +14,7 @@
 namespace ProcessorImplementation
 {
 	using namespace Processor;
-	class MMU : public Processor::IMMU
+	class INTERPRETER_API MMU : public Processor::IMMU
 	{
 		struct InternalContextBuffer
 		{
@@ -49,7 +49,7 @@ namespace ProcessorImplementation
 
 	public:
 		MMU();
-		~MMU();
+		virtual ~MMU();
 
 		virtual Context&		GetContext	();
 		virtual void			DumpContext	() const;

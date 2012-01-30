@@ -15,7 +15,7 @@ DeclareDescriptor(StaticAllocator);
 DeclareDescriptor(MallocAllocator);
 
 template <typename T>
-class AllocBase : LogBase(AllocBase)
+class INTERPRETER_API AllocBase : LogBase(AllocBase)
 {
 protected:
 	virtual T& _Access (size_t subscript) = 0;
@@ -81,7 +81,7 @@ bool AllocBase<T>::_Verify() const
 }
 
 template <typename T>
-class MallocAllocator : LogBase(MallocAllocator), public AllocBase<T>
+class INTERPRETER_API MallocAllocator : LogBase(MallocAllocator), public AllocBase<T>
 {
 	static const size_t initial_cap = 10;
 	size_t capacity_;
@@ -152,7 +152,7 @@ public:
 };
 
 template <typename T, size_t capacity>
-class StaticAllocator : LogBase(StaticAllocator), public AllocBase<T>
+class INTERPRETER_API StaticAllocator : LogBase(StaticAllocator), public AllocBase<T>
 {
 	T array_ [capacity];
 

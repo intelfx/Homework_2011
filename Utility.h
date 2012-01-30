@@ -259,14 +259,14 @@ namespace Processor
 			{
 			case V_INTEGER:
 			{
-				int_abi_t intermediate = *reinterpret_cast<int_abi_t*> (&value);
+				int_abi_t intermediate = reinterpret_cast<int_abi_t&> (value);
 				integer = intermediate;
 				break;
 			}
 
 			case V_FLOAT:
 			{
-				fp_abi_t intermediate = *reinterpret_cast<fp_abi_t*> (&value);
+				fp_abi_t intermediate = reinterpret_cast<fp_abi_t&> (value);
 				fp = intermediate;
 				break;
 			}
@@ -427,14 +427,14 @@ namespace Processor
 
 	namespace ProcDebug
 	{
-		extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
-		extern const char* AddrType_ids[S_MAX]; // debug address type IDs
-		extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
+		INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
+		INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
+		INTERPRETER_API extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
 
-		extern char debug_buffer[STATIC_LENGTH];
+		INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
 
-		void PrintReference (const Reference& ref);
-		void PrintValue (const Value& val);
+		INTERPRETER_API void PrintReference (const Reference& ref);
+		INTERPRETER_API void PrintValue (const Value& val);
 	}
 
 	class IReader;

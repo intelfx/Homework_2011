@@ -8,6 +8,9 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
+	Logic::Logic() = default;
+	Logic::~Logic() = default;
+
 	void Logic::ExecuteSingleCommand (Command& command)
 	{
 		verify_method;

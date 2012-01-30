@@ -11,7 +11,7 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class AsmHandler : LogBase (AsmHandler), public Processor::IReader, public Processor::IWriter
+	class INTERPRETER_API AsmHandler : LogBase (AsmHandler), public Processor::IReader, public Processor::IWriter
 	{
 		FILE* writing_file_;
 

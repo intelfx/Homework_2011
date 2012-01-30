@@ -17,7 +17,7 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class IntegerExecutor : LogBase (IntegerExecutor), public IExecutor
+	class INTERPRETER_API IntegerExecutor : LogBase (IntegerExecutor), public IExecutor
 	{
 		static const char* supported_mnemonics[];
 
@@ -38,6 +38,9 @@ namespace ProcessorImplementation
 		virtual Value::Type SupportedType() const;
 
 	public:
+		IntegerExecutor();
+		virtual ~IntegerExecutor();
+
 		virtual void ResetImplementations();
 		virtual void Execute (void* handle, Command::Argument& argument);
 	};

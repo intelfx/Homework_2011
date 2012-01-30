@@ -1,5 +1,5 @@
-#ifndef _ANTIDED_STDAFX_H
-#define _ANTIDED_STDAFX_H
+#ifndef _INTERPRETER_STDAFX_H
+#define _INTERPRETER_STDAFX_H
 
 // This file is precompiled.
 // It must be DIRECTLY included in FIRST line of the source to take
@@ -10,4 +10,4 @@
 
 #include "build.h"
 
-#endif // _ANTIDED_STDAFX_H
+#endif // _INTERPRETER_STDAFX_H

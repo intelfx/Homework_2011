@@ -25,7 +25,7 @@ DeclareDescriptor (IInternalLogic);
 namespace Processor
 {
 
-	class ProcessorAPI : LogBase (ProcessorAPI)
+	class INTERPRETER_API ProcessorAPI : LogBase (ProcessorAPI)
 	{
 		IReader* reader_;
 		IWriter* writer_;
@@ -77,7 +77,7 @@ namespace Processor
 		calc_t	Exec(); // Execute current system state whatever it is now
 	};
 
-	class IModuleBase : LogBase (IModuleBase)
+	class INTERPRETER_API IModuleBase : LogBase (IModuleBase)
 	{
 	protected:
 		ProcessorAPI* proc_;
@@ -110,7 +110,7 @@ namespace Processor
 		}
 	};
 
-	class ILogic : LogBase (IInternalLogic), public IModuleBase
+	class INTERPRETER_API ILogic : LogBase (IInternalLogic), public IModuleBase
 	{
 	public:
 		virtual ~ILogic();
@@ -134,7 +134,7 @@ namespace Processor
 		virtual void	ExecuteSingleCommand (Command& command) = 0; // Execute a single command
 	};
 
-	class ICommandSet : LogBase (ICommandSet), public IModuleBase
+	class INTERPRETER_API ICommandSet : LogBase (ICommandSet), public IModuleBase
 	{
 		static ProcessorAPI* callback_procapi;
 
@@ -165,7 +165,7 @@ namespace Processor
 	};
 
 	// many would want to do a shared R/W handler to share some routines
-	class IReader : LogBase (IReader), virtual public IModuleBase
+	class INTERPRETER_API IReader : LogBase (IReader), virtual public IModuleBase
 	{
 	public:
 		virtual ~IReader();
@@ -196,7 +196,7 @@ namespace Processor
 	};
 
 	// many would want to do a shared R/W handler to share some routines
-	class IWriter : LogBase (IWriter), virtual public IModuleBase
+	class INTERPRETER_API IWriter : LogBase (IWriter), virtual public IModuleBase
 	{
 	public:
 		virtual ~IWriter();
@@ -207,7 +207,7 @@ namespace Processor
 		virtual void Write (size_t ctx_id) = 0;
 	};
 
-	class IMMU : LogBase (IMMU), public IModuleBase
+	class INTERPRETER_API IMMU : LogBase (IMMU), public IModuleBase
 	{
 	public:
 		virtual ~IMMU();
@@ -265,7 +265,7 @@ namespace Processor
         void SetTemporaryContext (size_t ctx_id);
 	};
 
-	class IExecutor : LogBase (IExecutor), public IModuleBase
+	class INTERPRETER_API IExecutor : LogBase (IExecutor), public IModuleBase
 	{
 	public:
 		virtual ~IExecutor();
@@ -282,7 +282,7 @@ namespace Processor
 		virtual void Execute (void* handle, Command::Argument& argument) = 0;
 	};
 
-	class IBackend : LogBase (IBackend), public IModuleBase
+	class INTERPRETER_API IBackend : LogBase (IBackend), public IModuleBase
 	{
 	public:
 		virtual ~IBackend();
@@ -292,7 +292,7 @@ namespace Processor
 		virtual abiret_t	ExecuteImage (size_t chk) = 0;
 	};
 
-	class ILinker : LogBase (ILinker), public IModuleBase
+	class INTERPRETER_API ILinker : LogBase (ILinker), public IModuleBase
 	{
 	public:
 		virtual ~ILinker();

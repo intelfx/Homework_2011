@@ -4,19 +4,7 @@
 
 #include <uXray/fxjitruntime.h>
 #include <uXray/fxlog_console.h>
-#include "MMU.h"
-#include "AssemblyIO.h"
-#include "CommandSet_original.h"
-#include "Linker.h"
-#include "Logic.h"
-#include "Executor.h"
-#include "Executor_int.h"
-#include "Executor_service.h"
-
-void illegal_function (int* p)
-{
-	volatile int i = *p;
-}
+#include "API.h"
 
 int main (int argc, char** argv)
 {
@@ -36,28 +24,8 @@ int main (int argc, char** argv)
 	Processor::ProcessorAPI api;
 
 	NativeExecutionManager nexec;
-	if (nexec.ExceptionHandlingAvailable())
-	{
-		smsg (E_WARNING, E_VERBOSE, "Exception handler self-tests");
-		nexec.EnableExceptionHandling();
-
-		try
-		{
-			nexec.SafeExecute (reinterpret_cast<void*> (&illegal_function), 0);
-		}
-
-		catch (NativeException& e)
-		{
-			smsg (E_INFO, E_VERBOSE, "Native exception caught: %s", e.what());
-		}
-
-		catch (...)
-		{
-			smsg (E_CRITICAL, E_USER, "Unknown exception caught");
-		}
-
-		smsg (E_WARNING, E_VERBOSE, "Segfault handler self-test OK");
-	}
+	__sassert (nexec.EHSelftest(), "Exception handler self-test failed");
+	nexec.EnableExceptionHandling();
 
 	api.Attach (new ProcessorImplementation::MMU);
 	api.Attach (new ProcessorImplementation::UATLinker);
