@@ -13,7 +13,7 @@
 #define _ObjectVarName(var_name) _ ## var_name ## _dbgobject
 
 #define DoExternBaseClass(var_name) extern template class  ::Debug::VerifierWrapper<_ObjectDescName(var_name)>
-#define DoExternDescriptor(var_name) struct  _ObjectDescName(var_name)					\
+#define DoExternDescriptor(var_name) struct EXPORT _ObjectDescName(var_name)					\
 	{																					\
 	static const ::Debug::ObjectDescriptor_ desc;										\
 	const ::Debug::ObjectDescriptor_* operator()() { return &desc; }						\

@@ -22,7 +22,7 @@ class FXLIB_API NativeExecutionManager : LogBase (NativeExecutionManager)
 	IExceptionRehandler* exceptions;
 	IMemoryMapper* memory;
 
-	static void ExceptionHandler (int, const char*, char**);
+	static void EmitNativeException (int, const char*, char**);
 
 	bool default_eh_state;
 	unsigned reentrant_eh_count;
@@ -61,6 +61,9 @@ public:
 	// Disables all set custom handlers, returning exception handling to the platform.
 	void DisableExceptionHandling();
 
+	// Recovers all temporarily disabled handlers (due to previous exceptions).
+	void RestoreExceptionHandling();
+
 	void ReentrantEnableEH();
 	void ReentrantDisableEH();
 
@@ -83,23 +86,34 @@ class FXLIB_API NativeException : public Debug::Exception
 	char** backtrace_;
 	int b_count_;
 
+	bool handled_;
+
 public:
 	NativeException (const NativeException&) = delete;
 	NativeException& operator= (const NativeException&) = delete;
 
-	NativeException (const char* information, char** backtr, int count);
+	NativeException (Debug::SourceDescriptor src, const char* information, char** backtrace, int backtrace_count);
 	virtual ~NativeException() throw();
 
 	NativeException (NativeException&& that);
 
-	char** backtrace() const throw()
+	char** GetBacktrace() const throw()
 	{
 		return backtrace_;
 	}
 
-	int backtrace_length() const throw()
+	int GetBacktraceLength() const throw()
 	{
 		return b_count_;
+	}
+
+	void DumpBacktrace() const throw();
+
+	virtual const char* what() const throw();
+
+	void Handle()
+	{
+		handled_ = 1;
 	}
 };
 

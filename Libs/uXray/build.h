@@ -83,6 +83,7 @@
 #   define FXLIB_API __attribute__ ((dllimport))
 #  endif
 #  define PACKED __attribute__ ((packed))
+#  define EXPORT __attribute__ ((dllexport))
 # endif
 
 # ifdef _MSC_VER
@@ -91,6 +92,7 @@
 #  else
 #   define FXLIB_API __declspec (dllimport)
 #  endif
+#  define EXPORT __declspec (dllexport)
 # endif
 
 #endif
@@ -98,8 +100,9 @@
 // For POSIX target (DSO) : visibility default
 #ifdef TARGET_POSIX
 # ifdef __GNUC__
-#   define PACKED __attribute__ ((packed))
+#   define PACKED    __attribute__ ((packed))
 #   define FXLIB_API __attribute__ ((visibility ("default")))
+#   define EXPORT    __attribute__ ((visibility ("default")))
 # endif
 #endif
 
@@ -110,6 +113,10 @@
 
 #ifndef PACKED
 # define PACKED
+#endif
+
+#ifndef EXPORT
+# define EXPORT
 #endif
 
 // -----------------------------------------------------------------------------

@@ -428,11 +428,11 @@ namespace Debug
 		{
 			HandleError (event, place, object, e.what());
 		}
-
+/*
 		catch (...)
 		{
 			HandleError (event, place, object, "Unknown logger error");
-		}
+		}*/
 
 		// Restore saved state (if state was not changed by HandleError())
 		if (state == S_UNINITIALIZED)
@@ -532,6 +532,12 @@ namespace Debug
 		call_log (dbg_params_, place, // Collected data
 				  E_OBJCREATION, ctor_event_level, // Generated data
 				  _GetCtorFmt(), dbg_params_.object_descriptor ->object_name, this); // Fmt and arguments
+	}
+
+	void VerifierBase::_MoveDynamicDbgInfo (const VerifierBase* that)
+	{
+		dbg_params_ = that ->dbg_params_;
+		that ->dbg_params_.object_status = OS_MOVED;
 	}
 
 	VerifierBase::~VerifierBase()

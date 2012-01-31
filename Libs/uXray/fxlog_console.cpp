@@ -431,9 +431,12 @@ void FXConLog::WriteLog (Debug::LogAtom atom)
 	__assert (target, "Invalid stream");
 	__assert (!ferror (target), "Stream has an error");
 
+	pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, 0);
 	pthread_mutex_lock (&output_mutex);
 	InternalWrite (event, place, object, target);
 	pthread_mutex_unlock (&output_mutex);
+	pthread_setcancelstate (PTHREAD_CANCEL_ENABLE, 0);
+	pthread_testcancel();
 }
 
 void FXConLog::WriteLogEmergency (Debug::LogAtom atom) throw()
@@ -449,12 +452,15 @@ void FXConLog::WriteLogEmergency (Debug::LogAtom atom) throw()
 	emerg_data.foreground = CCC_RED;
 	emerg_data.brightness = 1;
 
+	pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, 0);
 	pthread_mutex_lock (&output_mutex);
 	SetExtended (target, emerg_data);
 	fprintf (target, "(EMERG) ");
 
 	InternalWrite (event, place, object, target);
 	pthread_mutex_unlock (&output_mutex);
+	pthread_setcancelstate (PTHREAD_CANCEL_ENABLE, 0);
+	pthread_testcancel();
 }
 
 // kate: indent-mode cstyle; replace-tabs off; tab-width 4;

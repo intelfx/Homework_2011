@@ -479,11 +479,7 @@ namespace Debug
 
 		// Copies debug descriptor from "that" and sets its status to "moved"
 		// to suppress destruction logging. Does not do the construction logging.
-		void _MoveDynamicDbgInfo (const VerifierBase* that)
-		{
-			dbg_params_ = that ->dbg_params_;
-			that ->dbg_params_.object_status = OS_MOVED;
-		}
+		void _MoveDynamicDbgInfo (const VerifierBase* that);
 
 		// Checks and sets the debug descriptor on "first come" basis -
 		// first fed descriptor is saved, others discarded.
@@ -539,7 +535,7 @@ namespace Debug
 
 	// We need InfoHolderType to be a functor returning "const ObjectDescriptor_*".
 	template <typename InfoHolderType>
-	class VerifierWrapper : virtual public _VerifierBase_Deprecated
+	class EXPORT VerifierWrapper : virtual public _VerifierBase_Deprecated
 	{
 	protected:
 		static const ObjectDescriptor_* _specific_dbg_info; /* API pointer */
@@ -555,24 +551,18 @@ namespace Debug
 	protected:
 
 		// Constructor used to signal object move
-		VerifierWrapper (const VerifierBase* src);
+		VerifierWrapper (const VerifierBase* src)
+		{
+			_MoveDynamicDbgInfo (src);
+		}
 
 		// Constructor used in normal object creation
-		VerifierWrapper();
+		VerifierWrapper()
+		{
+			_SetStaticDbgInfo();
+			_SetDynamicDbgInfo (_specific_dbg_info);
+		}
 	};
-
-	template <typename T>
-	VerifierWrapper<T>::VerifierWrapper (const VerifierBase* src)
-	{
-		_MoveDynamicDbgInfo (src);
-	}
-
-	template <typename T>
-	VerifierWrapper<T>::VerifierWrapper()
-	{
-		_SetStaticDbgInfo();
-		_SetDynamicDbgInfo (_specific_dbg_info);
-	}
 
 	// ---------------------------------------
 	// The mess ends here

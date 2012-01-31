@@ -28,8 +28,15 @@ class IExceptionRehandler : LogBase (IExceptionRehandler)
 {
 public:
 	virtual bool IsSet() = 0;
-	virtual void RegisterHandler (void(*handler)(int, const char*, char**)) = 0;
-	virtual void DefaultHandlers() = 0;
+
+	// Sets a custom signal handler
+	virtual void SetHandlers (void(*handler)(int, const char*, char**)) = 0;
+
+	// Clears custom signal handlers
+	virtual void ResetHandlers() = 0;
+
+	// Re-activates an existing signal handler
+	virtual void ActivateHandlers() = 0;
 };
 
 class IMemoryMapper : LogBase (IMemoryMapper)
@@ -46,13 +53,14 @@ ImplementDescriptor (MmapImplementation, "POSIX memory mapper", MOD_APPMODULE);
 DeclareDescriptor (SignalHandler);
 ImplementDescriptor (SignalHandler, "POSIX signal handler", MOD_APPMODULE);
 
-static const size_t signal_trap_count = 4;
+static const size_t signal_trap_count = 5;
 static int signal_trap_list[signal_trap_count] =
 {
 	SIGSEGV,
 	SIGBUS,
 	SIGFPE,
-	SIGILL
+	SIGILL,
+	SIGABRT
 };
 
 class MmapImplementation : LogBase (MmapImplementation), public IMemoryMapper
@@ -100,7 +108,7 @@ public:
 
 class SignalHandler : LogBase (SignalHandler), public IExceptionRehandler
 {
-	static struct sigaction ConstructAction (void(*handler)(int, siginfo_t*, void*))
+	static void RegisterAction (int signal, void(*handler)(int, siginfo_t*, void*))
 	{
 		struct sigaction action;
 		memset (&action, 0, sizeof (action));
@@ -113,16 +121,15 @@ class SignalHandler : LogBase (SignalHandler), public IExceptionRehandler
 		else
 			action.sa_handler = SIG_DFL;
 
-		return action;
+		sigaction (signal, &action, 0);
 	}
 
 	static char message_buffer[STATIC_LENGTH];
 	static void* backtrace_buffer[STATIC_LENGTH];
 	static char** symbolic_backtrace;
 	static void(*user_handler)(int, const char*, char**);
-	static bool handlers_set;
 
-	static void _handler (int sig, siginfo_t* info, void* context)
+	static void internal_handler (int sig, siginfo_t* info, void* context)
 	{
 		int count = backtrace (backtrace_buffer, STATIC_LENGTH);
 		symbolic_backtrace = backtrace_symbols (backtrace_buffer, count);
@@ -135,51 +142,45 @@ class SignalHandler : LogBase (SignalHandler), public IExceptionRehandler
 			snprintf (message_buffer, STATIC_LENGTH, "POSIX signal %d (%s) at %p",
 					  sig, strsignal (sig), info ->si_addr);
 
+		RegisterAction (sig, 0); // clear user handler for caught signal to eliminate recursive terminate()
+
 		user_handler (count, message_buffer, symbolic_backtrace);
 	}
 
 public:
 
-	virtual void DefaultHandlers()
+	virtual void ActivateHandlers()
 	{
-		struct sigaction default_action = ConstructAction (0);
-
 		for (size_t i = 0; i < signal_trap_count; ++i)
 		{
-			sigaction (signal_trap_list[i], &default_action, 0);
-			msg (E_INFO, E_DEBUG, "POSIX signal handler reset for %d \"%s\"",
+			RegisterAction (signal_trap_list[i], internal_handler);
+			msg (E_INFO, E_DEBUG, "POSIX signal handler updated for %d \"%s\"",
 				 signal_trap_list[i], strsignal (signal_trap_list[i]));
 		}
 
-		handlers_set = 0;
-		user_handler = 0;
+		msg (E_WARNING, E_DEBUG, "POSIX signal handlers updated");
 
-		msg (E_WARNING, E_DEBUG, "POSIX signal handlers reset");
 	}
 
 	virtual bool IsSet()
 	{
-		return handlers_set;
+		return user_handler ? 1 : 0;
 	}
 
-	virtual void RegisterHandler (void(*handler)(int, const char*, char**))
+	virtual void SetHandlers (void(*handler)(int, const char*, char**))
 	{
-		struct sigaction custom_action = ConstructAction (&_handler);
-		for (size_t i = 0; i < signal_trap_count; ++i)
-		{
-			sigaction (signal_trap_list[i], &custom_action, 0);
-			msg (E_INFO, E_DEBUG, "POSIX signal handler set for %d \"%s\"",
-				 signal_trap_list[i], strsignal (signal_trap_list[i]));
-		}
-
-		handlers_set = 1;
 		user_handler = handler;
+		ActivateHandlers();
 
 		stack_t new_stack;
 		new_stack.ss_flags = SS_DISABLE;
 		sigaltstack (&new_stack, 0);
+	}
 
-		msg (E_WARNING, E_DEBUG, "POSIX signal handlers set and stack configured");
+	virtual void ResetHandlers()
+	{
+		user_handler = 0;
+		ActivateHandlers();
 	}
 };
 
@@ -187,7 +188,6 @@ char SignalHandler::message_buffer[STATIC_LENGTH];
 void* SignalHandler::backtrace_buffer[STATIC_LENGTH];
 char** SignalHandler::symbolic_backtrace = 0;
 void(*SignalHandler::user_handler)(int, const char*, char**) = 0;
-bool SignalHandler::handlers_set = 0;
 #endif
 
 NativeExecutionManager::NativeExecutionManager() :
@@ -238,7 +238,7 @@ void NativeExecutionManager::ReentrantDisableEH()
 NativeExecutionManager::~NativeExecutionManager()
 {
 	if (exceptions)
-		exceptions ->DefaultHandlers();
+		exceptions ->ResetHandlers();
 
 	delete exceptions;
 	delete memory;
@@ -259,15 +259,16 @@ int NativeExecutionManager::EHSelftest()
 		return 0;
 	}
 
-	ReentrantEnableEH();
-
 	try
 	{
+		ReentrantEnableEH();
 		SafeExecute (reinterpret_cast<void*> (&selftest_function), 0);
+		ReentrantDisableEH();
 	}
 
 	catch (NativeException& e)
 	{
+		e.Handle();
 		msg (E_INFO, E_VERBOSE, "Native exception caught: %s", e.what());
 	}
 
@@ -312,7 +313,7 @@ void NativeExecutionManager::EnableExceptionHandling()
 	if (exceptions ->IsSet())
 		return;
 
-	exceptions ->RegisterHandler (&ExceptionHandler);
+	exceptions ->SetHandlers (&EmitNativeException);
 	msg (E_INFO, E_VERBOSE, "Exception handling enabled, C++ exceptions will be thrown");
 }
 
@@ -322,8 +323,16 @@ void NativeExecutionManager::DisableExceptionHandling()
 	if (!exceptions ->IsSet())
 		return;
 
-	exceptions ->DefaultHandlers();
+	exceptions ->ResetHandlers();
 	msg (E_INFO, E_VERBOSE, "Exception handling disabled");
+}
+
+void NativeExecutionManager::RestoreExceptionHandling()
+{
+	__assert (exceptions, "No exception handling interface is available");
+
+	exceptions ->ActivateHandlers();
+	msg (E_INFO, E_VERBOSE, "Exception handling restored");
 }
 
 int NativeExecutionManager::SafeExecute (void* address, void* argument)
@@ -334,30 +343,59 @@ int NativeExecutionManager::SafeExecute (void* address, void* argument)
 		return Fcast<int(*)(void*)> (address) (argument);
 	}
 
-	bool exceptions_were_set = exceptions ->IsSet();
-	EnableExceptionHandling();
+	ReentrantEnableEH();
 
 	// ----
 	int result = Fcast<int(*)(void*)> (address) (argument);
 	// ----
 
-	if (!exceptions_were_set)
-		DisableExceptionHandling();
+	ReentrantDisableEH();
 
 	return result;
 }
 
-void NativeExecutionManager::ExceptionHandler (int backtrace_count, const char* message, char** backtrace)
+void NativeExecutionManager::EmitNativeException (int backtrace_count, const char* message, char** backtrace)
 {
 // 	throw std::logic_error (message);
-	throw NativeException (message, backtrace, backtrace_count);
+	throw NativeException (THIS_PLACE, message, backtrace, backtrace_count);
 }
 
-NativeException::NativeException (const char* information, char** backtr, int count) :
-Exception (THIS_PLACE, _specific_dbg_info, Debug::EX_INPUT, "<signal>", information, 0),
-backtrace_ (backtr),
-b_count_ (count)
+NativeException::NativeException (Debug::SourceDescriptor src, const char* information, char** backtrace, int backtrace_count) :
+Exception (src, _specific_dbg_info, Debug::EX_INPUT, "<signal>", information, 0),
+backtrace_ (backtrace),
+b_count_ (backtrace_count),
+handled_ (0)
 {
+}
+
+void NativeException::DumpBacktrace() const throw()
+{
+	fprintf (stderr, "---- Dumping crash backtrace\t----\n\n");
+
+	int shown_count = (b_count_ <= 10) ? b_count_ : 10;
+	for (int i = 0; i < shown_count; ++i)
+	{
+		char* backtrace_rpath = 0;
+		if (backtrace_rpath = strrchr (backtrace_[i], '/'))
+			++backtrace_rpath;
+
+		else
+			backtrace_rpath = backtrace_[i];
+
+		fprintf (stderr, "* Call %d: %s\n", i, backtrace_rpath);
+	}
+	fprintf (stderr, "\n---- Backtrace dump complete\t----\n\n");
+}
+
+const char* NativeException::what() const throw()
+{
+	if (!handled_)
+	{
+		fprintf (stderr, "\n---- UNHANDLED NATIVE EXCEPTION ----\n");
+		DumpBacktrace();
+	}
+
+	return Debug::Exception::what();
 }
 
 NativeException::~NativeException() throw()
