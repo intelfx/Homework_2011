@@ -14,12 +14,6 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	CommandSet_mkI::~CommandSet_mkI() = default;
-	CommandSet_mkI::CommandSet_mkI() :
-	by_id()
-	{
-	}
-
 	void CommandSet_mkI::OnAttach()
 	{
 		ResetCommandSet();
@@ -29,7 +23,7 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSE, "Resetting command set: using mkI");
+		msg (E_INFO, E_DEBUG, "Resetting command set: using mkI");
 		by_id.clear();
 
 		for (const ICD* dsc = initial_commands; dsc ->name; ++dsc)

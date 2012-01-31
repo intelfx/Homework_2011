@@ -13,9 +13,6 @@ namespace ProcessorImplementation
 		static const char* RegisterIDs [R_MAX];
 
 	public:
-		Logic();
-		virtual ~Logic();
-
 		virtual void Analyze (calc_t value);
 		virtual void Syscall (size_t index);
 

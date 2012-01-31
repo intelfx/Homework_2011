@@ -79,9 +79,6 @@ namespace ProcessorImplementation
 		"quit"
 	};
 
-	ServiceExecutor::ServiceExecutor() = default;
-	ServiceExecutor::~ServiceExecutor() = default;
-
 	Value::Type ServiceExecutor::SupportedType() const
 	{
 		return Value::V_MAX;

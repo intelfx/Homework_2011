@@ -1,6 +1,6 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 
-#include "time_ops.h"
+#include <uXray/time_ops.h>
 
 #include <uXray/fxjitruntime.h>
 #include <uXray/fxlog_console.h>
@@ -42,15 +42,15 @@ int main (int argc, char** argv)
 
 	delete api.Reader();
 
-	calibrate_and_setup_clock();
-	clock_measure_start ("Execution");
+	timeops_calibrate_and_setup_clock();
+	timeops_measure_start ("Execution");
 
 	Processor::calc_t result = api.Exec();
 
 	Processor::ProcDebug::PrintValue (result);
 	smsg (E_INFO, E_USER, "Testing has apparently completed OK: result %s", Processor::ProcDebug::debug_buffer);
 
-	clock_measure_end ();
+	timeops_measure_end ();
 
 	delete api.MMU();
 	delete api.Linker();

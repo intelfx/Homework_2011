@@ -10,16 +10,6 @@
 
 namespace Processor
 {
-	ProcessorAPI::~ProcessorAPI() = default;
-	IReader::~IReader() = default;
-	IWriter::~IWriter() = default;
-	IMMU::~IMMU() = default;
-	IExecutor::~IExecutor() = default;
-	ILinker::~ILinker() = default;
-	IBackend::~IBackend() = default;
-	ICommandSet::~ICommandSet() = default;
-	ILogic::~ILogic() = default;
-
 	ProcessorAPI* ICommandSet::callback_procapi = 0;
 
 	void ProcessorAPI::Attach (IModuleBase* module)
@@ -300,7 +290,7 @@ ImplementDescriptor (IExecutor, "executor module", MOD_APPMODULE);
 ImplementDescriptor (ProcessorAPI, "processor API", MOD_APPMODULE);
 ImplementDescriptor (ICommandSet, "command set handler", MOD_APPMODULE);
 ImplementDescriptor (IBackend, "native compiler", MOD_APPMODULE);
-ImplementDescriptor (IInternalLogic, "processor logic", MOD_APPMODULE);
+ImplementDescriptor (ILogic, "processor logic", MOD_APPMODULE);
 ImplementDescriptor (IModuleBase, "unspecified module", MOD_APPMODULE);
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
 

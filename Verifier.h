@@ -25,9 +25,6 @@ protected:
 	virtual void _Realloc (size_t capacity) = 0;
 
 public:
-	AllocBase() = default;
-	virtual ~AllocBase();
-
 	virtual size_t Capacity() const = 0;
 
 	void Realloc (size_t capacity);
@@ -35,10 +32,6 @@ public:
 	T& Access (size_t subscript);
 	const T& Access (size_t subscript) const;
 };
-
-template <typename T>
-AllocBase<T>::~AllocBase() = default;
-
 
 template <typename T>
 void AllocBase<T>::Realloc (size_t capacity)

@@ -28,8 +28,8 @@ namespace Processor
 
 		const char* ValueType_ids[Value::V_MAX + 1] =
 		{
-			"floating-point",
 			"integer",
+			"floating-point",
 			"undefined"
 		};
 

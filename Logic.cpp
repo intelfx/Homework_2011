@@ -8,36 +8,44 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	Logic::Logic() = default;
-	Logic::~Logic() = default;
-
 	void Logic::ExecuteSingleCommand (Command& command)
 	{
 		verify_method;
 
-		if (!command.cached_executor || !command.cached_handle)
+		if (!command.cached_handle)
 		{
 			// Perform caching of executor/handle since execution must be O(1)
 
 			ICommandSet* command_set = proc_ ->CommandSet();
 			const CommandTraits& command_traits = command_set ->DecodeCommand (command.id);
 
-			// Select valid executor based on command flavor
-			if (command_traits.is_service_command)
-				command.cached_executor = proc_ ->Executor (Value::V_MAX);
+			// User-supplied handle (pointer to function) should be registered with module ID 0
+			if (void* user_handle = command_set ->GetExecutionHandle (command_traits, 0))
+			{
+				command.cached_executor = 0;
+				command.cached_handle = user_handle;
+			}
 
+			// Select conventional handle
 			else
-				command.cached_executor = proc_ ->Executor (command.type);
+			{
+				// Select valid executor based on command type and flavor
+				if (command_traits.is_service_command)
+					command.cached_executor = proc_ ->Executor (Value::V_MAX);
 
-			__assert (command.cached_executor, "Was unable to select executor for command type \"%s\"",
-					  ProcDebug::ValueType_ids[command.type]);
+				else
+					command.cached_executor = proc_ ->Executor (command.type);
 
-			command.cached_handle = command_set ->GetExecutionHandle (command_traits, command.cached_executor ->ID());
-			__assert (command.cached_handle,
-					  "Was unable to retrieve exec handle for command \"%s\" [type \"%s\" execid %zx]",
-					  command_traits.mnemonic,
-					  ProcDebug::ValueType_ids[command.type],
-					  command.cached_executor ->ID());
+				__assert (command.cached_executor, "Was unable to select executor for command type \"%s\"",
+						  ProcDebug::ValueType_ids[command.type]);
+
+				command.cached_handle = command_set ->GetExecutionHandle (command_traits, command.cached_executor ->ID());
+				__assert (command.cached_handle,
+						  "Was unable to retrieve exec handle for command \"%s\" [type \"%s\" execid %zx]",
+						  command_traits.mnemonic,
+						  ProcDebug::ValueType_ids[command.type],
+						  command.cached_executor ->ID());
+			}
 		}
 
 		IMMU* mmu = proc_ ->MMU();
@@ -45,7 +53,11 @@ namespace ProcessorImplementation
 		mmu ->GetContext().flags &= ~MASK (F_WAS_JUMP);
 		mmu ->SelectStack (command.type);
 
-		command.cached_executor ->Execute (command.cached_handle, command.arg);
+		if (command.cached_executor)
+			command.cached_executor ->Execute (command.cached_handle, command.arg);
+
+		else
+			Fcast<void(*)(ProcessorAPI*, Command::Argument&)> (command.cached_handle) (proc_, command.arg);
 	}
 
 	size_t Logic::ChecksumState()

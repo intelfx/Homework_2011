@@ -285,7 +285,7 @@ namespace ProcessorImplementation
 
 	char* AsmHandler::PrepLine (char* read_buffer)
 	{
-		char *begin, *tmp = read_buffer;
+		char *begin, *tmp = read_buffer, *last_non_whitespace;
 
 		while (isspace (*(begin = tmp++)));
 
@@ -293,6 +293,7 @@ namespace ProcessorImplementation
 			return 0;
 
 		tmp = begin;
+		last_non_whitespace = begin;
 
 		/* drop unused parts of decoded string */
 		do
@@ -304,10 +305,17 @@ namespace ProcessorImplementation
 				*tmp = '\0';
 
 			else
+			{
+				if (!isspace (*tmp))
+					last_non_whitespace = tmp;
+
 				*tmp = tolower (*tmp);
+			}
 
 		}
 		while (*tmp++);
+
+		*(last_non_whitespace + 1) = '\0'; // cut traling whitespace
 
 		return begin;
 	}
@@ -389,6 +397,7 @@ namespace ProcessorImplementation
 		const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);
 		output.command.id = desc.id;
 
+		// Default command type specification
 		if (output.command.type == Value::V_MAX)
 		{
 			if (desc.is_service_command)

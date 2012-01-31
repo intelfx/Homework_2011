@@ -23,9 +23,6 @@ namespace ProcessorImplementation
 //		virtual bool _Verify() const; // nothing to verify yet.. internal map is verified in Finalize()
 
 	public:
-		UATLinker();
-		virtual ~UATLinker();
-
 		virtual void InitLinkSession();
 		virtual void Finalize();
 

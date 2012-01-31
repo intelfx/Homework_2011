@@ -38,9 +38,6 @@ namespace ProcessorImplementation
 		virtual void OnAttach();
 
 	public:
-		CommandSet_mkI();
-		virtual ~CommandSet_mkI();
-
 		virtual void ResetCommandSet();
 
 		virtual void AddCommand (CommandTraits&& command);

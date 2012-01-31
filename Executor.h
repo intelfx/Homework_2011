@@ -38,9 +38,6 @@ namespace ProcessorImplementation
 		virtual Value::Type SupportedType() const;
 
 	public:
-		FloatExecutor();
-		virtual ~FloatExecutor();
-
 		virtual void ResetImplementations();
 		virtual void Execute (void* handle, Command::Argument& argument);
 	};

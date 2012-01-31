@@ -20,7 +20,7 @@ DeclareDescriptor (IExecutor);
 DeclareDescriptor (ILinker);
 DeclareDescriptor (ProcessorAPI);
 DeclareDescriptor (IBackend);
-DeclareDescriptor (IInternalLogic);
+DeclareDescriptor (ILogic);
 
 namespace Processor
 {
@@ -50,7 +50,6 @@ namespace Processor
 		virtual bool _Verify() const;
 
 	public:
-		virtual ~ProcessorAPI();
 		ProcessorAPI();
 
 		void Attach (IModuleBase* module);
@@ -110,11 +109,9 @@ namespace Processor
 		}
 	};
 
-	class INTERPRETER_API ILogic : LogBase (IInternalLogic), public IModuleBase
+	class INTERPRETER_API ILogic : LogBase (ILogic), public IModuleBase
 	{
 	public:
-		virtual ~ILogic();
-
 		virtual Register	DecodeRegister (const char* reg) = 0;
 		virtual const char*	EncodeRegister (Register reg) = 0;
 
@@ -139,8 +136,6 @@ namespace Processor
 		static ProcessorAPI* callback_procapi;
 
 	public:
-		virtual ~ICommandSet();
-
 		static void SetProcAPI_Fallback (ProcessorAPI* procapi);
 		abiret_t ExecFallbackCallback (Processor::Command* cmd); // look, what a great name!
 
@@ -168,8 +163,6 @@ namespace Processor
 	class INTERPRETER_API IReader : LogBase (IReader), virtual public IModuleBase
 	{
 	public:
-		virtual ~IReader();
-
 		// Sections in list are in file appearance order.
 		virtual FileProperties RdSetup (FILE* file) = 0;
 		virtual void RdReset (FileProperties* prop) = 0;
@@ -199,8 +192,6 @@ namespace Processor
 	class INTERPRETER_API IWriter : LogBase (IWriter), virtual public IModuleBase
 	{
 	public:
-		virtual ~IWriter();
-
 		virtual void WrSetup (FILE* file) = 0;
 		virtual void WrReset() = 0;
 
@@ -210,8 +201,6 @@ namespace Processor
 	class INTERPRETER_API IMMU : LogBase (IMMU), public IModuleBase
 	{
 	public:
-		virtual ~IMMU();
-
 		virtual Context&		GetContext	() = 0; // Get current context data
 		virtual void			DumpContext	() const = 0; // Print context data to the log
 
@@ -268,8 +257,6 @@ namespace Processor
 	class INTERPRETER_API IExecutor : LogBase (IExecutor), public IModuleBase
 	{
 	public:
-		virtual ~IExecutor();
-
 		virtual size_t ID() { return typeid (*this).hash_code(); }
 
 		// Returns instruction type supported by the executor module
@@ -285,8 +272,6 @@ namespace Processor
 	class INTERPRETER_API IBackend : LogBase (IBackend), public IModuleBase
 	{
 	public:
-		virtual ~IBackend();
-
 		virtual void		CompileBuffer (size_t chk) = 0;
 		virtual bool		ImageIsOK (size_t chk) = 0;
 		virtual abiret_t	ExecuteImage (size_t chk) = 0;
@@ -295,8 +280,6 @@ namespace Processor
 	class INTERPRETER_API ILinker : LogBase (ILinker), public IModuleBase
 	{
 	public:
-		virtual ~ILinker();
-
 		static const size_t symbol_auto_placement_addr = static_cast<size_t> (-1);
 
 		// Clear internal buffer symbol tables.

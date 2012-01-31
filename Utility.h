@@ -159,8 +159,8 @@ namespace Processor
 
 		enum Type
 		{
+			V_INTEGER = 0,
 			V_FLOAT,
-			V_INTEGER,
 			V_MAX
 		} type;
 

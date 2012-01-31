@@ -75,9 +75,6 @@ namespace ProcessorImplementation
 		"dup"
 	};
 
-	FloatExecutor::FloatExecutor() = default;
-	FloatExecutor::~FloatExecutor() = default;
-
 	void FloatExecutor::OnAttach()
 	{
 		ResetImplementations();

@@ -9,7 +9,7 @@ namespace Processor
 
 		mmu_ ->ResetEverything();
 		cset_ ->ResetCommandSet();
-		for (unsigned i = 0; i < Value::V_MAX; ++i)
+		for (unsigned i = 0; i <= Value::V_MAX; ++i)
 			executors_[i] ->ResetImplementations();
 	}
 
@@ -252,7 +252,8 @@ namespace Processor
 		if (mmu_ ->GetStackTop())
 			last_result = mmu_ ->AStackTop (0);
 
-		mmu_ ->RestoreContext();
+		mmu_ ->ClearContext();
+
 		return last_result;
 	}
 }

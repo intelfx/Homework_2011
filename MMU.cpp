@@ -87,6 +87,9 @@ namespace ProcessorImplementation
 
 	void MMU::SelectStack (Value::Type type)
 	{
+		if (current_stack && frame_stack && (current_stack_type == type))
+			return;
+
 		current_stack = 0;
 		frame_stack = 0;
 
@@ -136,13 +139,14 @@ namespace ProcessorImplementation
 		verify_method;
 
 		long final_offset_tmp = context.frame + offset;
-		__assert (final_offset_tmp >= 0, "Stack frame offset underflow: %d [min %ld]",
-				  offset, -context.frame);
+
+		__assert (final_offset_tmp >= 0, "Stack frame offset underflow: %d [frame %zu]",
+				  offset, context.frame);
 
 		size_t final_offset = context.frame + offset;
 
-		__assert (final_offset < frame_stack ->size(), "Stack frame offset overflow: %zu [max %ld]",
-				  offset, frame_stack ->size() - context.frame);
+		__assert (final_offset < frame_stack ->size(), "Stack frame offset overflow: %d [frame %zu | top %zu]",
+				  offset, context.frame, frame_stack ->size());
 
 		return frame_stack ->at (final_offset);
 	}
@@ -561,12 +565,6 @@ namespace ProcessorImplementation
 			 ProcDebug::ValueType_ids[current_stack_type], GetStackTop(),
 			 w_context.depth);
 
-		msg (E_INFO, E_DEBUG, "Ctx [%zd]: STACK [integer %zu] [float %zu] [non-typed %zu]",
-			 w_context.buffer,
-			 integer_stack.size(),
-			 fp_stack.size(),
-			 main_stack.size());
-
 // 		if (w_context.buffer < buffers.Capacity())
 // 		{
 // 			const calc_t* registers = CurrentBuffer().registers;
@@ -661,10 +659,6 @@ namespace ProcessorImplementation
 		verify_statement (current_stack, "No stack selected");
 		verify_statement (frame_stack, "No auxiliary stack selected");
 
-		if (!current_stack ->empty())
-			verify_statement (context.frame <= current_stack ->size(), "Invalid stack frame [%zu]: top at %zu",
-							  context.frame, current_stack ->size());
-
 		verify_statement (context.buffer < buffers.Capacity(), "Invalid context buffer ID [%zd]: max %zu",
 						  context.buffer, buffers.Capacity());
 
@@ -697,13 +691,13 @@ namespace ProcessorImplementation
 
 		case S_FRAME:
 			__verify (context.frame + ref.address < frame_stack ->size(),
-					  "Invalid reference [FRAME:%zu] : offset limit %zu", frame_stack ->size() - context.frame);
+					  "Invalid reference [FRAME:%zu] : frame at %zu | top at %zu", ref.address, context.frame, frame_stack ->size());
 			break;
 
 
 		case S_FRAME_BACK:
-			__verify (context.frame - ref.address < frame_stack ->size(),
-					  "Invalid reference [BACKFRAME:%zu] : offset limit %zu", ref.address, context.frame);
+			__verify (context.frame >= ref.address,
+					  "Invalid reference [BACKFRAME:%zu] : frame at %zu | top at %zu", ref.address, context.frame, frame_stack ->size());
 			break;
 
 		case S_BYTEPOOL:

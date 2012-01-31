@@ -26,9 +26,6 @@ namespace ProcessorImplementation
 		virtual Value::Type SupportedType() const;
 
 	public:
-		ServiceExecutor();
-		virtual ~ServiceExecutor();
-
 		virtual void Execute (void* handle, Command::Argument& argument);
 		virtual void ResetImplementations();
 	};
