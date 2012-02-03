@@ -26,6 +26,7 @@ namespace ProcessorImplementation
 		C_FLOAD,
 		C_FSTORE,
 
+		C_ABS,
 		C_ADD,
 		C_SUB,
 		C_MUL,
@@ -36,6 +37,9 @@ namespace ProcessorImplementation
 
 		C_NEG,
 		C_SQRT,
+
+		C_SIN,
+		C_COS,
 
 		C_ANAL,
 		C_CMP,
@@ -58,6 +62,7 @@ namespace ProcessorImplementation
 		"force_ld",
 		"force_st",
 
+		"abs",
 		"add",
 		"sub",
 		"mul",
@@ -68,6 +73,9 @@ namespace ProcessorImplementation
 
 		"neg",
 		"sqrt",
+
+		"sin",
+		"cos",
 
 		"anal", // Fuck yeah
 		"cmp",
@@ -144,7 +152,6 @@ namespace ProcessorImplementation
 
 		case C_POP:
 			PopArguments (1);
-			msg (E_INFO, E_DEBUG, "Popped value: %lg", temp[0]);
 			break;
 
 		case C_TOP:
@@ -179,6 +186,12 @@ namespace ProcessorImplementation
 		case C_STORE:
 			PopArguments (1);
 			WriteResult (argument.ref);
+			break;
+
+		case C_ABS:
+			PopArguments (1);
+			temp[0] = fabs (temp[0]);
+			PushResult();
 			break;
 
 		case C_ADD:
@@ -226,6 +239,18 @@ namespace ProcessorImplementation
 		case C_SQRT:
 			PopArguments (1);
 			temp[0] = sqrt (temp[0]);
+			PushResult();
+			break;
+
+		case C_SIN:
+			PopArguments (1);
+			temp[0] = sin (temp[0]);
+			PushResult();
+			break;
+
+		case C_COS:
+			PopArguments (1);
+			temp[0] = cos (temp[0]);
 			PushResult();
 			break;
 

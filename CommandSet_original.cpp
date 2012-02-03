@@ -181,6 +181,12 @@ namespace ProcessorImplementation
 			0
 		},
 		{
+			"abs",
+			"Arithmetic: absolute value",
+			A_NONE,
+			0
+		},
+		{
 			"add",
 			"Arithmetic: addition",
 			A_NONE,
@@ -231,6 +237,18 @@ namespace ProcessorImplementation
 		{
 			"sqrt",
 			"Arithmetic: square root extraction",
+			A_NONE,
+			0
+		},
+		{
+			"sin",
+			"Trigonometry: sine",
+			A_NONE,
+			0
+		},
+		{
+			"cos",
+			"Trigonometry: cosine",
 			A_NONE,
 			0
 		},

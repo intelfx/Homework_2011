@@ -12,11 +12,16 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
+
+		ICommandSet* command_set = proc_ ->CommandSet();
+		IMMU* mmu = proc_ ->MMU();
+
+		msg (E_INFO, E_DEBUG, "Executing: [PC=%zu] : \"%s\"",
+			 mmu ->GetContext().ip, command_set ->DecodeCommand (command.id).mnemonic);
+
 		if (!command.cached_handle)
 		{
 			// Perform caching of executor/handle since execution must be O(1)
-
-			ICommandSet* command_set = proc_ ->CommandSet();
 			const CommandTraits& command_traits = command_set ->DecodeCommand (command.id);
 
 			// User-supplied handle (pointer to function) should be registered with module ID 0
@@ -47,8 +52,6 @@ namespace ProcessorImplementation
 						  command.cached_executor ->ID());
 			}
 		}
-
-		IMMU* mmu = proc_ ->MMU();
 
 		mmu ->GetContext().flags &= ~MASK (F_WAS_JUMP);
 		mmu ->SelectStack (command.type);
@@ -191,9 +194,8 @@ namespace ProcessorImplementation
 		switch (dref.type)
 		{
 		case S_CODE:
-			msg (E_CRITICAL, E_VERBOSE, "Attempt to write to CODE section: reference to %s",
+			__asshole ("Attempt to write to CODE section: reference to %s",
 				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
-			msg (E_CRITICAL, E_VERBOSE, "Write will not be performed");
 			break;
 
 		case S_DATA:

@@ -226,9 +226,6 @@ namespace Processor
 		{
 			Command& command = mmu_ ->ACommand();
 
-			msg (E_INFO, E_DEBUG, "Executing: [PC=%zu] : \"%s\"",
-				 mmu_ ->GetContext().ip, cset_ ->DecodeCommand (command.id).mnemonic);
-
 			internal_logic_ ->ExecuteSingleCommand (command);
 			Context& command_context = mmu_ ->GetContext();
 

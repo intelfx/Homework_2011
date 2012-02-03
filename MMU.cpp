@@ -459,7 +459,7 @@ namespace ProcessorImplementation
 		{
 			verify_method;
 
-			msg (E_INFO, E_VERBOSE, "Resetting images in context %zu", ctx_id);
+			msg (E_INFO, E_DEBUG, "Resetting images in context %zu", ctx_id);
 			__assert (ctx_id < buffers.Capacity(), "Invalid given buffer ID [%zu]: max %zu", ctx_id, buffers.Capacity());
 		}
 

@@ -186,14 +186,13 @@ namespace ProcessorImplementation
 
 	void UATLinker::InitLinkSession()
 	{
-		msg (E_INFO, E_VERBOSE, "Initializing linker");
+		msg (E_INFO, E_DEBUG, "Starting link session");
 		temporary_map.clear();
 	}
 
 	void UATLinker::Finalize()
 	{
-		msg (E_INFO, E_VERBOSE, "Finishing linkage");
-		msg (E_INFO, E_VERBOSE, "Image size - %lu symbols", temporary_map.size());
+		msg (E_INFO, E_VERBOSE, "Linking %lu symbols", temporary_map.size());
 
 		msg (E_INFO, E_DEBUG, "Checking image completeness");
 
@@ -299,9 +298,10 @@ namespace ProcessorImplementation
 			} while (last_encountered_type == Reference::RT_SYMBOL);
 		} // for (temporary_map)
 
-		msg (E_INFO, E_DEBUG, "Writing temporary map");
 		proc_ ->MMU() ->InsertSyms (std::move (temporary_map));
 		temporary_map.clear(); // Well, MMU should move-assign our map, but who knows...
+
+		msg (E_INFO, E_VERBOSE, "Linking session completed");
 	}
 } // namespace ProcessorImplementation
 // kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;
