@@ -18,6 +18,8 @@ FXLIB_API int getDivLayout (int src, int* output, const int* input, int inputlen
 FXLIB_API void printDivLayout (const int* input, int inputlen);
 FXLIB_API int rand (int limit, int shift = 0);
 
+FXLIB_API unsigned gcd (unsigned u, unsigned v);
+
 FXLIB_API unsigned parse_char (char ch, unsigned radix);
 FXLIB_API char make_char (unsigned val);
 

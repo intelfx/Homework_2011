@@ -384,12 +384,27 @@ namespace Debug
 	// Macro-filled: event source position (file/line)
 	struct SourceDescriptor_
 	{
+		// Some build systems tend to feed compiler with full pathnames. That messes up the log output.
+		// We can't tell if slashes in path are relative or absolute, so at least take the basename.
+		static const char* Basename (const char* arg)
+		{
+			const char*	tmp = strrchr (arg, '/');
+			if (!tmp)	tmp = strrchr (arg, '\\');
+
+
+			if (!tmp)
+				return arg;
+
+			else
+				return tmp + 1; // tmp points to the last slash
+		}
+
 		const char* source_name;
 		const char* function;
 		unsigned source_line;
 
 		SourceDescriptor_ (const char* filename, const char* funcname, unsigned line) :
-		source_name (filename),
+		source_name (Basename (filename)),
 		function (funcname),
 		source_line (line)
 		{
@@ -689,10 +704,6 @@ namespace Debug
 	const ObjectDescriptor_* VerifierWrapper<InfoHolderType>::_specific_dbg_info = &ObjectDescriptor_::default_object;
 
 } // namespace Debug
-
-using Debug::ModuleType_;
-using Debug::EventTypeIndex_;
-using Debug::EventLevelIndex_;
 
 // -----------------------------------------------------------------------------
 // ---- Entry points

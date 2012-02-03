@@ -36,7 +36,7 @@ DoExternBaseClass(var_name)
 // Descriptor definition
 
 #define ImplementDescriptor(var_name, object_name, object_type)							\
-DoImplementDescriptor(var_name, object_name, ModuleType_::object_type);					\
+DoImplementDescriptor(var_name, object_name, ::Debug::object_type);						\
 DoImplementBaseClass(var_name)
 
 // -----------------------------------------------------------------------------

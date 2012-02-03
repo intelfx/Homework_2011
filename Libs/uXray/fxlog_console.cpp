@@ -223,70 +223,70 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	switch (event.event_type)
 	{
-	case EventTypeIndex_::E_INFO:
+	case Debug::E_INFO:
 		data.foreground = CCC_GREEN;
 		data.brightness = 0;
 
 		switch (event.event_level)
 		{
 		default:
-		case EventLevelIndex_::E_USER:
+		case Debug::E_USER:
 			msgspec = "INFO\t";
 			data.brightness = 1;
 			break;
 
-		case EventLevelIndex_::E_VERBOSE:
+		case Debug::E_VERBOSE:
 			msgspec = "VERBOSE\t";
 			break;
 
-		case EventLevelIndex_::E_DEBUG:
+		case Debug::E_DEBUG:
 			msgspec = "DEBUG\t";
 			break;
 
-		case EventLevelIndex_::E_UNDEFINED_VERBOSITY:
+		case Debug::E_UNDEFINED_VERBOSITY:
 			msgspec = "UNKNOWN\n";
 			break;
 		}
 
 		break;
 
-	case EventTypeIndex_::E_WARNING:
+	case Debug::E_WARNING:
 		data.foreground = CCC_YELLOW;
 		data.brightness = 1;
 		msgspec = "WARNING\t";
 		break;
 
-	case EventTypeIndex_::E_CRITICAL:
+	case Debug::E_CRITICAL:
 		data.foreground = CCC_RED;
 		data.brightness = 0;
 		msgspec = "ERROR\t";
 		break;
 
-	case EventTypeIndex_::E_OBJCREATION:
+	case Debug::E_OBJCREATION:
 		data.foreground = CCC_BLUE;
 		data.brightness = 1;
 		msgspec = "-- CTOR\t";
 		break;
 
-	case EventTypeIndex_::E_OBJDESTRUCTION:
+	case Debug::E_OBJDESTRUCTION:
 		data.foreground = CCC_RED;
 		data.brightness = 1;
 		msgspec = "-- DTOR\t";
 		break;
 
-	case EventTypeIndex_::E_EXCEPTION:
+	case Debug::E_EXCEPTION:
 		data.foreground = CCC_WHITE;
 		data.brightness = 1;
 		msgspec = "EXCEPT\t";
 		break;
 
-	case EventTypeIndex_::E_FUCKING_EPIC_SHIT:
+	case Debug::E_FUCKING_EPIC_SHIT:
 		data.foreground = CCC_WHITE;
 		data.brightness = 1;
 		msgspec = "-- EPIC SHIT ";
 		break;
 
-	case EventTypeIndex_::E_UNDEFINED_TYPE:
+	case Debug::E_UNDEFINED_TYPE:
 	default:
 		data.foreground = CCC_WHITE;
 		data.brightness = 1;
@@ -298,18 +298,18 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	// Step 2. Write position (place)
 	// It comes in two flavors - high-level (module name) and low-level (file-function-line).
-	if ( object.object_status != Debug::OS_BAD &&
-		 (event.event_level == EventLevelIndex_::E_USER ||
-		  event.event_level == EventLevelIndex_::E_VERBOSE ||
-	      event.event_level == EventLevelIndex_::E_VERBOSE ||
-	      event.event_type == EventTypeIndex_::E_OBJCREATION ||
-	      event.event_type == EventTypeIndex_::E_OBJDESTRUCTION) &&
-		 (event.event_type != EventTypeIndex_::E_EXCEPTION) &&
-	     (event.event_type != EventTypeIndex_::E_FUCKING_EPIC_SHIT))
+	if (object.object_status != Debug::OS_BAD &&
+			(event.event_level == Debug::E_USER ||
+			 event.event_level == Debug::E_VERBOSE ||
+			 event.event_level == Debug::E_VERBOSE ||
+			 event.event_type == Debug::E_OBJCREATION ||
+			 event.event_type == Debug::E_OBJDESTRUCTION) &&
+			(event.event_type != Debug::E_EXCEPTION) &&
+			(event.event_type != Debug::E_FUCKING_EPIC_SHIT))
 	{
 		fprintf (target, "in %s%s ",
-		         object.object_descriptor ->object_type == ModuleType_::MOD_APPMODULE ? "" : "object ",
-		         object.object_descriptor ->object_name);
+				 object.object_descriptor ->object_type == Debug::MOD_APPMODULE ? "" : "object ",
+				 object.object_descriptor ->object_name);
 
 		// Set next color
 		SetExtended (target, secondary_data);
@@ -317,18 +317,10 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 
 	else
 	{
-		// Some build systems tend to feed compiler with full pathnames. That messes up the log output.
-		// We can't tell if slashes in path are relative or absolute, so at least cut them all.
-		const char* adaptive_source_name = strrchr (place.source_name, '/');
-		if (!adaptive_source_name) adaptive_source_name = strrchr (place.source_name, '\\');
-		if (!adaptive_source_name) adaptive_source_name = place.source_name; // In case of no slashes
-		else ++adaptive_source_name; // adaptive_source_name points to last slash, increment it
-
-
 		fprintf (target, "in function %s ", place.function);
 
 		SetExtended (target, secondary_data);
-		fprintf (target, "(%s:%d) ", adaptive_source_name, place.source_line);
+		fprintf (target, "(%s:%d) ", place.source_name, place.source_line);
 	}
 
 	// Step 3. Move to column (color is set at Step 2)
@@ -370,7 +362,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 		default:
 		case Debug::OS_UNCHECKED:
 			status_data.background = CCC_TRANSPARENT;
-			status_data.foreground = CCC_GREEN;
+			status_data.foreground = CCC_WHITE;
 			status_data.brightness = 0;
 			msgspec = "UNTESTED\t";
 			break;
@@ -412,7 +404,7 @@ void FXConLog::InternalWrite (Debug::EventDescriptor event,
 	ResetExtended (target);
 	fputc ('\n', target);
 
-	if (event.event_type != EventTypeIndex_::E_INFO)
+	if (event.event_type != Debug::E_INFO)
 	{
 		fflush (target);
 	}

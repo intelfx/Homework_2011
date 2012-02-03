@@ -370,19 +370,14 @@ handled_ (0)
 
 void NativeException::DumpBacktrace() const throw()
 {
-	fprintf (stderr, "---- Dumping crash backtrace\t----\n\n");
+	fprintf (stderr, "\n---- Dumping crash backtrace\t----\n\n");
 
 	int shown_count = (b_count_ <= 10) ? b_count_ : 10;
 	for (int i = 0; i < shown_count; ++i)
 	{
-		char* backtrace_rpath = 0;
-		if (backtrace_rpath = strrchr (backtrace_[i], '/'))
-			++backtrace_rpath;
+		const char* backtrace_relative = Debug::SourceDescriptor_::Basename (backtrace_[i]);
 
-		else
-			backtrace_rpath = backtrace_[i];
-
-		fprintf (stderr, "* Call %d: %s\n", i, backtrace_rpath);
+		fprintf (stderr, "* Call %d: %s\n", i, backtrace_relative);
 	}
 	fprintf (stderr, "\n---- Backtrace dump complete\t----\n\n");
 }
@@ -391,7 +386,7 @@ const char* NativeException::what() const throw()
 {
 	if (!handled_)
 	{
-		fprintf (stderr, "\n---- UNHANDLED NATIVE EXCEPTION ----\n");
+		fprintf (stderr, "\n---- UNHANDLED NATIVE EXCEPTION ----");
 		DumpBacktrace();
 	}
 
