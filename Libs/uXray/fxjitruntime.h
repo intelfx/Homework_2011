@@ -74,7 +74,7 @@ public:
 	// executes code within the given address, passing argument to it
 	// and returning its return value.
 	// Throws a C++ exception in case of a native exception.
-	int SafeExecute (void* address, void* argument);
+	void* SafeExecute (void* address, void* argument);
 
 	// Execute self-tests of exception handling mechanism.
 	// Returns test result (1 if succeeded).

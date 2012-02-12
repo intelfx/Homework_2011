@@ -332,7 +332,13 @@ namespace ProcessorImplementation
 		// we may get an unnamed declaration
 		if (decl_data[0] == '=')
 		{
-			output.data.Parse (decl_data + 1); // type of value is already set
+			++decl_data;
+
+			__assert (output.data.type != Value::V_MAX,
+					  "Declaration: unnamed DATA entry = \"%s\": type not set!",
+					  decl_data);
+
+			output.data.Parse (decl_data);
 
 			msg (E_INFO, E_DEBUG, "Declaration: unnamed DATA entry = %s", (ProcDebug::PrintValue (output.data), ProcDebug::debug_buffer));
 
@@ -346,6 +352,10 @@ namespace ProcessorImplementation
 			switch (type)
 			{
 			case '=':
+				__assert (output.data.type != Value::V_MAX,
+						  "Declaration: DATA entry \"%s\" = \"%s\": type not set!",
+						  name, initialiser);
+
 				output.data.Parse (initialiser); // type of value is already set
 
 				declaration_symbol.ref.type = Reference::RT_DIRECT;
@@ -373,13 +383,23 @@ namespace ProcessorImplementation
 			break;
 
 		case 1:
-			output.data = Value(); // default initialiser
-
 			declaration_symbol.ref.type = Reference::RT_DIRECT;
 			declaration_symbol.ref.plain.type = S_DATA;
 			declaration_symbol.ref.plain.address = ILinker::symbol_auto_placement_addr;
 
-			msg (E_INFO, E_DEBUG, "Declaration: DATA entry uninitialised");
+			// if type is known, initialise to 0 in appropriate type.
+			if (output.data.type != Value::V_MAX)
+			{
+				output.data.Set (Value::V_MAX, 0);
+				msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" uninitialised (set to 0)", name);
+			}
+
+			// otherwise, leave value uninitialised
+			else
+			{
+				msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" uninitialised (untyped)", name);
+			}
+
 			break;
 
 		default:
@@ -387,6 +407,7 @@ namespace ProcessorImplementation
 			break;
 		}
 
+		// Set symbol name and insert
 		output.mentioned_symbols.insert (PrepareSymbol (name, declaration_symbol));
 	}
 
@@ -559,12 +580,9 @@ namespace ProcessorImplementation
 			__verify (argument, "Empty declaration");
 
 			output.type = DecodeResult::DEC_DATA;
+			output.data.type = statement_type; // FUCK MY BRAIN! How did it work without this line??
 
-			if (statement_type != '\0')
-				output.data.type = statement_type;
-
-			else
-				output.data.type = Value::V_FLOAT;
+			// In case of undefined type it will be set in ReadSingleDeclaration().
 
 			ReadSingleDeclaration (argument, output);
 		}

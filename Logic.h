@@ -22,6 +22,7 @@ namespace ProcessorImplementation
 		virtual void Jump (Reference& ref);
 		virtual calc_t Read (Reference& ref);
 		virtual void Write (Reference& ref, calc_t value);
+		virtual void UpdateType (Processor::Reference& ref, Processor::Value::Type requested_type);
 
 		virtual calc_t StackTop();
 		virtual calc_t StackPop();

@@ -57,10 +57,10 @@ namespace ProcessorImplementation
 		mmu ->SelectStack (command.type);
 
 		if (command.cached_executor)
-			command.cached_executor ->Execute (command.cached_handle, command.arg);
+			command.cached_executor ->Execute (command.cached_handle, command);
 
 		else
-			Fcast<void(*)(ProcessorAPI*, Command::Argument&)> (command.cached_handle) (proc_, command.arg);
+			Fcast<void(*)(ProcessorAPI*, Command&)> (command.cached_handle) (proc_, command);
 	}
 
 	size_t Logic::ChecksumState()
@@ -184,7 +184,46 @@ namespace ProcessorImplementation
 
 		ctx.ip = dref.address;
 		ctx.flags |= MASK (F_WAS_JUMP);
- }
+	}
+
+	void Logic::UpdateType (Reference& ref, Value::Type requested_type)
+	{
+		verify_method;
+
+		Reference::Direct dref = proc_ ->Linker() ->Resolve (ref);
+		switch (dref.type)
+		{
+		case S_CODE:
+			__asshole ("Attempt to write type to CODE section: reference to %s",
+					   (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
+			break;
+
+		case S_DATA:
+			proc_ ->MMU() ->AData (dref.address).type = requested_type;
+			break;
+
+		case S_FRAME:
+		case S_FRAME_BACK:
+			__asshole ("Attempt to write type to STACK: reference to %s",
+					   (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
+			break;
+
+		case S_REGISTER:
+			msg (E_WARNING, E_VERBOSE, "Attempt to change type of register - will not be changed");
+			break;
+
+		case S_BYTEPOOL:
+			__asshole ("Attempt to write type to BYTEPOOL: reference to %s",
+					   (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
+			break;
+
+		case S_NONE:
+		case S_MAX:
+		default:
+			__asshole ("Invalid address type or switch error");
+			break;
+		}
+	}
 
 	void Logic::Write (Reference& ref, calc_t value)
 	{
@@ -195,29 +234,33 @@ namespace ProcessorImplementation
 		{
 		case S_CODE:
 			__asshole ("Attempt to write to CODE section: reference to %s",
-				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
+					   (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 			break;
 
 		case S_DATA:
-			proc_ ->MMU() ->AData (dref.address) = value;
+			// do type checking here
+			proc_ ->MMU() ->AData (dref.address).Assign (value);
 			break;
 
 		case S_FRAME:
-			proc_ ->MMU() ->AStackFrame (dref.address) = value;
+			// do type checking here - stack must be homogeneous
+			proc_ ->MMU() ->AStackFrame (dref.address).Assign (value);
 
 		case S_FRAME_BACK:
 			msg (E_WARNING, E_VERBOSE, "Attempt to write to function parameter: reference to %s",
 				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 
-			proc_ ->MMU() ->AStackFrame (-dref.address) = value;
+			// do type checking here - stack must be homogeneous
+			proc_ ->MMU() ->AStackFrame (-dref.address).Assign (value);
 			break;
 
 		case S_REGISTER:
+			// no type checking here
 			proc_ ->MMU() ->ARegister (static_cast<Register> (dref.address)) = value;
 			break;
 
 		case S_BYTEPOOL:
-			__assert (value.type == Value::V_INTEGER, "Attempt to write non-integer to the byte pool at address %zx", dref.address);
+			value.Expect (Value::V_INTEGER);
 			*proc_ ->MMU() ->ABytepool (dref.address) = reinterpret_cast<char&> (value.integer); // truncation
 			break;
 
@@ -237,9 +280,8 @@ namespace ProcessorImplementation
 		switch (dref.type)
 		{
 		case S_CODE:
-			msg (E_WARNING, E_VERBOSE, "Attempt to read from CODE section: reference to %s",
-				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
-			return static_cast<int_t> (proc_ ->MMU() ->ACommand (dref.address).id);
+			__asshole ("Attempt to read from CODE section: reference to %s",
+					   (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 
 		case S_DATA:
 			return proc_ ->MMU() ->AData (dref.address);
@@ -337,3 +379,4 @@ namespace ProcessorImplementation
 	};
 }
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
+

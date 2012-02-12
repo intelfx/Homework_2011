@@ -9,7 +9,7 @@ INCLUDE(${PROJECT_SOURCE_DIR}/../../Precompiled.cmake)
 find_assert_library ("dl" LIBRARIES)
 
 aux_source_directory("." SOURCES)
-MAIN_ADD_GCH(stdafx.h ${SOURCES})
+# MAIN_ADD_GCH(stdafx.h ${SOURCES})
 
 add_library(uXray ${SOURCES})
 target_link_libraries(uXray ${LIBRARIES})

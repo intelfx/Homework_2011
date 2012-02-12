@@ -1,4 +1,4 @@
-﻿#ifndef _UTILITY_H
+#ifndef _UTILITY_H
 #define _UTILITY_H
 
 #include "build.h"
@@ -181,9 +181,46 @@ namespace Processor
 			integer = src;
 		}
 
-		template <typename T> void Get (T& dest) const
+		inline void Expect (Processor::Value::Type required_type, bool allow_uninitialised = 0) const;
+		inline Type GenType (Type required_type) const
 		{
-			switch (type)
+			return (required_type == V_MAX) ? type : required_type;
+		}
+
+		// Verify type equality and assign contents of another value object to this.
+		// Should not be used with registers, since they are untyped in JIT mode.
+		inline void Assign (const Value& that)
+		{
+			__sassert (that.type != V_MAX, "Attempt to assign an uninitialised value");
+			Expect (that.type);
+
+			switch (GenType (that.type))
+			{
+				case V_FLOAT:
+					fp = that.fp;
+					break;
+
+				case V_INTEGER:
+					integer = that.integer;
+					break;
+
+				case V_MAX:
+					break;
+
+				default:
+					__sasshole ("Switch error");
+					break;
+			}
+		}
+
+		// Verify type equality and assign the correct value to given reference.
+		// Pass "V_MAX" as type to disable type checking.
+		// API should use "allow_uninitialised" switch to read data from registers (since they are untyped in JIT mode).
+		template <typename T> void Get (Type required_type, T& dest, bool allow_uninitialised = 0) const
+		{
+			Expect (required_type, allow_uninitialised);
+
+			switch (GenType (required_type))
 			{
 			case V_FLOAT:
 				dest = fp;
@@ -194,31 +231,6 @@ namespace Processor
 				break;
 
 			case V_MAX:
-				__sasshole ("Uninitialised value");
-				break;
-
-			default:
-				__sasshole ("Switch error");
-				break;
-			}
-		}
-
-		template <typename T> void Set (T src)
-		{
-			switch (type)
-			{
-			case V_FLOAT:
-				fp = src;
-				break;
-
-			case V_INTEGER:
-				integer = src;
-				break;
-
-			case V_MAX:
-				__sasshole ("Uninitialised value");
-				break;
-
 			default:
 				__sasshole ("Switch error");
 				break;
@@ -229,52 +241,71 @@ namespace Processor
 		{
 			switch (type)
 			{
-			case V_INTEGER:
-			{
-				int_abi_t intermediate = integer;
-				return reinterpret_cast<abiret_t&> (intermediate);
+				case V_INTEGER:
+				{
+					int_abi_t tmp = integer;
+					return reinterpret_cast<abiret_t&> (tmp);
+				}
+
+				case V_FLOAT:
+				{
+					fp_abi_t tmp = fp;
+					fp_abi_t* ptmp = &tmp;
+					return **reinterpret_cast<abiret_t**> (ptmp);
+				}
+
+				case V_MAX:
+					__sasshole ("Uninitialised value is being read");
+					break;
+
+				default:
+					__sasshole ("Switch error");
+					break;
 			}
 
-			case V_FLOAT:
-			{
-				fp_abi_t intermediate = fp;
-				return reinterpret_cast<abiret_t&> (intermediate);
-			}
-
-			case V_MAX:
-				__sasshole ("Uninitialised value");
-				break;
-
-			default:
-				__sasshole ("Switch error");
-				break;
-			}
-
-			return 0; // for GCC not to complain
+			return 0;
 		}
 
-		void SetFromABI (abiret_t value, Type new_type)
+		void SetFromABI (abiret_t value)
 		{
-			switch (type = new_type)
-			{
-			case V_INTEGER:
-			{
-				int_abi_t intermediate = reinterpret_cast<int_abi_t&> (value);
-				integer = intermediate;
-				break;
-			}
+			abiret_t* pvalue = &value;
 
-			case V_FLOAT:
+			switch (type)
 			{
-				fp_abi_t intermediate = reinterpret_cast<fp_abi_t&> (value);
-				fp = intermediate;
-				break;
+				case V_INTEGER:
+					integer = **reinterpret_cast<int_abi_t**> (&pvalue);
+
+				case V_FLOAT:
+					fp = **reinterpret_cast<fp_abi_t**> (&pvalue);
+
+				case V_MAX:
+					__sasshole ("Uninitialised value is being set from ABI data");
+					break;
+
+				default:
+					__sasshole ("Switch error");
+					break;
 			}
+		}
+
+		// Verify type equality and set correct value from given object.
+		// Pass "V_MAX" as type to disable type checking.
+		// API should use "allow_uninitialised" switch to write data to registers (since they are untyped in JIT mode).
+		template <typename T> void Set (Type required_type, const T& src, bool allow_uninitialised = 0)
+		{
+			Expect (required_type, allow_uninitialised);
+
+			switch (GenType (required_type))
+			{
+			case V_FLOAT:
+				fp = src;
+				break;
+
+			case V_INTEGER:
+				integer = src;
+				break;
 
 			case V_MAX:
-				__sasshole ("Uninitialised value");
-				break;
-
 			default:
 				__sasshole ("Switch error");
 				break;
@@ -425,18 +456,6 @@ namespace Processor
 		DecodeResult() : command(), type (DEC_NOTHING), mentioned_symbols() {}
 	};
 
-	namespace ProcDebug
-	{
-		INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
-		INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
-		INTERPRETER_API extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
-
-		INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
-
-		INTERPRETER_API void PrintReference (const Reference& ref);
-		INTERPRETER_API void PrintValue (const Value& val);
-	}
-
 	class IReader;
 	class IWriter;
 	class IMMU;
@@ -447,6 +466,40 @@ namespace Processor
 	class ILogic;
 	class IModuleBase;
 
+	calc_t ExecuteGate (void* address);
+
+	namespace ProcDebug
+	{
+		INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
+		INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
+		INTERPRETER_API extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
+
+		INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
+
+		INTERPRETER_API void PrintReference (const Reference& ref, IMMU* mmu = 0);
+		INTERPRETER_API void PrintValue (const Value& val);
+		INTERPRETER_API void PrintArgument (ArgumentType arg_type,
+											const Command::Argument& argument,
+											IMMU* mmu = 0);
+	}
+
+	void Value::Expect (Processor::Value::Type required_type, bool allow_uninitialised) const
+	{
+		if (!allow_uninitialised)
+			__sverify (type != V_MAX, "Cannot access uninitialised value");
+
+		else
+		{
+			__sassert (required_type != V_MAX, "Type autodetermine requested while uninitialised values are allowed");
+
+			if (type == V_MAX)
+				return;
+
+			__sverify (type == required_type,
+					   "Cannot operate on non-matching types (expected \"%s\" instead of \"%s\")",
+					   ProcDebug::ValueType_ids[required_type], ProcDebug::ValueType_ids[type]);
+		}
+	}
 } // namespace Processor
 
 #endif // _UTILITY_H

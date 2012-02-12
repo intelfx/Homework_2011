@@ -129,14 +129,25 @@ class SignalHandler : LogBase (SignalHandler), public IExceptionRehandler
 	static char** symbolic_backtrace;
 	static void(*user_handler)(int, const char*, char**);
 
-	static void internal_handler (int sig, siginfo_t* info, void* context)
+	/*
+	 * ...The reason you shouldn't do this is that you have literally no idea what
+	 * the state of your program is after a segfault.
+	 * Your stack may be corrupted.
+	 * Your heap may be corrupted.
+	 * Your global variables may be squashed.
+	 * Your instruction pointer may be in neverland.
+	 * Your secure data may be flying over the internets.
+	 * Your CPU might be on fire.
+	 * You will regret trying to continue after a segfault as if nothing has happened.
+	 */
+	static void internal_handler (int sig, siginfo_t* info, void*)
 	{
 		int count = backtrace (backtrace_buffer, STATIC_LENGTH);
 		symbolic_backtrace = backtrace_symbols (backtrace_buffer, count);
 
 		if (info ->si_errno)
 			snprintf (message_buffer, STATIC_LENGTH, "POSIX signal %d (%s) at %p: last_errno %d (%s)",
-					sig, strsignal (sig), info ->si_addr, info ->si_errno, strerror (info ->si_errno));
+					  sig, strsignal (sig), info ->si_addr, info ->si_errno, strerror (info ->si_errno));
 
 		else
 			snprintf (message_buffer, STATIC_LENGTH, "POSIX signal %d (%s) at %p",
@@ -167,7 +178,7 @@ public:
 		return user_handler ? 1 : 0;
 	}
 
-	virtual void SetHandlers (void(*handler)(int, const char*, char**))
+	virtual void SetHandlers (void (*handler) (int, const char*, char**))
 	{
 		user_handler = handler;
 		ActivateHandlers();
@@ -187,7 +198,7 @@ public:
 char SignalHandler::message_buffer[STATIC_LENGTH];
 void* SignalHandler::backtrace_buffer[STATIC_LENGTH];
 char** SignalHandler::symbolic_backtrace = 0;
-void(*SignalHandler::user_handler)(int, const char*, char**) = 0;
+void (*SignalHandler::user_handler) (int, const char*, char**) = 0;
 #endif
 
 NativeExecutionManager::NativeExecutionManager() :
@@ -261,6 +272,13 @@ int NativeExecutionManager::EHSelftest()
 
 	try
 	{
+		/*
+		 * Kill the lights
+		 * Place the bait
+		 * Wait for signals
+		 * Detonate
+		 */
+
 		ReentrantEnableEH();
 		SafeExecute (reinterpret_cast<void*> (&selftest_function), 0);
 		ReentrantDisableEH();
@@ -335,18 +353,18 @@ void NativeExecutionManager::RestoreExceptionHandling()
 	msg (E_INFO, E_VERBOSE, "Exception handling restored");
 }
 
-int NativeExecutionManager::SafeExecute (void* address, void* argument)
+void* NativeExecutionManager::SafeExecute (void* address, void* argument)
 {
 	if (!exceptions)
 	{
 		msg (E_WARNING, E_USER, "No exception handler registered - unsafe execution");
-		return Fcast<int(*)(void*)> (address) (argument);
+		return Fcast<void*(*)(void*)> (address) (argument);
 	}
 
 	ReentrantEnableEH();
 
 	// ----
-	int result = Fcast<int(*)(void*)> (address) (argument);
+	void* result = Fcast<void*(*)(void*)> (address) (argument);
 	// ----
 
 	ReentrantDisableEH();
@@ -356,7 +374,6 @@ int NativeExecutionManager::SafeExecute (void* address, void* argument)
 
 void NativeExecutionManager::EmitNativeException (int backtrace_count, const char* message, char** backtrace)
 {
-// 	throw std::logic_error (message);
 	throw NativeException (THIS_PLACE, message, backtrace, backtrace_count);
 }
 
@@ -398,7 +415,7 @@ NativeException::~NativeException() throw()
 	free (backtrace_);
 }
 
-NativeException::NativeException (NativeException&& that) :
+NativeException::NativeException (NativeException && that) :
 Exception (std::move (that)),
 backtrace_ (that.backtrace_),
 b_count_ (that.b_count_)

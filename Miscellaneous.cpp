@@ -35,13 +35,20 @@ namespace Processor
 
 		char debug_buffer[STATIC_LENGTH];
 
-		void PrintReference (const Reference& ref)
+		void PrintReference (const Reference& ref, IMMU* mmu)
 		{
 			switch (ref.type)
 			{
 			case Reference::RT_SYMBOL:
-				snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %zx + offset %zu)",
-						  ref.symbol.hash, ref.symbol.offset);
+			{
+				if (!mmu)
+					snprintf (debug_buffer, STATIC_LENGTH, "symbol (hash %zx + offset %zu)",
+							ref.symbol.hash, ref.symbol.offset);
+
+				else
+					snprintf (debug_buffer, STATIC_LENGTH, "symbol %s+%zu",
+							  mmu ->ASymbol (ref.symbol.hash).first.c_str(), ref.symbol.offset);
+			}
 
 				break;
 
@@ -89,6 +96,28 @@ namespace Processor
 				break;
 			}
 		}
+
+		void PrintArgument (ArgumentType arg_type, const Command::Argument& argument, IMMU* mmu)
+		{
+			switch (arg_type)
+			{
+			case A_NONE:
+				strncpy (debug_buffer, "no argument", STATIC_LENGTH);
+				break;
+
+			case A_REFERENCE:
+				PrintReference (argument.ref, mmu);
+				break;
+
+			case A_VALUE:
+				PrintValue (argument.value);
+				break;
+
+			default:
+				__sasshole ("Switch error");
+				break;
+			}
+		}
 	}
 
 	symbol_map::value_type PrepareSymbol (const char* label, Symbol sym, size_t* hash)
@@ -104,19 +133,36 @@ namespace Processor
 		return std::make_pair (prep_hash, std::make_pair (std::move (label), sym));
 	}
 
-	void ICommandSet::SetProcAPI_Fallback (ProcessorAPI* procapi)
-	{
-		callback_procapi = procapi;
-	}
+	typedef abiret_t(*abi_gate_pointer)(unsigned*);
 
-	abiret_t ICommandSet::ExecFallbackCallback (Processor::Command* cmd)
+	calc_t ExecuteGate (void* address)
 	{
-		ILogic* logic = callback_procapi ->LogicProvider();
-		logic ->ExecuteSingleCommand (*cmd);
+		__sassert (address, "Invalid image");
 
-		// stack is still set to the last type
-		calc_t temporary_result = logic ->StackPop();
-		return temporary_result.GetABI();
+		abiret_t return_value;
+		Value::Type return_type = Value::V_MAX;
+
+		abi_gate_pointer jit_compiled_function = reinterpret_cast<abi_gate_pointer> (address);
+		unsigned* jit_compiled_function_argument = reinterpret_cast<unsigned*> (&return_type);
+
+		// ----
+		// Say your goodbyes
+		// That was your life
+		// You'll pay all your penance
+		// JIT compiler death sequence
+		return_value = jit_compiled_function (jit_compiled_function_argument);
+		// ----
+
+		if (return_type == Value::V_MAX)
+			return calc_t (); /* uninitialised */
+
+		else
+		{
+			calc_t result;
+			result.type = return_type;
+			result.SetFromABI (return_value);
+			return result;
+		}
 	}
 
 	void IMMU::SetTemporaryContext (size_t ctx_id)

@@ -39,7 +39,7 @@ namespace ProcessorImplementation
 
 	public:
 		virtual void ResetImplementations();
-		virtual void Execute (void* handle, Command::Argument& argument);
+		virtual void Execute (void* handle, Processor::Command& command);
 	};
 }
 

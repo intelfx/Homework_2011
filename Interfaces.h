@@ -27,6 +27,8 @@ namespace Processor
 
 	class INTERPRETER_API ProcessorAPI : LogBase (ProcessorAPI)
 	{
+		static ProcessorAPI* callback_procapi;
+
 		IReader* reader_;
 		IWriter* writer_;
 		IMMU* mmu_;
@@ -48,6 +50,9 @@ namespace Processor
 
 	protected:
 		virtual bool _Verify() const;
+
+		static void SetCallbackProcAPI (ProcessorAPI* procapi);
+		static abiret_t InterpreterCallbackFunction (Command* cmd);
 
 	public:
 		ProcessorAPI();
@@ -123,6 +128,7 @@ namespace Processor
 		virtual void	Jump (Reference& ref) = 0; // Use CODE reference to jump
 		virtual calc_t	Read (Reference& ref) = 0; // Use DATA reference to read
 		virtual void	Write (Reference& ref, calc_t value) = 0; // Use DATA reference to write
+		virtual void	UpdateType (Reference& ref, Value::Type type) = 0; // Use DATA reference to rewrite its type
 
 		virtual calc_t	StackTop() = 0; // Calculation stack "top" operation
 		virtual calc_t	StackPop() = 0; // Calculation stack "pop" operation
@@ -133,13 +139,7 @@ namespace Processor
 
 	class INTERPRETER_API ICommandSet : LogBase (ICommandSet), public IModuleBase
 	{
-		static ProcessorAPI* callback_procapi;
-
 	public:
-		static void SetProcAPI_Fallback (ProcessorAPI* procapi);
-		abiret_t ExecFallbackCallback (Processor::Command* cmd); // look, what a great name!
-
-
 		// Remove all registered handlers and user commands.
 		virtual void ResetCommandSet() = 0;
 
@@ -266,15 +266,15 @@ namespace Processor
 		virtual void ResetImplementations() = 0;
 
 		// Executes a single command.
-		virtual void Execute (void* handle, Command::Argument& argument) = 0;
+		virtual void Execute (void* handle, Command& command) = 0;
 	};
 
 	class INTERPRETER_API IBackend : LogBase (IBackend), public IModuleBase
 	{
 	public:
-		virtual void		CompileBuffer (size_t chk) = 0;
+		virtual void		CompileBuffer (size_t chk, abiret_t(*callback_function)(Command*)) = 0;
 		virtual bool		ImageIsOK (size_t chk) = 0;
-		virtual abiret_t	ExecuteImage (size_t chk) = 0;
+		virtual void*		GetImage (size_t chk) = 0;
 	};
 
 	class INTERPRETER_API ILinker : LogBase (ILinker), public IModuleBase
@@ -301,7 +301,6 @@ namespace Processor
 		// Retrieve a direct reference for given arbitary reference.
 		virtual Reference::Direct Resolve (Reference& reference) = 0; // or get an unresolved symbol error
 	};
-
 }
 
 #endif // _INTERFACES_H

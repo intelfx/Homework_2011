@@ -18,6 +18,7 @@ namespace ProcessorImplementation
 	{
 		C_INIT = 1,
 		C_SLEEP,
+		C_SETTYPE,
 
 		C_JE,
 		C_JNE,
@@ -41,7 +42,6 @@ namespace ProcessorImplementation
 		C_SNFC,
 		C_CNFC,
 
-		C_EXEC,
 		C_QUIT,
 
 		C_MAX
@@ -52,6 +52,7 @@ namespace ProcessorImplementation
 		0,
 		"init",
 		"sleep",
+		"settype",
 
 		"je",
 		"jne",
@@ -75,7 +76,6 @@ namespace ProcessorImplementation
 		"snfc",
 		"cnfc",
 
-		"exec",
 		"quit"
 	};
 
@@ -100,7 +100,7 @@ namespace ProcessorImplementation
 		}
 	}
 
-	void ServiceExecutor::Execute (void* handle, Command::Argument& argument)
+	void ServiceExecutor::Execute (void* handle, Command& command)
 	{
 		struct
 		{
@@ -129,64 +129,70 @@ namespace ProcessorImplementation
 			sleep (0);
 			break;
 
+		case C_SETTYPE:
+		{
+			proc_ ->LogicProvider() ->UpdateType (command.arg.ref, command.type);
+			break;
+		}
+
 		case C_JNE:
 			if (!temp_flags.zero)
-				proc_ ->LogicProvider() ->Jump (argument.ref);
+				proc_ ->LogicProvider() ->Jump (command.arg.ref);
 
 			break;
 
 		case C_JE:
 			if (temp_flags.zero)
-				proc_ ->LogicProvider() ->Jump (argument.ref);
+				proc_ ->LogicProvider() ->Jump (command.arg.ref);
 
 			break;
 
 		case C_JA:
 		case C_JNBE:
 			if (!temp_flags.zero && !temp_flags.negative)
-				proc_ ->LogicProvider() ->Jump (argument.ref);
+				proc_ ->LogicProvider() ->Jump (command.arg.ref);
 
 			break;
 
 		case C_JNA:
 		case C_JBE:
 			if (temp_flags.zero || temp_flags.negative)
-				proc_ ->LogicProvider() ->Jump (argument.ref);
+				proc_ ->LogicProvider() ->Jump (command.arg.ref);
 
 			break;
 
 		case C_JAE:
 		case C_JNB:
 			if (!temp_flags.negative)
-				proc_ ->LogicProvider() ->Jump (argument.ref);
+				proc_ ->LogicProvider() ->Jump (command.arg.ref);
 
 			break;
 
 		case C_JNAE:
 		case C_JB:
 			if (temp_flags.negative)
-				proc_ ->LogicProvider() ->Jump (argument.ref);
+				proc_ ->LogicProvider() ->Jump (command.arg.ref);
 
 			break;
 
 		case C_LEA:
 			proc_ ->MMU() ->ARegister (indirect_addressing_register) =
-				static_cast<int_t> (proc_ ->Linker() ->Resolve (argument.ref).address);
+				static_cast<int_t> (proc_ ->Linker() ->Resolve (command.arg.ref).address);
 			break;
 
 		case C_SYSCALL:
-			__assert (argument.value.type == Value::V_INTEGER, "Non-integer syscall argument");
-			proc_ ->LogicProvider() ->Syscall (argument.value.integer);
+			__assert (command.arg.value.type == Value::V_INTEGER, "Non-integer syscall argument");
+			proc_ ->LogicProvider() ->Syscall (command.arg.value.integer);
 			break;
 
 
 		case C_JMP:
-			proc_ ->LogicProvider() ->Jump (argument.ref);
+			proc_ ->LogicProvider() ->Jump (command.arg.ref);
 			break;
 
 		case C_CALL:
 			proc_ ->MMU() ->SaveContext();
-			proc_ ->LogicProvider() ->Jump (argument.ref);
+			proc_ ->LogicProvider() ->Jump (command.arg.ref);
 			break;
 
 		case C_RET:
@@ -203,11 +209,6 @@ namespace ProcessorImplementation
 
 		case C_CNFC:
 			proc_ ->MMU() ->GetContext().flags &= ~MASK (F_NFC);
-			break;
-
-		case C_EXEC:
-			proc_ ->MMU() ->NextContextBuffer();
-			proc_ ->Exec();
 			break;
 
 		case C_QUIT:

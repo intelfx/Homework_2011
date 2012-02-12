@@ -26,7 +26,7 @@ namespace ProcessorImplementation
 		virtual Value::Type SupportedType() const;
 
 	public:
-		virtual void Execute (void* handle, Command::Argument& argument);
+		virtual void Execute (void* handle, Command& command);
 		virtual void ResetImplementations();
 	};
 }

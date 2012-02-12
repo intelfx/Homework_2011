@@ -71,26 +71,26 @@ namespace Processor
 
 				switch (sec_type)
 				{
-					case SEC_CODE_IMAGE:
-						mmu_ ->ReadText (reinterpret_cast<Command*> (data_buffer), read_size);
-						break;
+				case SEC_CODE_IMAGE:
+					mmu_ ->ReadText (reinterpret_cast<Command*> (data_buffer), read_size);
+					break;
 
-					case SEC_DATA_IMAGE:
-						mmu_ ->ReadData (reinterpret_cast<calc_t*> (data_buffer), read_size);
-						break;
+				case SEC_DATA_IMAGE:
+					mmu_ ->ReadData (reinterpret_cast<calc_t*> (data_buffer), read_size);
+					break;
 
-					case SEC_STACK_IMAGE:
-						mmu_ ->ReadStack (reinterpret_cast<calc_t*> (data_buffer), read_size, 0);
-						break;
+				case SEC_STACK_IMAGE:
+					mmu_ ->ReadStack (reinterpret_cast<calc_t*> (data_buffer), read_size, 0);
+					break;
 
-					case SEC_SYMBOL_MAP:
-						mmu_ ->ReadSyms (data_buffer, read_size);
-						break;
+				case SEC_SYMBOL_MAP:
+					mmu_ ->ReadSyms (data_buffer, read_size);
+					break;
 
-					case SEC_NON_UNIFORM:
-					case SEC_MAX:
-					default:
-						__asshole ("Switch error");
+				case SEC_NON_UNIFORM:
+				case SEC_MAX:
+				default:
+					__asshole ("Switch error");
 				} // switch (section type)
 
 				free (data_buffer);
@@ -173,7 +173,7 @@ namespace Processor
 			mmu_ ->ClearContext(); // reset all fields since we (hopefully) won't use interpreter on this context
 			size_t chk = internal_logic_ ->ChecksumState(); // checksum the system state right after the cleanup
 
-			backend_ ->CompileBuffer (chk);
+			backend_ ->CompileBuffer (chk, &InterpreterCallbackFunction);
 			__assert (backend_ ->ImageIsOK (chk), "Backend reported compile error");
 
 			msg (E_INFO, E_VERBOSE, "Compilation OK: checksum assigned %p", chk);
@@ -201,10 +201,12 @@ namespace Processor
 
 			try
 			{
-				calc_t result;
+				SetCallbackProcAPI (this);
 
-				abiret_t value = backend_ ->ExecuteImage (chk);
-				result.SetFromABI (value, Value::V_FLOAT); // TODO select correct type here
+				void* address = backend_ ->GetImage (chk);
+				calc_t result = ExecuteGate (address);
+
+				SetCallbackProcAPI (0);
 
 				ProcDebug::PrintValue (result);
 				msg (E_INFO, E_VERBOSE, "Execution OK: Result = %s", ProcDebug::debug_buffer);
@@ -220,26 +222,41 @@ namespace Processor
 
 		// Else fall back to the interpreter.
 		msg (E_INFO, E_VERBOSE, "Using interpreter");
-
 		calc_t last_result;
+
 		for (;;)
 		{
 			Command& command = mmu_ ->ACommand();
 
-			internal_logic_ ->ExecuteSingleCommand (command);
-			Context& command_context = mmu_ ->GetContext();
-
-			if (command_context.flags & MASK (F_EXIT))
+			try
 			{
-				if (command_context.buffer == initial_ctx)
-					break;
 
-				mmu_ ->RestoreContext();
+				internal_logic_ ->ExecuteSingleCommand (command);
+				Context& command_context = mmu_ ->GetContext();
+
+				if (command_context.flags & MASK (F_EXIT))
+				{
+					if (command_context.buffer == initial_ctx)
+						break;
+
+					mmu_ ->RestoreContext();
+				}
+
+				else if (! (command_context.flags & MASK (F_WAS_JUMP)))
+				{
+					++command_context.ip;
+				}
+
 			}
 
-			else if (!(command_context.flags & MASK (F_WAS_JUMP)))
+			catch (std::exception& e)
 			{
-				++command_context.ip;
+				const CommandTraits& cmd_traits = cset_ ->DecodeCommand (command.id);
+				msg (E_CRITICAL, E_USER, "Last executed command [PC=%zu] \"%s\" (%s) argument \"%s\"",
+					 mmu_ ->GetContext().ip, cmd_traits.mnemonic, ProcDebug::ValueType_ids[command.type],
+					 (ProcDebug::PrintArgument (cmd_traits.arg_type, command.arg, mmu_), ProcDebug::debug_buffer));
+
+				throw;
 			}
 
 		} // for (interpreter)
@@ -253,4 +270,20 @@ namespace Processor
 
 		return last_result;
 	}
+
+	void ProcessorAPI::SetCallbackProcAPI (ProcessorAPI* procapi)
+	{
+		callback_procapi = procapi;
+	}
+
+	abiret_t ProcessorAPI::InterpreterCallbackFunction (Command* cmd)
+	{
+		ILogic* logic = callback_procapi ->LogicProvider();
+		logic ->ExecuteSingleCommand (*cmd);
+
+		// stack is still set to the last type
+		calc_t temporary_result = logic ->StackPop();
+		return temporary_result.GetABI();
+	}
 }
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

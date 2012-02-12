@@ -133,6 +133,12 @@ namespace ProcessorImplementation
 			1
 		},
 		{
+			"dump",
+			"System: dump context",
+			A_NONE,
+			1
+		},
+		{
 			"push",
 			"Stack: push a value onto the stack",
 			A_VALUE,
@@ -151,6 +157,24 @@ namespace ProcessorImplementation
 			0
 		},
 		{
+			"cmp",
+			"Stack: compare two values on the stack (R/O subtraction)",
+			A_NONE,
+			0
+		},
+		{
+			"swap",
+			"Stack: swap two values on the stack",
+			A_NONE,
+			0
+		},
+		{
+			"dup",
+			"Stack: duplicate the value on the stack",
+			A_NONE,
+			0
+		},
+		{
 			"lea",
 			"Data: load effective address",
 			A_REFERENCE,
@@ -158,27 +182,33 @@ namespace ProcessorImplementation
 		},
 		{
 			"ld",
-			"Data: read (load) data memory/register",
+			"Data: read (load) memory/register",
 			A_REFERENCE,
 			0
 		},
 		{
 			"st",
-			"Data: write (store) data memory/register",
+			"Data: write (store) memory/register",
 			A_REFERENCE,
 			0
 		},
 		{
-			"force_ld",
-			"Data: read (load) data memory/register, forcing type cast",
+			"ldint",
+			"Data: read (load) integer from memory/register",
 			A_REFERENCE,
 			0
 		},
 		{
-			"force_st",
-			"Data: write (store) data memory/register, forcing type cast",
+			"stint",
+			"Data: write (store) integer memory/register",
 			A_REFERENCE,
 			0
+		},
+		{
+			"settype",
+			"Data: change type of memory location",
+			A_REFERENCE,
+			1
 		},
 		{
 			"abs",
@@ -253,26 +283,32 @@ namespace ProcessorImplementation
 			0
 		},
 		{
+			"tan",
+			"Trigonometry: tangent",
+			A_NONE,
+			0
+		},
+		{
+			"asin",
+			"Trigonometry: arcsine",
+			A_NONE,
+			0
+		},
+		{
+			"acos",
+			"Trigonometry: arccosine",
+			A_NONE,
+			0
+		},
+		{
+			"atan",
+			"Trigonometry: arctangent",
+			A_NONE,
+			0
+		},
+		{
 			"anal",
-			"Accumulator: analyze top of the stack",
-			A_NONE,
-			0
-		},
-		{
-			"cmp",
-			"Accumulator: compare two values on the stack (R/O subtraction)",
-			A_NONE,
-			0
-		},
-		{
-			"swap",
-			"Accumulator: swap two values on the stack",
-			A_NONE,
-			0
-		},
-		{
-			"dup",
-			"Accumulator: duplicate the value on the stack",
+			"Stack: analyze top of the stack",
 			A_NONE,
 			0
 		},
@@ -355,12 +391,6 @@ namespace ProcessorImplementation
 			1
 		},
 		{
-			"dump",
-			"System: dump context",
-			A_NONE,
-			1
-		},
-		{
 			"snfc",
 			"Flags: set No-Flag-Change flag",
 			A_NONE,
@@ -369,12 +399,6 @@ namespace ProcessorImplementation
 		{
 			"cnfc",
 			"Flags: clear No-Flag-Change flag",
-			A_NONE,
-			1
-		},
-		{
-			"exec",
-			"Management: execute next context buffer",
 			A_NONE,
 			1
 		},

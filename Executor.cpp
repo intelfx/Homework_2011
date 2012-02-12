@@ -22,9 +22,8 @@ namespace ProcessorImplementation
 
 		C_LOAD,
 		C_STORE,
-
-		C_FLOAD,
-		C_FSTORE,
+		C_LDINT,
+		C_STINT,
 
 		C_ABS,
 		C_ADD,
@@ -58,9 +57,8 @@ namespace ProcessorImplementation
 
 		"ld",
 		"st",
-
-		"force_ld",
-		"force_st",
+		"ldint",
+		"stint",
 
 		"abs",
 		"add",
@@ -115,17 +113,17 @@ namespace ProcessorImplementation
 		__assert (count < temp_size, "Too much arguments for temporary processing");
 
 		for (size_t i = 0; i < count; ++i)
-			proc_ ->LogicProvider() ->StackPop().Get (temp[i]);
+			proc_ ->LogicProvider() ->StackPop().Get (Value::V_FLOAT, temp[i]);
 	}
 
 	inline void FloatExecutor::TopArgument()
 	{
-		proc_ ->LogicProvider() ->StackTop().Get (temp[0]);
+		proc_ ->LogicProvider() ->StackTop().Get (Value::V_FLOAT, temp[0]);
 	}
 
 	inline void FloatExecutor::ReadArgument (Reference& ref)
 	{
-		proc_ ->LogicProvider() ->Read (ref).Get (temp[0]);
+		proc_ ->LogicProvider() ->Read (ref).Get (Value::V_FLOAT, temp[0]);
 	}
 
 	inline void FloatExecutor::PushResult()
@@ -138,7 +136,7 @@ namespace ProcessorImplementation
 		proc_ ->LogicProvider() ->Write (ref, temp[0]);
 	}
 
-	void FloatExecutor::Execute (void* handle, Command::Argument& argument)
+	void FloatExecutor::Execute (void* handle, Command& command)
 	{
 		need_to_analyze	= !(proc_ ->MMU() ->GetContext().flags & MASK (F_NFC));
 
@@ -146,7 +144,7 @@ namespace ProcessorImplementation
 		switch (cmd)
 		{
 		case C_PUSH:
-			argument.value.Get (temp[0]);
+			command.arg.value.Get (Value::V_FLOAT, temp[0]); // not expecting type here
 			PushResult();
 			break;
 
@@ -156,36 +154,27 @@ namespace ProcessorImplementation
 
 		case C_TOP:
 			TopArgument();
-			msg (E_INFO, E_VERBOSE, "Value on top: %lg", temp[0]);
-			break;
-
-		case C_FLOAD:
-			/* force read value to floating-point */
-			temp[0] = proc_ ->LogicProvider() ->Read (argument.ref).fp;
-
-			PushResult();
+			msg (E_INFO, E_VERBOSE, "Value on top (float): %lg", temp[0]);
 			break;
 
 		case C_LOAD:
-			ReadArgument (argument.ref);
+			ReadArgument (command.arg.ref);
 			PushResult();
 			break;
 
-		case C_FSTORE:
-		{
-			PopArguments (1);
-
-			/* retain written value at its original type */
-			calc_t forged_value (temp[0]);
-			forged_value.type = proc_ ->LogicProvider() ->Read (argument.ref).type;
-
-			proc_ ->LogicProvider() ->Write (argument.ref, forged_value);
-			break;
-		}
-
 		case C_STORE:
 			PopArguments (1);
-			WriteResult (argument.ref);
+			WriteResult (command.arg.ref);
+			break;
+
+		case C_LDINT:
+			proc_ ->LogicProvider() ->Read (command.arg.ref).Get (Value::V_INTEGER, temp[0]);
+			PushResult();
+			break;
+
+		case C_STINT:
+			PopArguments (1);
+			proc_ ->LogicProvider() ->Write (command.arg.ref, static_cast<int_t> (temp[0]));
 			break;
 
 		case C_ABS:
@@ -269,7 +258,7 @@ namespace ProcessorImplementation
 
 		case C_SWAP:
 			PopArguments (2);
-			proc_ ->LogicProvider() ->StackPush (temp[0]);
+			PushResult();
 			temp[0] = temp[1];
 			PushResult();
 			break;
