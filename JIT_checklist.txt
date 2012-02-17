@@ -1,0 +1,15 @@
+Writes to data:
+- type is being set at declare-time and is being kept over assignments.
+- reads and assignments operate with data itself (Value::Assign()), assuming its type is equal to command's type.
+	- interpreter implements it in ILogic::Write, use Assign()
+	- compiler may check types compile-time if they can be resolved
+- we need conversion commands between stacks (StackPop() / SelectStack() / StackPush())
+- we need command to change location's type ("settype.f d:10")
+
+Writes to registers:
+- registers are un-strictly-typed
+- writes to register operate with data+type (Value::operator=()), changing register type as needed
+	- interpreter implements it in ILogic::Write, use operator=()
+	- compiler will NOT update registers' types - they are left at Value::V_MAX
+- conversion command will use fild/fistp
+- location type change command will write required value to Value::type
