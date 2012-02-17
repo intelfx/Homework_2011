@@ -11,7 +11,7 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class INTERPRETER_API AsmHandler : LogBase (AsmHandler), public Processor::IReader, public Processor::IWriter
+	class INTERPRETER_API AsmHandler : virtual LogBase (AsmHandler), public Processor::IReader, public Processor::IWriter
 	{
 		FILE* writing_file_;
 
@@ -27,8 +27,6 @@ namespace ProcessorImplementation
 		char* PrepLine (char* read_buffer);
 		char* ParseLabel (char* current_position);
 		AddrType ReadReferenceSpecifier (char id);
-
-		static const char default_type_specifier = 'f';
 
 	protected:
 		virtual bool _Verify() const;

@@ -28,8 +28,13 @@ namespace Processor
 {
 	// Main processing types
 
+#if defined (TARGET_X64)
 	typedef double fp_t; // main floating-point type
 	typedef long int_t; // main integer type
+#elif defined (TARGET_X86)
+	typedef float fp_t;
+	typedef long int_t;
+#endif
 
 	static_assert (sizeof (fp_t) == sizeof (int_t),
 				   "FP data type size does not equal integer data type size");
@@ -434,6 +439,50 @@ namespace Processor
 	{
 		std::list< std::pair<FileSectionType, size_t> > file_description;
 		FILE* file;
+
+		void Reset()
+		{
+			if (file) rewind (file);
+			file_description.clear();
+			file_description.push_back (std::make_pair (SEC_MAX, 0)); // placeholder
+		}
+
+		FileProperties (const FileProperties&) = delete;
+		FileProperties& operator= (const FileProperties&) = delete;
+
+		FileProperties (FILE* target_file) :
+		file (target_file)
+		{
+			Reset();
+		}
+
+		FileProperties (FileProperties&& that) :
+		file_description (std::move (that.file_description)),
+		file (that.file)
+		{
+			that.file = 0;
+			that.file_description.clear();
+		}
+
+		FileProperties& operator= (FileProperties&& that)
+		{
+			if (this == &that)
+				return *this;
+
+			if (file) fclose (file);
+			file_description.clear();
+
+			file = that.file; that.file = 0;
+			file_description = std::move (that.file_description);
+			that.file_description.clear();
+
+			return *this;
+		}
+
+		~FileProperties()
+		{
+			if (file) fclose (file);
+		}
 	};
 
 	struct DecodeResult

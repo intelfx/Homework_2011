@@ -79,21 +79,15 @@ namespace ProcessorImplementation
 		__assert (file, "Invalid reading file");
 		__assert (!ferror (file), "Error in stream");
 
-		FileProperties fp;
-		fp.file = file;
-		fp.file_description.push_back (std::make_pair (SEC_MAX, 0));
+		FileProperties fp (file);
+
 		fp.file_description.push_back (std::make_pair (SEC_NON_UNIFORM, 0));
-		return fp;
+		return std::move (fp);
 	}
 
 	void AsmHandler::RdReset (FileProperties* prop)
 	{
-		__assert (prop, "Invalid properties");
-		__assert (prop ->file, "Invalid file");
-
-		fclose (prop ->file);
-		prop ->file = 0;
-		prop ->file_description.clear();
+		// no-op
 	}
 
 	size_t AsmHandler::ReadNextElement (FileProperties*, void*, size_t)
@@ -376,7 +370,7 @@ namespace ProcessorImplementation
 				break;
 
 			default:
-				__asshole ("Parse error: \"%s\"", decl_data);
+				__asshole ("Invalid declaration: \"%s\"", decl_data);
 				break;
 			}
 
@@ -403,7 +397,7 @@ namespace ProcessorImplementation
 			break;
 
 		default:
-			__asshole ("Parse error: \"%s\" - sscanf() says \"%d\"", decl_data, arguments);
+			__asshole ("Invalid declaration: \"%s\"", decl_data);
 			break;
 		}
 
@@ -419,6 +413,7 @@ namespace ProcessorImplementation
 		output.command.id = desc.id;
 
 		// Default command type specification
+
 		if (output.command.type == Value::V_MAX)
 		{
 			if (desc.is_service_command)
@@ -428,13 +423,11 @@ namespace ProcessorImplementation
 				output.command.type = Value::V_FLOAT;
 		}
 
-		if (!argument)
+		if (!argument) /* no argument */
 		{
 			__verify (desc.arg_type == A_NONE,
 					  "No argument required for command \"%s\" while given argument \"%s\"",
 					  command, argument);
-
-			msg (E_INFO, E_DEBUG, "Command: \"%s\" no argument", desc.mnemonic);
 		}
 
 		else /* have argument */
@@ -445,25 +438,13 @@ namespace ProcessorImplementation
 			switch (desc.arg_type)
 			{
 			case A_REFERENCE:
-			{
 				output.command.arg.ref = ParseReference (output.mentioned_symbols, argument);
-
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" reference to %s",
-					 desc.mnemonic, (ProcDebug::PrintReference (output.command.arg.ref), ProcDebug::debug_buffer));
-
 				break;
-			}
 
 			case A_VALUE:
-			{
 				output.command.arg.value.type = output.command.type;
 				output.command.arg.value.Parse (argument);
-
-				msg (E_INFO, E_DEBUG, "Command: \"%s\" argument %s",
-					 desc.mnemonic, (ProcDebug::PrintValue (output.command.arg.value), ProcDebug::debug_buffer));
-
 				break;
-			}
 
 			case A_NONE:
 			default:
@@ -472,11 +453,15 @@ namespace ProcessorImplementation
 			} // switch (argument type)
 
 		} // have argument
+
+		msg (E_INFO, E_DEBUG, "Command: \"%s\" argument %s",
+			 desc.mnemonic,
+			 (ProcDebug::PrintArgument (desc.arg_type, output.command.arg), ProcDebug::debug_buffer));
 	}
 
 	char* AsmHandler::ParseLabel (char* string)
 	{
-		do
+		do // TODO rewrite to while()
 		{
 			if (*string == ' ' || *string == '\0')
 				return 0; // no label
@@ -548,29 +533,26 @@ namespace ProcessorImplementation
 		if (char* dot = strchr (command, '.'))
 		{
 			*dot++ = '\0';
-			typespec = *dot;
-		}
 
-		/* decode type-specifier */
+			switch (tolower (*dot))
+			{
+			case 'f':
+				statement_type = Value::V_FLOAT;
+				break;
 
-		switch (tolower (typespec))
-		{
-		case 'f':
-			statement_type = Value::V_FLOAT;
-			break;
+			case 'd':
+			case 'i':
+				statement_type = Value::V_INTEGER;
+				break;
 
-		case 'd':
-		case 'i':
-			statement_type = Value::V_INTEGER;
-			break;
+			case '\0':
+				statement_type = Value::V_MAX;
+				break;
 
-		case '\0':
-			statement_type = Value::V_MAX;
-			break;
-
-		default:
-			__asshole ("Invalid command type specification: '%c'", typespec);
-			break;
+			default:
+				__asshole ("Invalid command type specification: '%c'", typespec);
+				break;
+			}
 		}
 
 		/* determine if we have a declaration or a command and parse accordingly */
@@ -580,7 +562,7 @@ namespace ProcessorImplementation
 			__verify (argument, "Empty declaration");
 
 			output.type = DecodeResult::DEC_DATA;
-			output.data.type = statement_type; // FUCK MY BRAIN! How did it work without this line??
+			output.data.type = statement_type;
 
 			// In case of undefined type it will be set in ReadSingleDeclaration().
 
@@ -607,20 +589,53 @@ namespace ProcessorImplementation
 				  "Invalid (non-stream) section type: \"%s\"",
 				  ProcDebug::FileSectionType_ids[prop ->file_description.front().first]);
 
+		size_t& line_num = prop ->file_description.front().second;
+
 		*destination = DecodeResult();
 		char read_buffer[STATIC_LENGTH];
 
-		do
+		try
 		{
-			if (!fgets (read_buffer, STATIC_LENGTH, prop ->file))
-				return 0;
+			do
+			{
+				if (!fgets (read_buffer, STATIC_LENGTH, prop ->file))
+					return 0;
 
-			ReadSingleStatement (++prop ->file_description.front().second, read_buffer, *destination);
+				ReadSingleStatement (++line_num, read_buffer, *destination);
 
+			}
+			while (destination ->type == DecodeResult::DEC_NOTHING);
+
+			return 1;
 		}
-		while (destination ->type == DecodeResult::DEC_NOTHING);
 
-		return 1;
+		catch (Debug::Exception& e)
+		{
+			switch (e.Type())
+			{
+				case Debug::EX_INPUT:
+					msg (E_CRITICAL, E_USER, "Syntax error on line %d: %s",
+						 line_num, e.what());
+					break;
+
+				case Debug::EX_BUG:
+					msg (E_CRITICAL, E_USER, "Parser internal error on line %d: %s",
+						 line_num, e.what());
+					break;
+
+				default:
+					break; // no need in throwing different exception...
+			}
+
+			throw; // ...since we can just rethrow this one.
+		}
+
+		catch (std::exception& e)
+		{
+			msg (E_CRITICAL, E_USER, "Unspecified error parsing line %d: \"%s\"",
+				 line_num, e.what());
+			throw;
+		}
 	}
 }
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

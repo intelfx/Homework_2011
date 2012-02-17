@@ -32,7 +32,8 @@ namespace ProcessorImplementation
 								   dsc ->description,
 								   dsc ->arg_type,
 								   dsc ->is_service_command,
-								   get_id (dsc ->name)
+								   get_id (dsc ->name),
+								   {}
 								 };
 
 			msg (E_INFO, E_DEBUG, "mkI command: \"%s\" -> %u", dsc ->name, traits.id);

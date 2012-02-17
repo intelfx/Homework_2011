@@ -305,7 +305,7 @@ namespace ProcessorImplementation
 			break;
 		}
 
-		return strtod ("NAN", 0); /* for GCC not to complain */
+		return static_cast<fp_t> (strtof ("NAN", 0)); /* for GCC not to complain */
 	}
 
 	Processor::calc_t Logic::StackPop()

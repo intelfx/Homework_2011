@@ -145,8 +145,7 @@ namespace Processor
 		} // while (nextsection)
 
 		msg (E_INFO, E_VERBOSE, "Loading completed");
-
-		reader_ ->RdReset (&rd_prop); // close file
+		reader_ ->RdReset (&rd_prop);
 	}
 
 	void ProcessorAPI::Dump (FILE* file)
@@ -252,7 +251,7 @@ namespace Processor
 			catch (std::exception& e)
 			{
 				const CommandTraits& cmd_traits = cset_ ->DecodeCommand (command.id);
-				msg (E_CRITICAL, E_USER, "Last executed command [PC=%zu] \"%s\" (%s) argument \"%s\"",
+				msg (E_WARNING, E_USER, "Last executed command [PC=%zu] \"%s\" (%s) argument \"%s\"",
 					 mmu_ ->GetContext().ip, cmd_traits.mnemonic, ProcDebug::ValueType_ids[command.type],
 					 (ProcDebug::PrintArgument (cmd_traits.arg_type, command.arg, mmu_), ProcDebug::debug_buffer));
 

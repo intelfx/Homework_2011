@@ -12,4 +12,3 @@
 1 * Writing to register/memory changes its type according to value type.
 1 * Writing to stack forces the value to specific (executor's) type, either through correct conversion or type punning.
 -- Last two points: all writes, either to stack or to reg/mem, should write values of executor's type.
-0 * Force-type punning instructions (wr.i $ra / force_ld.f $ra) will bitwise-move data from integer to FP stack.
