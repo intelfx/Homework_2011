@@ -654,18 +654,22 @@ namespace ProcessorImplementation
 
 	bool MMU::_Verify() const
 	{
-		verify_statement (!context_stack.empty(), "Possible call stack underflow or MMU uninitialized");
-
 		verify_statement (current_stack, "No stack selected");
 		verify_statement (frame_stack, "No auxiliary stack selected");
 
-		verify_statement (context.buffer < buffers.Capacity(), "Invalid context buffer ID [%zd]: max %zu",
-						  context.buffer, buffers.Capacity());
+		if (context.buffer != static_cast<size_t> (-1))
+		{
+			verify_statement (!context_stack.empty(), "Call/context stack underflow");
 
-		if (!buffers[context.buffer].commands.empty())
-			verify_statement (context.ip < buffers[context.buffer].commands.size(),
-							  "Invalid instruction pointer [%zu]: max %zu",
-							  context.ip, buffers[context.buffer].commands.size());
+			verify_statement (context.buffer < buffers.Capacity(), "Invalid context buffer ID [%zd]: max %zu",
+							  context.buffer, buffers.Capacity());
+
+			if (!buffers[context.buffer].commands.empty())
+				verify_statement (context.ip < buffers[context.buffer].commands.size(),
+								  "Invalid instruction pointer [%zu]: max %zu",
+								  context.ip, buffers[context.buffer].commands.size());
+
+		}
 
 		return 1;
 	}
