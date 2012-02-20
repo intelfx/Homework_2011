@@ -73,56 +73,56 @@ namespace Processor
 	{
 		bool was_detach = 0;
 
-		if (dynamic_cast<const IBackend*> (module) == backend_)
+		if (shadow_backend_ == module)
 		{
-			backend_ = 0;
+			shadow_backend_ = backend_ = 0;
 			was_detach = 1;
 		}
 
-		if (const IExecutor* exec_module = dynamic_cast<const IExecutor*> (module))
-		{
-			Value::Type supported_type = exec_module ->SupportedType();
-
-			if (exec_module == executors_[supported_type])
+		// We can not dynamic_cast<>() to IExecutor* to get executor's type
+		// since module itself is already destroyed by this time.
+		// See explanations in Interfaces.h near shadow_* declarations.
+		for (unsigned i = 0; i <= Value::V_MAX; ++i)
+			if (shadow_executors_[i] == module)
 			{
-				executors_[supported_type] = 0;
+				shadow_executors_[i] = executors_[i] = 0;
 				was_detach = 1;
+				break;
 			}
-		}
 
-		if (dynamic_cast<const IReader*> (module) == reader_)
+		if (shadow_reader_ == module)
 		{
-			reader_ = 0;
+			shadow_reader_ = reader_ = 0;
 			was_detach = 1;
 		}
 
-		if (dynamic_cast<const IWriter*> (module) == writer_)
+		if (shadow_writer_ == module)
 		{
-			writer_ = 0;
+			shadow_writer_ = writer_ = 0;
 			was_detach = 1;
 		}
 
-		if (dynamic_cast<const ICommandSet*> (module) == cset_)
+		if (shadow_cset_ == module)
 		{
-			cset_ = 0;
+			shadow_cset_ = cset_ = 0;
 			was_detach = 1;
 		}
 
-		if (dynamic_cast<const ILogic*> (module) == internal_logic_)
+		if (shadow_logic_ == module)
 		{
-			internal_logic_ = 0;
+			shadow_logic_ = internal_logic_ = 0;
 			was_detach = 1;
 		}
 
-		if (dynamic_cast<const ILinker*> (module) == linker_)
+		if (shadow_linker_ == module)
 		{
-			linker_ = 0;
+			shadow_linker_ = linker_ = 0;
 			was_detach = 1;
 		}
 
-		if (dynamic_cast<const IMMU*> (module) == mmu_)
+		if (shadow_mmu_ == module)
 		{
-			mmu_ = 0;
+			shadow_mmu_ = mmu_ = 0;
 			was_detach = 1;
 		}
 
@@ -138,7 +138,7 @@ namespace Processor
 		if (backend_)
 			backend_ ->DetachSelf();
 
-		backend_ = backend;
+		shadow_backend_ = backend_ = backend;
 		backend_ ->SetProcessor (this);
 	}
 
@@ -149,7 +149,7 @@ namespace Processor
 		if (cset_)
 			cset_ ->DetachSelf();
 
-		cset_ = cset;
+		shadow_cset_ = cset_ = cset;
 		cset_ ->SetProcessor (this);
 	}
 
@@ -157,15 +157,16 @@ namespace Processor
 	{
 		Value::Type supported_type = executor ->SupportedType();
 		__assert (supported_type <= Value::V_MAX,
-					"Invalid supported type (executor module to be registered \"%s\")",
-					Debug::API::GetClassName (executor));
+				  "Invalid supported type (executor module to be registered: %p \"%s\")",
+				  executor, Debug::API::GetClassName (executor));
 
 		IExecutor*& executor_ = executors_[supported_type];
+		IModuleBase*& shadow_executor_ = shadow_executors_[supported_type];
 
 		if (executor_)
 			executor_ ->DetachSelf();
 
-		executor_ = executor;
+		shadow_executor_ = executor_ = executor;
 		executor_ ->SetProcessor (this);
 	}
 
@@ -174,7 +175,7 @@ namespace Processor
 		if (linker_)
 			linker_ ->DetachSelf();
 
-		linker_ = linker;
+		shadow_linker_ = linker_ = linker;
 		linker_ ->SetProcessor (this);
 	}
 
@@ -183,7 +184,7 @@ namespace Processor
 		if (internal_logic_)
 			internal_logic_ ->DetachSelf();
 
-		internal_logic_ = logic;
+		shadow_logic_ = internal_logic_ = logic;
 		internal_logic_ ->SetProcessor (this);
 	}
 
@@ -192,7 +193,7 @@ namespace Processor
 		if (mmu_)
 			mmu_ ->DetachSelf();
 
-		mmu_ = mmu;
+		shadow_mmu_ = mmu_ = mmu;
 		mmu_ ->SetProcessor (this);
 	}
 
@@ -201,7 +202,7 @@ namespace Processor
 		if (reader_)
 			reader_ ->DetachSelf();
 
-		reader_ = reader;
+		shadow_reader_ = reader_ = reader;
 		reader_ ->SetProcessor (this);
 	}
 
@@ -210,7 +211,7 @@ namespace Processor
 		if (writer_)
 			writer_ ->DetachSelf();
 
-		writer_ = writer;
+		shadow_writer_ = writer_ = writer;
 		writer_ ->SetProcessor (this);
 	}
 
@@ -219,50 +220,60 @@ namespace Processor
 		DetachSelf();
 	}
 
-
-	void ProcessorAPI::Initialise()
+	void ProcessorAPI::Initialise (bool value)
 	{
-		if (initialise_completed)
-			return;
+		if (value)
+		{
+			initialise_completed = 1;
+			msg (E_INFO, E_USER, "API initialised");
+			verify_method;
+		}
 
-		initialise_completed = 1;
-		verify_method;
-		msg (E_INFO, E_VERBOSE, "API initialised");
+		else
+		{
+			msg (E_WARNING, E_VERBOSE, "API deinitialised");
+			verify_method;
+			initialise_completed = 0;
+		}
 	}
 
 	bool ProcessorAPI::_Verify() const
 	{
-		if (!initialise_completed)
-			return 1;
+		verify_statement (initialise_completed, "Not initialised");
 
-		verify_statement (internal_logic_, "logic provider not registered");
-		verify_statement (internal_logic_ ->CheckObject(), "logic provider verification failure");
+		verify_submodule (internal_logic_, "internal logic");
+		verify_submodule (cset_, "command set");
+		verify_submodule (linker_, "linker");
+		verify_submodule (mmu_, "MMU");
 
-		verify_statement (cset_, "command set provider not registered");
-		verify_statement (cset_ ->CheckObject(), "command set provider verification failure");
-
-		for (unsigned i = 0; i < Value::V_MAX; ++i)
+		for (unsigned i = 0; i <= Value::V_MAX; ++i)
 		{
-			verify_statement (executors_[i], "executor [type \"%s\"] not registered",
-							  ProcDebug::ValueType_ids[i]);
-			verify_statement (executors_[i] ->CheckObject(), "executor [type \"%s\"] verification failure",
-							  ProcDebug::ValueType_ids[i]);
+			verify_submodule (executors_[i], "%s executor", ProcDebug::AddrType_ids[i]);
 		}
 
-		verify_statement (linker_, "linker not registered");
-		verify_statement (linker_ ->CheckObject(), "linker verification failure");
-
-		verify_statement (mmu_, "MMU not registered");
-		verify_statement (mmu_ ->CheckObject(), "MMU verification failure");
+		if (backend_)
+			verify_submodule (backend_, "backend compiler");
 
 		if (reader_)
-			verify_statement (reader_ ->CheckObject(), "read engine verification failure");
+			verify_submodule (reader_, "read I/O engine");
 
 		if (writer_)
-			verify_statement (writer_ ->CheckObject(), "write engine verification failure");
+			verify_submodule (writer_, "write I/O engine");
 
-		if (backend_)
-			verify_statement (backend_ ->CheckObject(), "native compiler verification failure");
+
+		verify_statement (internal_logic_ == shadow_logic_, "Logic pointers inconsistence");
+		verify_statement (cset_ == shadow_cset_, "Command set pointers inconsistence");
+		verify_statement (linker_ == shadow_linker_, "Linker pointers inconsistence");
+		verify_statement (mmu_ == shadow_mmu_, "MMU pointers inconsistence");
+
+		for (unsigned i = 0; i <= Value::V_MAX; ++i)
+		{
+			verify_statement (executors_[i] == shadow_executors_[i], "Executor \"%s\" pointer inconsistence", ProcDebug::AddrType_ids[i]);
+		}
+
+		verify_statement (backend_ == shadow_backend_, "Backend pointers inconsistence");
+		verify_statement (reader_ == shadow_reader_, "Reader pointers inconsistence");
+		verify_statement (writer_ == shadow_writer_ , "Writer pointers inconsistence");
 
 		return 1;
 	}
@@ -271,11 +282,16 @@ namespace Processor
 	reader_ (0),
 	writer_ (0),
 	mmu_ (0),
-	executors_(),
+	executors_({}),
 	backend_ (0),
 	linker_ (0),
 	cset_ (0),
 	internal_logic_ (0),
+	shadow_reader_ (0),
+	shadow_writer_ (0),
+	shadow_mmu_ (0),
+	shadow_executors_ ({}),
+	shadow_backend_ (0),
 	initialise_completed (0)
 	{
 	}

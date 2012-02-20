@@ -29,14 +29,35 @@ namespace Processor
 	{
 		static ProcessorAPI* callback_procapi;
 
-		IReader* reader_;
-		IWriter* writer_;
-		IMMU* mmu_;
-		StaticAllocator<IExecutor*, Value::V_MAX + 1> executors_;
-		IBackend* backend_;
-		ILinker* linker_;
-		ICommandSet* cset_;
-		ILogic* internal_logic_;
+		IReader*		reader_;
+		IWriter*		writer_;
+		IMMU*			mmu_;
+		IExecutor*		executors_[Value::V_MAX + 1];
+		IBackend*		backend_;
+		ILinker*		linker_;
+		ICommandSet*	cset_;
+		ILogic*			internal_logic_;
+
+		/*
+		 * Shadow fields are used on module detach.
+		 *
+		 * Since detach function is being called from IModuleBase destructor, at which
+		 * time the module itself is already destroyed, and so is vptr,
+		 * comparison of pointer to the destroyed module with pointer to IModuleBase
+		 * will NOT succeed.
+		 * So we keep two pointers to each module:
+		 * - normal (for fast access without dynamic_cast);
+		 * - base (for comparison at detach time).
+		 */
+		IModuleBase*	shadow_reader_;
+		IModuleBase*	shadow_writer_;
+		IModuleBase*	shadow_mmu_;
+		IModuleBase*	shadow_executors_[Value::V_MAX +1];
+		IModuleBase*	shadow_backend_;
+		IModuleBase*	shadow_linker_;
+		IModuleBase*	shadow_cset_;
+		IModuleBase*	shadow_logic_;
+
 		bool initialise_completed;
 
 		void Attach_ (IReader* reader);
@@ -54,21 +75,39 @@ namespace Processor
 		static void SetCallbackProcAPI (ProcessorAPI* procapi);
 		static abiret_t InterpreterCallbackFunction (Command* cmd);
 
+		template <typename T>
+		T* CheckReturnModule (T* module, const char* modname)
+		{
+			if (initialise_completed)
+			{
+				verify_method;
+				return module;
+			}
+
+			else
+			{
+				__assert (module, "Module \"%s\" is not available on pre-init state. Reorder module initialisation.", modname);
+
+				// TODO in case of assertion fail, we will have (initialise_completed == false) and verification error.
+				return module;
+			}
+		}
+
 	public:
 		ProcessorAPI();
 
 		void Attach (IModuleBase* module);
-		void Detach (const IModuleBase* module);
-		void Initialise();
+		void Detach (const Processor::IModuleBase* module);
+		void Initialise (bool value = 1);
 
-		IReader*	Reader() { verify_method; return reader_; }
-		IWriter*	Writer() { verify_method; return writer_; }
-		IMMU*		MMU() { verify_method; return mmu_; }
-		IBackend*	Backend() { verify_method; return backend_; }
-		IExecutor*	Executor (Value::Type type) { verify_method; return executors_[type]; }
-		ILinker*	Linker() { verify_method; return linker_; }
-		ICommandSet*CommandSet() { verify_method; return cset_; }
-		ILogic*		LogicProvider() { verify_method; return internal_logic_; }
+		IReader*	Reader()					{ return CheckReturnModule (reader_, "reader"); }
+		IWriter*	Writer()					{ return CheckReturnModule (writer_, "writer"); }
+		IMMU*		MMU()						{ return CheckReturnModule (mmu_, "MMU"); }
+		IBackend*	Backend()					{ return CheckReturnModule (backend_, "backend"); }
+		IExecutor*	Executor (Value::Type type)	{ return CheckReturnModule (executors_[type], "executor"); }
+		ILinker*	Linker()					{ return CheckReturnModule (linker_, "linker"); }
+		ICommandSet*CommandSet()				{ return CheckReturnModule (cset_, "command set"); }
+		ILogic*		LogicProvider()				{ return CheckReturnModule (internal_logic_, "logic provider"); }
 
 
 		void	Flush(); // Completely reset and reinitialise the system
@@ -85,13 +124,15 @@ namespace Processor
 	{
 	protected:
 		ProcessorAPI* proc_;
+
+		IModuleBase() : proc_ (0) {}
 		virtual ~IModuleBase();
 
 		virtual void OnAttach() {}
 		virtual void OnDetach() {}
 
 	public:
-		virtual ProcessorAPI* GetProcessor()
+		ProcessorAPI* GetProcessor()
 		{
 			return proc_;
 		}
@@ -112,6 +153,7 @@ namespace Processor
 				proc_ = 0;
 			}
 		}
+
 	};
 
 	class INTERPRETER_API ILogic : LogBase (ILogic), public IModuleBase

@@ -45,7 +45,7 @@ namespace Processor
 
 		FileProperties rd_prop = reader_ ->RdSetup (file);
 		FileSectionType sec_type = FileSectionType::SEC_MAX;
-		size_t sec_size, read_size, req_bytes;
+		size_t sec_size = 0, read_size = 0, req_bytes = 0;
 
 		while (reader_ ->NextSection (&rd_prop, &sec_type, &sec_size, &req_bytes))
 		{
@@ -191,7 +191,7 @@ namespace Processor
 		size_t initial_ctx = mmu_ ->GetContext().buffer;
 		size_t chk = internal_logic_ ->ChecksumState();
 
-		msg (E_INFO, E_VERBOSE, "Starting execution of context %zu (system checksum %p)", initial_ctx, chk);
+// 		msg (E_INFO, E_VERBOSE, "Starting execution of context %zu (system checksum %p)", initial_ctx, chk);
 
 		// Try to use backend if image was compiled
 		if (backend_ && backend_ ->ImageIsOK (chk))

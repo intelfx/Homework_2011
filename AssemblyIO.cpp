@@ -85,7 +85,7 @@ namespace ProcessorImplementation
 		return std::move (fp);
 	}
 
-	void AsmHandler::RdReset (FileProperties* prop)
+	void AsmHandler::RdReset (FileProperties*)
 	{
 		// no-op
 	}
