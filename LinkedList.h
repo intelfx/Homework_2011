@@ -144,14 +144,16 @@ protected:
 		for (index = first_; index != end_marker_; index = next_[index])
 			++tmp_count;
 
-		verify_statement (tmp_count == count_, "Chain inconsistency: allocated chain length %zu (accounted %zu)",
+		verify_statement (tmp_count == count_,
+						  "Chain inconsistency: allocated chain length %zu (accounted %zu)",
 						  tmp_count, count_);
 
 		/* free chain verification */
 		for (tmp_count = 0, index = free_; index != end_marker_; index = next_[index])
 			++tmp_count;
 
-		verify_statement (tmp_count == capacity_ - count_, "Chain inconsistency: free chain length %zu (accounted %zu)",
+		verify_statement (tmp_count == capacity_ - count_,
+						  "Chain inconsistency: free chain length %zu (accounted %zu)",
 						  tmp_count, capacity_ - count_);
 
 		return 1;
@@ -176,11 +178,11 @@ public:
 	protected:
 		virtual bool _Verify() const
 		{
-			verify_statement (parent_, "Orphan iterator");
-			verify_statement (parent_ ->CheckObject(), "Owner check failed");
+			verify_submodule (parent_, "Iterator owner");
 
 			if (prev_index_ != end_marker_)
-				verify_statement (prev_index_ < parent_ ->capacity_, "Iterator points beyond the container actual capacity");
+				verify_statement (prev_index_ < parent_ ->capacity_,
+								  "Iterator points beyond the container actual capacity");
 
 			return 1;
 		}

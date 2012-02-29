@@ -63,8 +63,8 @@ int main (int, char**)
 	dl.PopFront();
 	dl.PopBack();
 
-	l.CheckObject();
-	dl.CheckObject();
+	verify_object (l);
+	verify_object (dl);
 
 
 	smsg (E_INFO, E_USER, "Testing limits");
