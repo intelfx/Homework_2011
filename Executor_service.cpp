@@ -131,47 +131,47 @@ namespace ProcessorImplementation
 
 		case C_SETTYPE:
 		{
-			proc_ ->LogicProvider() ->UpdateType (command.arg.ref, command.type);
+			proc_ ->LogicProvider() ->UpdateType (proc_ ->Linker() ->Resolve (command.arg.ref), command.type);
 			break;
 		}
 
 		case C_JNE:
 			if (!temp_flags.zero)
-				proc_ ->LogicProvider() ->Jump (command.arg.ref);
+				proc_ ->LogicProvider() ->Jump (proc_ ->Linker() ->Resolve (command.arg.ref));
 
 			break;
 
 		case C_JE:
 			if (temp_flags.zero)
-				proc_ ->LogicProvider() ->Jump (command.arg.ref);
+				proc_ ->LogicProvider() ->Jump (proc_ ->Linker() ->Resolve (command.arg.ref));
 
 			break;
 
 		case C_JA:
 		case C_JNBE:
 			if (!temp_flags.zero && !temp_flags.negative)
-				proc_ ->LogicProvider() ->Jump (command.arg.ref);
+				proc_ ->LogicProvider() ->Jump (proc_ ->Linker() ->Resolve (command.arg.ref));
 
 			break;
 
 		case C_JNA:
 		case C_JBE:
 			if (temp_flags.zero || temp_flags.negative)
-				proc_ ->LogicProvider() ->Jump (command.arg.ref);
+				proc_ ->LogicProvider() ->Jump (proc_ ->Linker() ->Resolve (command.arg.ref));
 
 			break;
 
 		case C_JAE:
 		case C_JNB:
 			if (!temp_flags.negative)
-				proc_ ->LogicProvider() ->Jump (command.arg.ref);
+				proc_ ->LogicProvider() ->Jump (proc_ ->Linker() ->Resolve (command.arg.ref));
 
 			break;
 
 		case C_JNAE:
 		case C_JB:
 			if (temp_flags.negative)
-				proc_ ->LogicProvider() ->Jump (command.arg.ref);
+				proc_ ->LogicProvider() ->Jump (proc_ ->Linker() ->Resolve (command.arg.ref));
 
 			break;
 
@@ -187,12 +187,12 @@ namespace ProcessorImplementation
 
 
 		case C_JMP:
-			proc_ ->LogicProvider() ->Jump (command.arg.ref);
+			proc_ ->LogicProvider() ->Jump (proc_ ->Linker() ->Resolve (command.arg.ref));
 			break;
 
 		case C_CALL:
 			proc_ ->MMU() ->SaveContext();
-			proc_ ->LogicProvider() ->Jump (command.arg.ref);
+			proc_ ->LogicProvider() ->Jump (proc_ ->Linker() ->Resolve (command.arg.ref));
 			break;
 
 		case C_RET:

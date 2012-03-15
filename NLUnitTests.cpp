@@ -13,12 +13,14 @@ int main (int argc, char** argv)
 																		EVERYTHING),
 												   &FXConLog::Instance());
 
+	__sassert (argc == 2, "Invalid call");
+
 	Debug::API::SetTypewideVerbosity ("MallocAllocator", Debug::E_USER);
 	Debug::API::SetTypewideVerbosity ("StaticAllocator", Debug::E_USER);
 
 	Debug::API::SetDefaultVerbosity (Debug::E_VERBOSE);
 	Debug::API::SetTypewideVerbosity (0, Debug::E_DEBUG);
-	Debug::API::SetTypewideVerbosity ("NativeExecutionManager", Debug::E_VERBOSE);
+// 	Debug::API::SetTypewideVerbosity ("NativeExecutionManager", Debug::E_VERBOSE);
 
 
 	Processor::ProcessorAPI api;
@@ -36,11 +38,14 @@ int main (int argc, char** argv)
 	api.Attach (new ProcessorImplementation::ServiceExecutor);
 // 	api.Flush();
 
+	api.Initialise();
+
 	api.Attach (new ProcessorImplementation::AsmHandler);
-	FILE* read = fopen ("input.dasm", "rt");
+	FILE* read = fopen (argv[1], "rt");
 	api.Load (read);
 
 	delete api.Reader();
+
 
 	timeops_calibrate_and_setup_clock();
 	timeops_measure_start ("Execution");

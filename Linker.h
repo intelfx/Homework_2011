@@ -28,7 +28,7 @@ namespace ProcessorImplementation
 
 		virtual void LinkSymbols (DecodeResult& input);
 
-		Reference::Direct Resolve (Reference& reference);
+		DirectReference Resolve (Reference& reference);
 	};
 }
 

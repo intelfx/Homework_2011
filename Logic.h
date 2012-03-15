@@ -1,4 +1,4 @@
-﻿#ifndef _LOGIC_H
+#ifndef _LOGIC_H
 #define _LOGIC_H
 
 #include "build.h"
@@ -19,10 +19,10 @@ namespace ProcessorImplementation
 		virtual Register DecodeRegister (const char* reg);
 		virtual const char* EncodeRegister (Register reg);
 
-		virtual void Jump (Reference& ref);
-		virtual calc_t Read (Reference& ref);
-		virtual void Write (Reference& ref, calc_t value);
-		virtual void UpdateType (Processor::Reference& ref, Processor::Value::Type requested_type);
+		virtual void Jump (const DirectReference& ref);
+		virtual calc_t Read (const DirectReference& ref);
+		virtual void Write (const DirectReference& ref, calc_t value);
+		virtual void UpdateType (const DirectReference& ref, Processor::Value::Type requested_type);
 
 		virtual calc_t StackTop();
 		virtual calc_t StackPop();

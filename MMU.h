@@ -88,7 +88,7 @@ namespace ProcessorImplementation
 
 		virtual void			AlterStackTop (short int offset);
 
-		virtual void VerifyReference (const Reference::Direct& ref) const;
+		virtual void VerifyReference (const DirectReference& ref) const;
 
 		virtual void ResetBuffers (size_t ctx_id);
 		virtual void ResetEverything();

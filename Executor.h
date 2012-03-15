@@ -29,8 +29,9 @@ namespace ProcessorImplementation
 		inline void AttemptAnalyze	();
 		inline void TopArgument		();
 		inline void PopArguments	(size_t count);
-		inline void ReadArgument	(Reference& ref);
+		inline void ReadArgument	(Processor::Reference& ref, Processor::Value::Type type = Value::V_FLOAT);
 		inline void WriteResult		(Reference& ref);
+		inline void WriteIntResult	(Reference& ref);
 		inline void PushResult		();
 
 	protected:

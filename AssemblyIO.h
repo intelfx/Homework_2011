@@ -15,10 +15,6 @@ namespace ProcessorImplementation
 	{
 		FILE* writing_file_;
 
-		calc_t			ParseFloat (const char* input);
-		calc_t			ParseInteger (const char* input);
-		Reference		ParseReference (Processor::symbol_map& symbols, char* arg);
-
 		void			ReadSingleStatement (size_t line_num, char* input, Processor::DecodeResult& output);
 		void			ReadSingleDeclaration (const char* decl_data, Processor::DecodeResult& output);
 		void			ReadSingleCommand (const char* command, char* argument, Processor::DecodeResult& output);
@@ -26,7 +22,16 @@ namespace ProcessorImplementation
 		void InternalWriteFile();
 		char* PrepLine (char* read_buffer);
 		char* ParseLabel (char* current_position);
-		AddrType ReadReferenceSpecifier (char id);
+
+		AddrType DecodeSectionType (char id);
+
+		Reference::SingleRef ParseInsertString (char* arg);
+
+		Reference ParseFullReference					(char* arg, symbol_map& symbols);
+		Reference::BaseRef ParseBaseReference			(char* arg, symbol_map& symbols);
+		Reference::IndirectRef ParseIndirectReference	(char* arg, symbol_map& symbols);
+		Reference::SingleRef ParseSingleReference		(char* arg, symbol_map& symbols);
+		Reference::SingleRef ParseRegisterReference		(char* arg);
 
 	protected:
 		virtual bool _Verify() const;

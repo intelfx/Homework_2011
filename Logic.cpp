@@ -12,7 +12,6 @@ namespace ProcessorImplementation
 	{
 		verify_method;
 
-
 		ICommandSet* command_set = proc_ ->CommandSet();
 		IMMU* mmu = proc_ ->MMU();
 
@@ -170,28 +169,26 @@ namespace ProcessorImplementation
 		return RegisterIDs[reg];
 	}
 
-	void Logic::Jump (Processor::Reference& ref)
+	void Logic::Jump (const DirectReference& ref)
 	{
 		verify_method;
 
-		Reference::Direct dref = proc_ ->Linker() ->Resolve (ref);
-		__verify (dref.type == S_CODE, "Cannot jump to non-CODE reference to %s",
+		__verify (ref.section == S_CODE, "Cannot jump to non-CODE reference to %s",
 				  (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 
-		msg (E_INFO, E_DEBUG, "Jumping -> %zu", dref.address);
+		msg (E_INFO, E_DEBUG, "Jumping -> %zu", ref.address);
 
 		Context& ctx = proc_ ->MMU() ->GetContext();
 
-		ctx.ip = dref.address;
+		ctx.ip = ref.address;
 		ctx.flags |= MASK (F_WAS_JUMP);
 	}
 
-	void Logic::UpdateType (Reference& ref, Value::Type requested_type)
+	void Logic::UpdateType (const DirectReference& ref, Value::Type requested_type)
 	{
 		verify_method;
 
-		Reference::Direct dref = proc_ ->Linker() ->Resolve (ref);
-		switch (dref.type)
+		switch (ref.section)
 		{
 		case S_CODE:
 			__asshole ("Attempt to write type to CODE section: reference to %s",
@@ -199,7 +196,7 @@ namespace ProcessorImplementation
 			break;
 
 		case S_DATA:
-			proc_ ->MMU() ->AData (dref.address).type = requested_type;
+			proc_ ->MMU() ->AData (ref.address).type = requested_type;
 			break;
 
 		case S_FRAME:
@@ -225,12 +222,11 @@ namespace ProcessorImplementation
 		}
 	}
 
-	void Logic::Write (Reference& ref, calc_t value)
+	void Logic::Write (const Processor::DirectReference& ref, Processor::calc_t value)
 	{
 		verify_method;
 
-		Reference::Direct dref = proc_ ->Linker() ->Resolve (ref);
-		switch (dref.type)
+		switch (ref.section)
 		{
 		case S_CODE:
 			__asshole ("Attempt to write to CODE section: reference to %s",
@@ -239,29 +235,29 @@ namespace ProcessorImplementation
 
 		case S_DATA:
 			// do type checking here
-			proc_ ->MMU() ->AData (dref.address).Assign (value);
+			proc_ ->MMU() ->AData (ref.address).Assign (value);
 			break;
 
 		case S_FRAME:
 			// do type checking here - stack must be homogeneous
-			proc_ ->MMU() ->AStackFrame (dref.address).Assign (value);
+			proc_ ->MMU() ->AStackFrame (ref.address).Assign (value);
 
 		case S_FRAME_BACK:
 			msg (E_WARNING, E_VERBOSE, "Attempt to write to function parameter: reference to %s",
 				 (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 
 			// do type checking here - stack must be homogeneous
-			proc_ ->MMU() ->AStackFrame (-dref.address).Assign (value);
+			proc_ ->MMU() ->AStackFrame (-ref.address).Assign (value);
 			break;
 
 		case S_REGISTER:
 			// no type checking here
-			proc_ ->MMU() ->ARegister (static_cast<Register> (dref.address)) = value;
+			proc_ ->MMU() ->ARegister (static_cast<Register> (ref.address)) = value;
 			break;
 
 		case S_BYTEPOOL:
 			value.Expect (Value::V_INTEGER);
-			*proc_ ->MMU() ->ABytepool (dref.address) = reinterpret_cast<char&> (value.integer); // truncation
+			*proc_ ->MMU() ->ABytepool (ref.address) = reinterpret_cast<char&> (value.integer); // truncation
 			break;
 
 		case S_NONE:
@@ -272,31 +268,30 @@ namespace ProcessorImplementation
 		}
 	}
 
-	Processor::calc_t Logic::Read (Reference& ref)
+	Processor::calc_t Logic::Read (const DirectReference& ref)
 	{
 		verify_method;
 
-		Reference::Direct dref = proc_ ->Linker() ->Resolve (ref);
-		switch (dref.type)
+		switch (ref.section)
 		{
 		case S_CODE:
 			__asshole ("Attempt to read from CODE section: reference to %s",
 					   (ProcDebug::PrintReference (ref), ProcDebug::debug_buffer));
 
 		case S_DATA:
-			return proc_ ->MMU() ->AData (dref.address);
+			return proc_ ->MMU() ->AData (ref.address);
 
 		case S_FRAME:
-			return proc_ ->MMU() ->AStackFrame (dref.address);
+			return proc_ ->MMU() ->AStackFrame (ref.address);
 
 		case S_FRAME_BACK:
-			return proc_ ->MMU() ->AStackFrame (-dref.address);
+			return proc_ ->MMU() ->AStackFrame (-ref.address);
 
 		case S_REGISTER:
-			return proc_ ->MMU() ->ARegister (static_cast<Register> (dref.address));
+			return proc_ ->MMU() ->ARegister (static_cast<Register> (ref.address));
 
 		case S_BYTEPOOL:
-			return static_cast<int_t> (*proc_ ->MMU() ->ABytepool (dref.address));
+			return static_cast<int_t> (*proc_ ->MMU() ->ABytepool (ref.address));
 
 		case S_NONE:
 		case S_MAX:

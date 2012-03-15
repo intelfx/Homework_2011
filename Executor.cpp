@@ -121,9 +121,9 @@ namespace ProcessorImplementation
 		proc_ ->LogicProvider() ->StackTop().Get (Value::V_FLOAT, temp[0]);
 	}
 
-	inline void FloatExecutor::ReadArgument (Reference& ref)
+	inline void FloatExecutor::ReadArgument (Reference& ref, Value::Type type)
 	{
-		proc_ ->LogicProvider() ->Read (ref).Get (Value::V_FLOAT, temp[0]);
+		proc_ ->LogicProvider() ->Read (proc_ ->Linker() ->Resolve (ref)).Get (type, temp[0]);
 	}
 
 	inline void FloatExecutor::PushResult()
@@ -133,7 +133,12 @@ namespace ProcessorImplementation
 
 	inline void FloatExecutor::WriteResult (Reference& ref)
 	{
-		proc_ ->LogicProvider() ->Write (ref, temp[0]);
+		proc_ ->LogicProvider() ->Write (proc_ ->Linker() ->Resolve (ref), temp[0]);
+	}
+
+	inline void FloatExecutor::WriteIntResult (Reference& ref)
+	{
+		proc_ ->LogicProvider() ->Write (proc_ ->Linker() ->Resolve (ref), static_cast<int_t> (temp[0]));
 	}
 
 	void FloatExecutor::Execute (void* handle, Command& command)
@@ -168,13 +173,13 @@ namespace ProcessorImplementation
 			break;
 
 		case C_LDINT:
-			proc_ ->LogicProvider() ->Read (command.arg.ref).Get (Value::V_INTEGER, temp[0]);
+			ReadArgument (command.arg.ref, Value::V_INTEGER);
 			PushResult();
+			WriteIntResult (command.arg.ref);
 			break;
 
 		case C_STINT:
 			PopArguments (1);
-			proc_ ->LogicProvider() ->Write (command.arg.ref, static_cast<int_t> (temp[0]));
 			break;
 
 		case C_ABS:

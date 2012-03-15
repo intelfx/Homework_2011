@@ -44,6 +44,7 @@ namespace Processor
 		__assert (reader_, "Loader module is not attached");
 
 		FileProperties rd_prop = reader_ ->RdSetup (file);
+
 		FileSectionType sec_type = FileSectionType::SEC_MAX;
 		size_t sec_size = 0, read_size = 0, req_bytes = 0;
 
@@ -127,8 +128,7 @@ namespace Processor
 						break;
 
 					case DecodeResult::DEC_NOTHING:
-						msg (E_WARNING, E_DEBUG,
-							 "Reader returned no primary data in decoded set");
+						msg (E_WARNING, E_DEBUG, "Reader returned no primary data in decoded set");
 						break;
 
 					default:

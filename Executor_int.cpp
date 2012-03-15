@@ -113,7 +113,7 @@ namespace ProcessorImplementation
 
 	inline void IntegerExecutor::ReadArgument (Reference& ref)
 	{
-		proc_ ->LogicProvider() ->Read (ref).Get (Value::V_INTEGER, temp[0]);
+		proc_ ->LogicProvider() ->Read (proc_ ->Linker() ->Resolve (ref)).Get (Value::V_INTEGER, temp[0]);
 	}
 
 	inline void IntegerExecutor::PushResult()
@@ -123,7 +123,7 @@ namespace ProcessorImplementation
 
 	inline void IntegerExecutor::WriteResult (Reference& ref)
 	{
-		proc_ ->LogicProvider() ->Write (ref, temp[0]);
+		proc_ ->LogicProvider() ->Write (proc_ ->Linker() ->Resolve(ref), temp[0]);
 	}
 
 	void IntegerExecutor::Execute (void* handle, Command& command)

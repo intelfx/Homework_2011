@@ -167,10 +167,10 @@ namespace Processor
 		virtual void	Syscall (size_t index) = 0; // Execute the processor syscall
 		virtual void	Analyze (calc_t value) = 0; // Analyze an arbitrary value
 
-		virtual void	Jump (Reference& ref) = 0; // Use CODE reference to jump
-		virtual calc_t	Read (Reference& ref) = 0; // Use DATA reference to read
-		virtual void	Write (Reference& ref, calc_t value) = 0; // Use DATA reference to write
-		virtual void	UpdateType (Reference& ref, Value::Type type) = 0; // Use DATA reference to rewrite its type
+		virtual void	Jump (const DirectReference& ref) = 0; // Use CODE reference to jump
+		virtual calc_t	Read (const DirectReference& ref) = 0; // Use DATA reference to read
+		virtual void	Write (const DirectReference& ref, calc_t value) = 0; // Use DATA reference to write
+		virtual void	UpdateType (const DirectReference& ref, Value::Type type) = 0; // Use DATA reference to rewrite its type
 
 		virtual calc_t	StackTop() = 0; // Calculation stack "top" operation
 		virtual calc_t	StackPop() = 0; // Calculation stack "pop" operation
@@ -281,7 +281,7 @@ namespace Processor
 
 		virtual void			AlterStackTop (short offset) = 0; // Change stack top relatively (-1 is pop).
 
-		virtual void VerifyReference (const Reference::Direct& ref) const = 0;
+		virtual void VerifyReference (const DirectReference& ref) const = 0;
 
 		virtual void ResetBuffers (size_t ctx_id) = 0; // Reset specified context buffer
 		virtual void ResetEverything() = 0; // Reset MMU to its initial state, clearing all stacks.
@@ -341,7 +341,7 @@ namespace Processor
 		virtual void LinkSymbols (DecodeResult& input) = 0;
 
 		// Retrieve a direct reference for given arbitary reference.
-		virtual Reference::Direct Resolve (Reference& reference) = 0; // or get an unresolved symbol error
+		virtual DirectReference Resolve (Reference& reference) = 0; // or get an unresolved symbol error
 	};
 }
 

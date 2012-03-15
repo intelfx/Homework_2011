@@ -119,40 +119,107 @@ namespace Processor
 		SEC_MAX
 	};
 
+	/*
+	 * Possible reference types:
+	 * - symbol				"variable"
+	 * - symbol+offset		"variable+10"
+	 * - symbol+indirect	"variable+(reference)"
+	 * - absolute			"d:10"
+	 * - absolute+offset	"d:10+20"
+	 * - absolute+indirect	"d:10+(reference)"
+	 * - indirect			"d:(reference)"
+	 * - indirect+indirect	"d:(reference)+(reference)"
+	 *
+	 * Result:
+	 * address  ::=  register | memory | string
+	 *
+	 * register ::= '$' {enum Register}
+	 * memory   ::=  [ section ':' ] single [ '+' single ]
+	 *
+	 * single   ::= base | indirect
+	 * base     ::= symbol | absolute
+	 * indirect ::= '(' register | [ section ':' ] base ')'
+	 *
+	 * section  ::= {enum AddrType}
+	 * symbol   ::= ['_' 'a'-'z' 'A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9' ]*
+	 * absolute ::= [0-9]*
+	 * string   ::= '\"' [^'\"']* '\"'
+	 *
+	 * Semantics:
+	 * - There should not be more than one section specifier, including inherited from symbols.
+	 */
+
 	struct Reference
 	{
-		struct Direct
+		struct BaseRef
 		{
-			size_t address;
-			AddrType type;
+			union
+			{
+				size_t	symbol_hash;
+				size_t memory_address;
+			};
+
+			bool is_symbol;
 		};
 
-		struct SymbolRef
+		struct IndirectRef
 		{
-			size_t hash;
-			size_t offset;
+			AddrType	section;
+			BaseRef		target;
 		};
 
-		union
+		struct SingleRef
 		{
-			Direct plain;
-			SymbolRef symbol;
+			union
+			{
+				BaseRef		target;
+				IndirectRef indirect;
+			};
+
+			bool is_indirect;
 		};
 
-		enum Type
-		{
-			RT_DIRECT,
-			RT_INDIRECT,
-			RT_SYMBOL
-		} type;
+		AddrType global_section;
+		SingleRef components[2];
+
+		/* one can iterate components with such loop:
+		 * for (int i = 0; i <= reference.has_second_component; ++i)
+		 */
+		bool has_second_component;
+
+		bool needs_linker_placement;
+	};
+
+	struct DirectReference
+	{
+		AddrType	section;
+		size_t		address;
 	};
 
 	struct Symbol
 	{
+
 		size_t hash; // Yes, redundant - but failsafe
 		Reference ref;
 		bool is_resolved; // When returning from decode, this means "is defined"
+
+
+		Symbol (const char* name) :
+		hash (hasher_bsd_string (name)), ref(), is_resolved (0) {}
+
+		Symbol (const char* name, const Reference& resolved_reference) :
+		hash (hasher_bsd_string (name)), ref (resolved_reference), is_resolved (1) {}
+
+
+		bool operator== (const Symbol& that) const { return hash == that.hash; }
+		bool operator!= (const Symbol& that) const { return hash != that.hash; }
 	};
+
+	// This is something like TR1's std::unordered_map with manual hashing,
+	// since we need to have direct access to hashes themselves.
+	typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
+	typedef symbol_map::value_type::second_type symbol_type;
+
 
 	typedef struct Value
 	{
@@ -406,13 +473,6 @@ namespace Processor
 		arg ({}), id (0), type (Value::V_MAX), cached_handle (0), cached_executor (0) {}
 	};
 
-	// This is something like TR1's std::unordered_map with manual hashing,
-	// since we need to have direct access to hashes themselves.
-	typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
-	typedef symbol_map::value_type::second_type symbol_type;
-
-	symbol_map::value_type PrepareSymbol (const char* label, Symbol sym, size_t* hash = 0);
-
 	struct Context
 	{
 		mask_t flags;
@@ -517,6 +577,11 @@ namespace Processor
 
 	calc_t ExecuteGate (void* address);
 
+	inline void InsertSymbol (const Symbol& symbol, const char* name, symbol_map& target_map)
+	{
+		target_map.insert (std::make_pair (symbol.hash, std::make_pair (std::string (name), symbol)));
+	}
+
 	namespace ProcDebug
 	{
 		INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
@@ -526,6 +591,7 @@ namespace Processor
 		INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
 
 		INTERPRETER_API void PrintReference (const Reference& ref, IMMU* mmu = 0);
+		INTERPRETER_API void PrintReference (const Processor::DirectReference& ref);
 		INTERPRETER_API void PrintValue (const Value& val);
 		INTERPRETER_API void PrintArgument (ArgumentType arg_type,
 											const Command::Argument& argument,
