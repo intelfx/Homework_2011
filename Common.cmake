@@ -13,57 +13,68 @@ include (FindPkgConfig)
 
 # Helper macro to find a library in the default paths.
 macro(find_assert_library _libname _liblist)
-find_library(${_libname}_LIBRARY ${_libname})
-if(NOT EXISTS ${${_libname}_LIBRARY})
-	message(FATAL_ERROR ${_libname} " not found!")
-endif()
+	find_library(${_libname}_LIBRARY ${_libname})
 
-SET(${_liblist} ${${_liblist}} ${${_libname}_LIBRARY})
+	if(NOT EXISTS ${${_libname}_LIBRARY})
+		message(FATAL_ERROR ${_libname} " not found!")
+	endif()
+
+	SET(${_liblist} ${${_liblist}} ${${_libname}_LIBRARY})
 endmacro()
 
 # Adds a custom library directory
 macro(add_library_group _group)
-if (EXISTS ${FX_PROJECT_BASE}/${_group})
-	include_directories (${FX_PROJECT_BASE}/${_group})
-endif()
+	if (EXISTS ${FX_PROJECT_BASE}/${_group})
+		include_directories (${FX_PROJECT_BASE}/${_group})
+	endif()
+endmacro()
+
+macro(add_external_sdk _sdkdir)
+	if (EXISTS ${FX_PROJECT_BASE}/SDK/${_sdkdir}/include)
+		include_directories(${FX_PROJECT_BASE}/SDK/${_sdkdir}/include)
+	endif()
+
+	if (EXISTS ${FX_PROJECT_BASE}/SDK/${_sdkdir}/lib)
+		link_directories(${FX_PROJECT_BASE}/SDK/${_sdkdir}/lib)
+	endif()
 endmacro()
 
 # Reconfigures all paths based on development tree modesetting
 macro (reconfigure_devel_tree)
-# CMake pathes
-SET(FX_STATIC_DIR ${FX_PROJECT_BASE}/__lib)
-SET(FX_EXECUTABLE_DIR ${FX_PROJECT_BASE}/__bin)
+	# CMake pathes
+	SET(FX_STATIC_DIR ${FX_PROJECT_BASE}/__lib)
+	SET(FX_EXECUTABLE_DIR ${FX_PROJECT_BASE}/__bin)
 
-SET(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${FX_EXECUTABLE_DIR} ${FX_STATIC_DIR})
+	SET(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${FX_EXECUTABLE_DIR} ${FX_STATIC_DIR})
 
-SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${FX_EXECUTABLE_DIR})
-SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${FX_EXECUTABLE_DIR})
-SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${FX_EXECUTABLE_DIR})
+	SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${FX_EXECUTABLE_DIR})
+	SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${FX_EXECUTABLE_DIR})
+	SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${FX_EXECUTABLE_DIR})
 
 # For outdated or buggy CMake parsers like KDev's one
-SET(EXECUTABLE_OUTPUT_PATH ${FX_EXECUTABLE_DIR})
-SET(LIBRARY_OUTPUT_PATH ${FX_EXECUTABLE_DIR})
+	SET(EXECUTABLE_OUTPUT_PATH ${FX_EXECUTABLE_DIR})
+	SET(LIBRARY_OUTPUT_PATH ${FX_EXECUTABLE_DIR})
 
 # Compiler pathes
-include_directories(${CMAKE_CURRENT_BINARY_DIR} ${PROJECT_SOURCE_DIR})
-link_directories(${FX_EXECUTABLE_DIR})
+	include_directories(${CMAKE_CURRENT_BINARY_DIR} ${PROJECT_SOURCE_DIR})
+	link_directories(${FX_EXECUTABLE_DIR})
 endmacro()
 
 # Sets normal development tree mode
 macro (set_normal_devel_tree)
-SET(FX_PROJECT_BASE ${PROJECT_SOURCE_DIR}/../..)
-add_library_group (Common)
-add_library_group (Libs)
+	SET(FX_PROJECT_BASE ${PROJECT_SOURCE_DIR}/../..)
 
-reconfigure_devel_tree()
+	add_library_group (Common)
+	add_library_group (Libs)
+	reconfigure_devel_tree()
 endmacro()
 
 # Sets local development tree mode
 macro (set_local_devel_tree dirname)
-SET(FX_PROJECT_BASE ${PROJECT_SOURCE_DIR})
-add_library_group (${dirname})
+	SET(FX_PROJECT_BASE ${PROJECT_SOURCE_DIR})
 
-reconfigure_devel_tree()
+	add_library_group (${dirname})
+	reconfigure_devel_tree()
 endmacro()
 
 
@@ -80,7 +91,7 @@ SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wcast-align -Wwrite-strings -Wcast-qual
 SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wredundant-decls -Winit-self -Wshadow -Wabi -Wstrict-aliasing")
 SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Winvalid-pch")
 
-SET(FX_TUNE_ARGS	"-fpic -fPIC -fabi-version=5 -fvisibility=hidden")
+SET(FX_TUNE_ARGS	"-fabi-version=5 -fvisibility=hidden")
 SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -ftrapv -fuse-linker-plugin -pipe")
 SET(FX_OPT_ARGS		"-O3 -flto -fno-enforce-eh-specs -fstrict-aliasing -fipa-struct-reorg")
 SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -fipa-pta -fipa-matrix-reorg -floop-interchange -floop-flatten")
@@ -89,7 +100,7 @@ SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -funsafe-loop-optimizations -ftree-parallelize-
 SET(FX_INSTR_ARGS	"-mfpmath=both -march=native")
 SET(FX_LD_OPT_ARGS	"-Wl,-O1")
 SET(FX_DBG_ARGS		"")
-SET(FX_LD_FLAGS		"-Wl,--sort-common,--export-dynamic,-z,relro,--hash-style=gnu")
+SET(FX_LD_FLAGS		"-Wl,--sort-common")
 # ----
 
 # CMake flags

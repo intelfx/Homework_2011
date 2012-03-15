@@ -13,6 +13,7 @@
 #include <uXray/encap.h>
 #include <uXray/fxassert.h>
 #include <uXray/fxmisc.h>
+#include <uXray/fxhash_functions.h>
 
 // ----
 

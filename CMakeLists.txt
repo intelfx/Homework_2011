@@ -37,7 +37,7 @@ set (INTERPRETER_SRC ${INTERPRETER_SRC} Executor.h Executor.cpp Executor_int.h E
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Executor_service.h Executor_service.cpp)
 set (STACK_NL_SRC ${INTERPRETER_SRC} NLUnitTests.cpp)
 
-# MAIN_ADD_GCH(stdafx.h "${INTERPRETER_SRC}")
+MAIN_ADD_GCH(stdafx.h ${INTERPRETER_SRC})
 # ----
 
 # Target specification
