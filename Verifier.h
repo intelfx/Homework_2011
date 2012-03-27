@@ -10,12 +10,12 @@
 // Description	Verifier and allocator classes for containers.
 // -----------------------------------------------------------------------------
 
-DeclareDescriptor(AllocBase);
-DeclareDescriptor(StaticAllocator);
-DeclareDescriptor(MallocAllocator);
+DeclareDescriptor (AllocBase);
+DeclareDescriptor (StaticAllocator);
+DeclareDescriptor (MallocAllocator);
 
 template <typename T>
-class INTERPRETER_API AllocBase : LogBase(AllocBase)
+class INTERPRETER_API AllocBase : LogBase (AllocBase)
 {
 protected:
 	virtual T& _Access (size_t subscript) = 0;
@@ -74,7 +74,7 @@ bool AllocBase<T>::_Verify() const
 }
 
 template <typename T>
-class INTERPRETER_API MallocAllocator : LogBase(MallocAllocator), public AllocBase<T>
+class INTERPRETER_API MallocAllocator : LogBase (MallocAllocator), public AllocBase<T>
 {
 	static const size_t initial_cap = 10;
 	size_t capacity_;
@@ -118,8 +118,8 @@ protected:
 
 public:
 	MallocAllocator() :
-	capacity_ (initial_cap),
-	array_ (reinterpret_cast<T*> (malloc (sizeof (T) * capacity_)))
+		capacity_ (initial_cap),
+		array_ (reinterpret_cast<T*> (malloc (sizeof (T) * capacity_)))
 	{
 	}
 
@@ -145,7 +145,7 @@ public:
 };
 
 template <typename T, size_t capacity>
-class INTERPRETER_API StaticAllocator : LogBase(StaticAllocator), public AllocBase<T>
+class INTERPRETER_API StaticAllocator : LogBase (StaticAllocator), public AllocBase<T>
 {
 	T array_ [capacity];
 
@@ -172,7 +172,7 @@ protected:
 
 public:
 	StaticAllocator() :
-	array_()
+		array_()
 	{
 		static_assert (capacity, "Static allocator with zero capacity");
 	}
@@ -195,3 +195,4 @@ public:
 
 
 #endif // _VERIFIER_H
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4; 

@@ -11,6 +11,7 @@ namespace ProcessorImplementation
 	class INTERPRETER_API Logic : public ILogic
 	{
 		static const char* RegisterIDs [R_MAX];
+		mutable char command_dump_buffer[STATIC_LENGTH];
 
 	public:
 		virtual void Analyze (calc_t value);
@@ -31,6 +32,7 @@ namespace ProcessorImplementation
 		virtual size_t ChecksumState();
 
 		virtual void ExecuteSingleCommand (Command& command);
+		virtual char* DumpCommand (Command& command) const;
 	};
 }
 

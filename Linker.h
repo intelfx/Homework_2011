@@ -13,23 +13,20 @@
 
 namespace ProcessorImplementation
 {
-	using namespace Processor;
+using namespace Processor;
 
-	class INTERPRETER_API UATLinker: public ILinker
-	{
-		symbol_map temporary_map;
+class INTERPRETER_API UATLinker: public ILinker
+{
+	symbol_map temporary_map;
 
-	protected:
-//		virtual bool _Verify() const; // nothing to verify yet.. internal map is verified in Finalize()
+public:
+	virtual void DirectLink_Init();
+	virtual void DirectLink_Add (symbol_map& symbols, size_t offsets[SEC_MAX]);
+	virtual void DirectLink_Commit();
 
-	public:
-		virtual void InitLinkSession();
-		virtual void Finalize();
-
-		virtual void LinkSymbols (DecodeResult& input);
-
-		DirectReference Resolve (Reference& reference);
-	};
+	DirectReference Resolve (Reference& reference);
+};
 }
 
 #endif // _LINKER_H
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

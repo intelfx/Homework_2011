@@ -8,8 +8,19 @@ namespace ProcessorImplementation
 using namespace Processor;
 
 AsmHandler::AsmHandler() :
-	writing_file_ (0)
+	reading_file_ (0),
+	writing_file_ (0),
+	current_line_num (0)
 {
+}
+
+AsmHandler::~AsmHandler()
+{
+	if (reading_file_)
+		RdReset();
+
+	if (writing_file_)
+		WrReset();
 }
 
 bool AsmHandler::_Verify() const
@@ -17,16 +28,50 @@ bool AsmHandler::_Verify() const
 	if (writing_file_)
 		verify_statement (!ferror (writing_file_), "Error in writing stream");
 
+	if (reading_file_)
+		verify_statement (!ferror (reading_file_), "Error in reading stream");
+
 	return 1;
+}
+
+FileType AsmHandler::RdSetup (FILE* file)
+{
+	__assert (file, "Invalid reading file");
+
+	reading_file_ = file;
+	verify_method;
+
+	return FT_STREAM;
+}
+
+void AsmHandler::RdReset()
+{
+	verify_method;
+
+	if (reading_file_)
+	{
+		msg (E_INFO, E_DEBUG, "Resetting reader");
+
+		fclose (reading_file_);
+		reading_file_ = 0;
+
+		current_line_num = 0;
+		last_statement_type = Value::V_MAX;
+		decode_output.Clear();
+	}
 }
 
 void AsmHandler::WrReset()
 {
 	verify_method;
 
-	msg (E_INFO, E_DEBUG, "Resetting writing file");
-	fclose (writing_file_);
-	writing_file_ = 0;
+	if (writing_file_)
+	{
+		msg (E_INFO, E_DEBUG, "Resetting writing file");
+
+		fclose (writing_file_);
+		writing_file_ = 0;
+	}
 }
 
 void AsmHandler::WrSetup (FILE* file)
@@ -54,52 +99,22 @@ void AsmHandler::InternalWriteFile()
 	__asshole ("Not implemented");
 }
 
-size_t AsmHandler::NextSection (FileProperties* prop,
-								FileSectionType* type,
+size_t AsmHandler::NextSection (MemorySectionType*,
 								size_t*,
 								size_t*)
 {
-	verify_method;
-
-	__assert (prop, "Invalid properties pointer");
-
-	prop ->file_description.pop_front();
-
-	if (prop ->file_description.empty())
-		return 0;
-
-	if (type)
-		*type = prop ->file_description.front().first;
-
-	return 1;
-}
-
-FileProperties AsmHandler::RdSetup (FILE* file)
-{
-	__assert (file, "Invalid reading file");
-	__assert (!ferror (file), "Error in stream");
-
-	FileProperties fp (file);
-
-	fp.file_description.push_back (std::make_pair (SEC_NON_UNIFORM, 0));
-	return std::move (fp);
-}
-
-void AsmHandler::RdReset (FileProperties*)
-{
-	// no-op
-}
-
-size_t AsmHandler::ReadNextElement (FileProperties*, void*, size_t)
-{
 	__asshole ("Not implemented");
 	return 0;
 }
 
-size_t AsmHandler::ReadSectionImage (FileProperties*, void*, size_t)
+void AsmHandler::ReadSectionImage (void*)
 {
 	__asshole ("Not implemented");
-	return 0;
+}
+
+void AsmHandler::ReadSymbols (symbol_map&)
+{
+	__asshole ("Not implemented");
 }
 
 AddrType AsmHandler::DecodeSectionType (char id)
@@ -133,7 +148,7 @@ AddrType AsmHandler::DecodeSectionType (char id)
 	return S_NONE; /* for compiler not to complain */
 }
 
-Reference::IndirectRef AsmHandler::ParseIndirectReference (char* arg, symbol_map& symbols)
+Reference::IndirectRef AsmHandler::ParseIndirectReference (char* arg)
 {
 	verify_method;
 
@@ -158,13 +173,13 @@ Reference::IndirectRef AsmHandler::ParseIndirectReference (char* arg, symbol_map
 			arg += 2;
 		}
 
-		result.target = ParseBaseReference (arg, symbols);
+		result.target = ParseBaseReference (arg);
 	}
 
 	return result;
 }
 
-Reference AsmHandler::ParseFullReference (char* arg, symbol_map& symbols)
+Reference AsmHandler::ParseFullReference (char* arg)
 {
 	verify_method;
 
@@ -185,7 +200,9 @@ Reference AsmHandler::ParseFullReference (char* arg, symbol_map& symbols)
 	{
 		result.has_second_component = 0;
 		result.global_section = S_BYTEPOOL;
-		result.components[0] = ParseInsertString (arg /* no increment */);
+		result.needs_linker_placement = 1;
+
+		ParseInsertString (arg /* no increment */);
 	}
 
 	else
@@ -204,12 +221,12 @@ Reference AsmHandler::ParseFullReference (char* arg, symbol_map& symbols)
 			* second_component++ = '\0';
 
 
-		result.components[0] = ParseSingleReference (arg, symbols);
+		result.components[0] = ParseSingleReference (arg);
 
 		if (second_component)
 		{
 			result.has_second_component = 1;
-			result.components[1] = ParseSingleReference (second_component, symbols);
+			result.components[1] = ParseSingleReference (second_component);
 		}
 	}
 
@@ -228,7 +245,7 @@ Reference::SingleRef AsmHandler::ParseRegisterReference (char* arg)
 	return result;
 }
 
-Reference::SingleRef AsmHandler::ParseSingleReference (char* arg, symbol_map& symbols)
+Reference::SingleRef AsmHandler::ParseSingleReference (char* arg)
 {
 	Reference::SingleRef result;
 	init (result);
@@ -239,7 +256,7 @@ Reference::SingleRef AsmHandler::ParseSingleReference (char* arg, symbol_map& sy
 	if (arg[0] != '(') /* direct reference */
 	{
 		result.is_indirect = 0;
-		result.target = ParseBaseReference (arg, symbols);
+		result.target = ParseBaseReference (arg);
 	}
 
 	else /* indirect reference */
@@ -250,13 +267,13 @@ Reference::SingleRef AsmHandler::ParseSingleReference (char* arg, symbol_map& sy
 		*closing_bracket = '\0';
 
 		result.is_indirect = 1;
-		result.indirect = ParseIndirectReference (arg, symbols);
+		result.indirect = ParseIndirectReference (arg);
 	}
 
 	return result;
 }
 
-Reference::BaseRef AsmHandler::ParseBaseReference (char* arg, symbol_map& symbols)
+Reference::BaseRef AsmHandler::ParseBaseReference (char* arg)
 {
 	Reference::BaseRef result;
 	init (result);
@@ -284,7 +301,7 @@ Reference::BaseRef AsmHandler::ParseBaseReference (char* arg, symbol_map& symbol
 	else
 	{
 		Symbol referenced_symbol (arg);
-		InsertSymbol (referenced_symbol, arg, symbols);
+		InsertSymbol (referenced_symbol, arg, decode_output.mentioned_symbols);
 
 		result.is_symbol = 1;
 		result.symbol_hash = referenced_symbol.hash;
@@ -295,13 +312,11 @@ Reference::BaseRef AsmHandler::ParseBaseReference (char* arg, symbol_map& symbol
 	return result;
 }
 
-Reference::SingleRef AsmHandler::ParseInsertString (char* arg)
+void AsmHandler::ParseInsertString (char* arg)
 {
-	Reference::SingleRef result;
 	std::string output_string;
 
 	msg (E_INFO, E_DEBUG, "Parsing string literal %s", arg);
-
 	char* input_ptr = arg + 1, current, output;
 
 	while ( (current = *input_ptr++) != '"')
@@ -362,17 +377,13 @@ Reference::SingleRef AsmHandler::ParseInsertString (char* arg)
 
 	output_string.push_back ('\0');
 
-	msg (E_INFO, E_DEBUG, "Adding string \"%s\" (length %zu)",
+	msg (E_INFO, E_DEBUG, "Decoded string \"%s\" (length %zu)",
 		 output_string.c_str(), output_string.size());
 
-	// Insert the reference to the MMU
-	size_t current_pointer = proc_ ->MMU() ->GetPoolSize();
-	proc_ ->MMU() ->SetBytes (current_pointer, output_string.size() + 1, output_string.c_str());
+	__assert (decode_output.bytepool.empty(), "More than one string in single decode unit");
 
-	result.is_indirect = 0;
-	result.target.is_symbol = 0;
-	result.target.memory_address = current_pointer;
-	return result;
+	decode_output.bytepool.reserve (output_string.size() + 1);
+	decode_output.bytepool.assign (output_string.begin(), output_string.end());
 }
 
 char* AsmHandler::PrepLine (char* read_buffer)
@@ -412,9 +423,11 @@ char* AsmHandler::PrepLine (char* read_buffer)
 	return begin;
 }
 
-void AsmHandler::ReadSingleDeclaration (const char* decl_data, DecodeResult& output)
+void AsmHandler::ReadSingleDeclaration (const char* decl_data)
 {
 	char name[STATIC_LENGTH], initialiser[STATIC_LENGTH], type;
+
+	// Declaration is generally a reference to something, so declare it
 	Reference declaration_reference;
 	init (declaration_reference);
 
@@ -423,14 +436,18 @@ void AsmHandler::ReadSingleDeclaration (const char* decl_data, DecodeResult& out
 	{
 		++decl_data;
 
-		__assert (output.data.type != Value::V_MAX,
+		__assert (last_statement_type != Value::V_MAX,
 				  "Declaration: unnamed DATA entry = \"%s\": type not set!",
 				  decl_data);
 
-		output.data.Parse (decl_data);
+		calc_t declaration_data;
+		declaration_data.type = last_statement_type;
+		declaration_data.Parse (decl_data);
 
-		msg (E_INFO, E_DEBUG, "Declaration: unnamed DATA entry = %s", (ProcDebug::PrintValue (output.data), ProcDebug::debug_buffer));
+		msg (E_INFO, E_DEBUG, "Declaration: unnamed DATA entry = %s",
+			 (ProcDebug::PrintValue (declaration_data), ProcDebug::debug_buffer));
 
+		decode_output.data.push_back (declaration_data);
 		return;
 	}
 
@@ -443,33 +460,38 @@ void AsmHandler::ReadSingleDeclaration (const char* decl_data, DecodeResult& out
 		switch (type)
 		{
 		case '=':
-			__assert (output.data.type != Value::V_MAX,
-					  "Declaration: DATA entry \"%s\" = \"%s\": type not set!",
-					  name, initialiser);
-
-			// type of value is already set, parse the declaration value
-			output.data.Parse (initialiser);
-
-			// Set placeholder reference
+		{
+			// Create reference to data
 			declaration_reference.global_section = S_DATA;
 			declaration_reference.needs_linker_placement = 1;
 
-			msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" = %s",
-				 name, (ProcDebug::PrintValue (output.data), ProcDebug::debug_buffer));
+			// Parse the initialiser
+			__assert (last_statement_type != Value::V_MAX,
+					  "Declaration: DATA entry \"%s\" = \"%s\": type not set!",
+					  name, initialiser);
 
+			calc_t declaration_data;
+			declaration_data.type = last_statement_type;
+			declaration_data.Parse (initialiser);
+
+			msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" = %s",
+				 name, (ProcDebug::PrintValue (declaration_data), ProcDebug::debug_buffer));
+
+			decode_output.data.push_back (declaration_data);
 			break;
+		}
 
 		case ':':
-			// in this case declaration is not a declaration itself
-			output.type = DecodeResult::DEC_NOTHING;
-
+		{
 			// Parse aliased reference
-			declaration_reference = ParseFullReference (initialiser, output.mentioned_symbols);
+			declaration_reference = ParseFullReference (initialiser);
 
 			msg (E_INFO, E_DEBUG, "Declaration: alias \"%s\" to %s",
-				 name, (ProcDebug::PrintValue (output.data), ProcDebug::debug_buffer));
+				 name, (ProcDebug::PrintReference (declaration_reference), ProcDebug::debug_buffer));
 
+			// No data is decoded
 			break;
+		}
 
 		default:
 			__asshole ("Invalid declaration: \"%s\"", decl_data);
@@ -479,16 +501,22 @@ void AsmHandler::ReadSingleDeclaration (const char* decl_data, DecodeResult& out
 		break;
 
 	case 1:
-		// Set placeholder reference
+	{
+		// Create reference to data
 		declaration_reference.global_section = S_DATA;
 		declaration_reference.needs_linker_placement = 1;
 
+		// Create "uninitialised" value and set its type
+		calc_t uninitialised_data;
+		uninitialised_data.type = last_statement_type;
 
 		// if type is known, initialise to 0 in appropriate type.
-		if (output.data.type != Value::V_MAX)
+		if (last_statement_type != Value::V_MAX)
 		{
-			output.data.Set (Value::V_MAX, 0);
-			msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" uninitialised (set to 0)", name);
+			uninitialised_data.Set (Value::V_MAX, 0);
+
+			msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" uninitialised (%s)",
+				 name, (ProcDebug::PrintValue (uninitialised_data), ProcDebug::debug_buffer));
 		}
 
 		// otherwise, leave value uninitialised
@@ -497,7 +525,9 @@ void AsmHandler::ReadSingleDeclaration (const char* decl_data, DecodeResult& out
 			msg (E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" uninitialised (untyped)", name);
 		}
 
+		decode_output.data.push_back (uninitialised_data);
 		break;
+	}
 
 	default:
 		__asshole ("Invalid declaration: \"%s\"", decl_data);
@@ -506,48 +536,57 @@ void AsmHandler::ReadSingleDeclaration (const char* decl_data, DecodeResult& out
 
 	// Create symbol from reference and insert it to the map
 	Symbol declaration_symbol (name, declaration_reference);
-	InsertSymbol (declaration_symbol, name, output.mentioned_symbols);
+	InsertSymbol (declaration_symbol, name, decode_output.mentioned_symbols);
 }
 
 void AsmHandler::ReadSingleCommand (const char* command,
-									char* argument,
-									DecodeResult& output)
+									char* argument)
 {
-	const CommandTraits& desc = proc_ ->CommandSet() ->DecodeCommand (command);
-	output.command.id = desc.id;
+	const CommandTraits* desc = proc_ ->CommandSet() ->DecodeCommand (command);
+	__verify (desc, "Command: \"%s\": unsupported command");
 
-	// Default command type specification
+	Command output_command;
 
-	if (output.command.type == Value::V_MAX)
-	{
-		if (desc.is_service_command)
-			output.command.type = Value::V_INTEGER;
+	// Set command opcode
+	output_command.id = desc ->id;
 
-		else
-			output.command.type = Value::V_FLOAT;
-	}
+	// Set command type to default value if it is unspecified.
+	if (last_statement_type == Value::V_MAX)
+		output_command.type = desc ->is_service_command ? Value::V_MAX : Value::V_FLOAT;
 
+	// Set command type if it is specified.
+	else
+		output_command.type = last_statement_type;
+
+	// Parse arguments
 	if (!argument) /* no argument */
 	{
-		__verify (desc.arg_type == A_NONE,
+		__verify (desc ->arg_type == A_NONE,
 				  "No argument required for command \"%s\" while given argument \"%s\"",
 				  command, argument);
 	}
 
 	else /* have argument */
 	{
-		__verify (desc.arg_type != A_NONE,
+		__verify (desc ->arg_type != A_NONE,
 				  "Argument needed for command \"%s\"", command);
 
-		switch (desc.arg_type)
+		switch (desc ->arg_type)
 		{
 		case A_REFERENCE:
-			output.command.arg.ref = ParseFullReference (argument, output.mentioned_symbols);
+			output_command.arg.ref = ParseFullReference (argument);
 			break;
 
 		case A_VALUE:
-			output.command.arg.value.type = output.command.type;
-			output.command.arg.value.Parse (argument);
+			// Set argument type to default value if command type is unspecified.
+			if (output_command.type == Value::V_MAX)
+				output_command.arg.value.type = desc ->is_service_command ? Value::V_INTEGER : Value::V_FLOAT;
+
+			// Set argument type to command type if latter is specified.
+			else
+				output_command.arg.value.type = output_command.type;
+
+			output_command.arg.value.Parse (argument);
 			break;
 
 		case A_NONE:
@@ -558,9 +597,13 @@ void AsmHandler::ReadSingleCommand (const char* command,
 
 	} // have argument
 
-	msg (E_INFO, E_DEBUG, "Command: \"%s\" argument %s",
-		 desc.mnemonic,
-		 (ProcDebug::PrintArgument (desc.arg_type, output.command.arg), ProcDebug::debug_buffer));
+
+	msg (E_INFO, E_DEBUG, "Command: \"%s\" (0x%04hx) argument %s",
+		 desc ->mnemonic, desc ->id,
+		 (ProcDebug::PrintArgument (desc ->arg_type, output_command.arg), ProcDebug::debug_buffer));
+
+	// Write decode result
+	decode_output.commands.push_back (output_command);
 }
 
 char* AsmHandler::ParseLabel (char* string)
@@ -581,24 +624,23 @@ char* AsmHandler::ParseLabel (char* string)
 	return 0;
 }
 
-void AsmHandler::ReadSingleStatement (size_t line_num, char* input, DecodeResult& output)
+void AsmHandler::ReadSingleStatement (char* input)
 {
 	verify_method;
 	size_t labels = 0;
 
-	Value::Type statement_type = Value::V_MAX;
 	char* command, *argument, typespec = 0, *current_position = PrepLine (input);
-
+	last_statement_type = Value::V_MAX;
 
 	/* skip leading space and return if empty string */
 
 	if (!current_position)
 	{
-		msg (E_INFO, E_DEBUG, "Decoding line %zu: empty line", line_num);
+		msg (E_INFO, E_DEBUG, "Decoding line %zu: empty line", current_line_num);
 		return;
 	}
 
-	msg (E_INFO, E_DEBUG, "Decoding line %zu: \"%s\"", line_num, current_position);
+	msg (E_INFO, E_DEBUG, "Decoding line %zu: \"%s\"", current_line_num, current_position);
 
 
 	/* parse labels */
@@ -612,7 +654,7 @@ void AsmHandler::ReadSingleStatement (size_t line_num, char* input, DecodeResult
 		label_reference.needs_linker_placement = 1;
 
 		Symbol label_symbol (current_position, label_reference);
-		InsertSymbol (label_symbol, current_position, output.mentioned_symbols);
+		InsertSymbol (label_symbol, current_position, decode_output.mentioned_symbols);
 
 		msg (E_INFO, E_DEBUG, "Label: \"%s\"", current_position);
 
@@ -632,7 +674,10 @@ void AsmHandler::ReadSingleStatement (size_t line_num, char* input, DecodeResult
 	argument = strtok (0, "");
 
 	if (!command)
+	{
+		msg (E_INFO, E_DEBUG, "Statement: no statement");
 		return; // no command
+	}
 
 	/* parse explicit type-specifier */
 
@@ -643,16 +688,12 @@ void AsmHandler::ReadSingleStatement (size_t line_num, char* input, DecodeResult
 		switch (tolower (*dot))
 		{
 		case 'f':
-			statement_type = Value::V_FLOAT;
+			last_statement_type = Value::V_FLOAT;
 			break;
 
 		case 'd':
 		case 'i':
-			statement_type = Value::V_INTEGER;
-			break;
-
-		case '\0':
-			statement_type = Value::V_MAX;
+			last_statement_type = Value::V_INTEGER;
 			break;
 
 		default:
@@ -667,52 +708,32 @@ void AsmHandler::ReadSingleStatement (size_t line_num, char* input, DecodeResult
 	{
 		__verify (argument, "Empty declaration");
 
-		output.type = DecodeResult::DEC_DATA;
-		output.data.type = statement_type;
-
-		// In case of undefined type it will be set in ReadSingleDeclaration().
-
-		ReadSingleDeclaration (argument, output);
+		ReadSingleDeclaration (argument);
 	}
 
 	else
 	{
-		output.type = DecodeResult::DEC_COMMAND;
-		output.command.type = statement_type;
-
-		// in case of undefined type it will be set in ReadSingleCommand()
-		// depending on command flavor (service/normal).
-
-		ReadSingleCommand (command, argument, output);
+		ReadSingleCommand (command, argument);
 	}
 }
 
-size_t AsmHandler::ReadStream (FileProperties* prop, DecodeResult* destination)
+DecodeResult* AsmHandler::ReadStream()
 {
-	__assert (prop, "Invalid properties");
-	__assert (destination, "Invalid destination");
-	__assert (prop ->file_description.front().first == SEC_NON_UNIFORM,
-			  "Invalid (non-stream) section type: \"%s\"",
-			  ProcDebug::FileSectionType_ids[prop ->file_description.front().first]);
+	verify_method;
 
-	size_t& line_num = prop ->file_description.front().second;
-
-	*destination = DecodeResult();
 	char read_buffer[STATIC_LENGTH];
 
 	try
 	{
-		do
-		{
-			if (!fgets (read_buffer, STATIC_LENGTH, prop ->file))
-				return 0;
+		decode_output.Clear();
 
-			ReadSingleStatement (++line_num, read_buffer, *destination);
+		if (!fgets (read_buffer, STATIC_LENGTH, reading_file_))
+			return 0;
 
-		}
-		while (destination ->type == DecodeResult::DEC_NOTHING);
+		++current_line_num;
 
-		return 1;
+		ReadSingleStatement (read_buffer);
+		return &decode_output;
 	}
 
 	catch (Debug::Exception& e)
@@ -721,12 +742,12 @@ size_t AsmHandler::ReadStream (FileProperties* prop, DecodeResult* destination)
 		{
 		case Debug::EX_INPUT:
 			msg (E_CRITICAL, E_USER, "Syntax error on line %d: %s",
-				 line_num, e.what());
+				 current_line_num, e.what());
 			break;
 
 		case Debug::EX_BUG:
 			msg (E_CRITICAL, E_USER, "Parser internal error on line %d: %s",
-				 line_num, e.what());
+				 current_line_num, e.what());
 			break;
 
 		default:
@@ -739,7 +760,7 @@ size_t AsmHandler::ReadStream (FileProperties* prop, DecodeResult* destination)
 	catch (std::exception& e)
 	{
 		msg (E_CRITICAL, E_USER, "Unspecified error parsing line %d: %s",
-			 line_num, e.what());
+			 current_line_num, e.what());
 
 		throw;
 	}

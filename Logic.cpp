@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "Logic.h"
 
 #include <uXray/fxhash_functions.h>
@@ -8,23 +8,41 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
+	char* Logic::DumpCommand (Command& command) const
+	{
+		const CommandTraits* cmd_traits = proc_ ->CommandSet() ->DecodeCommand (command.id);
+
+		if (cmd_traits)
+			sprintf (command_dump_buffer, "[PC=%zu] \"%s\" (%s type) argument %s",
+					 proc_ ->MMU() ->GetContext().ip, cmd_traits ->mnemonic, ProcDebug::ValueType_ids[command.type],
+					 (ProcDebug::PrintArgument (cmd_traits ->arg_type, command.arg, proc_ ->MMU()), ProcDebug::debug_buffer));
+
+		else
+			sprintf (command_dump_buffer, "[PC=%zu] id=0x%04hd (%s type) command unknown",
+					 proc_ ->MMU() ->GetContext().ip, command.id, ProcDebug::ValueType_ids[command.type]);
+
+		return command_dump_buffer;
+	}
+
+
 	void Logic::ExecuteSingleCommand (Command& command)
 	{
 		verify_method;
 
 		ICommandSet* command_set = proc_ ->CommandSet();
 		IMMU* mmu = proc_ ->MMU();
+		Context& command_context = mmu ->GetContext();
 
-		msg (E_INFO, E_DEBUG, "Executing: [PC=%zu] : \"%s\"",
-			 mmu ->GetContext().ip, command_set ->DecodeCommand (command.id).mnemonic);
+		msg (E_INFO, E_DEBUG, "Executing %s", DumpCommand (command));
 
+		// Perform caching of executor/handle since execution must be O(1)
 		if (!command.cached_handle)
 		{
-			// Perform caching of executor/handle since execution must be O(1)
-			const CommandTraits& command_traits = command_set ->DecodeCommand (command.id);
+			const CommandTraits* command_traits = command_set ->DecodeCommand (command.id);
+			__assert (command_traits, "Could not decode command (invalid ID: 0x%04hx)", command.id);
 
 			// User-supplied handle (pointer to function) should be registered with module ID 0
-			if (void* user_handle = command_set ->GetExecutionHandle (command_traits, 0))
+			if (void* user_handle = command_set ->GetExecutionHandle (*command_traits, 0))
 			{
 				command.cached_executor = 0;
 				command.cached_handle = user_handle;
@@ -34,7 +52,7 @@ namespace ProcessorImplementation
 			else
 			{
 				// Select valid executor based on command type and flavor
-				if (command_traits.is_service_command)
+				if (command_traits ->is_service_command)
 					command.cached_executor = proc_ ->Executor (Value::V_MAX);
 
 				else
@@ -43,23 +61,32 @@ namespace ProcessorImplementation
 				__assert (command.cached_executor, "Was unable to select executor for command type \"%s\"",
 						  ProcDebug::ValueType_ids[command.type]);
 
-				command.cached_handle = command_set ->GetExecutionHandle (command_traits, command.cached_executor ->ID());
-				__assert (command.cached_handle,
-						  "Was unable to retrieve exec handle for command \"%s\" [type \"%s\" execid %zx]",
-						  command_traits.mnemonic,
-						  ProcDebug::ValueType_ids[command.type],
-						  command.cached_executor ->ID());
+				command.cached_handle = command_set ->GetExecutionHandle (*command_traits, command.cached_executor ->ID());
 			}
 		}
 
-		mmu ->GetContext().flags &= ~MASK (F_WAS_JUMP);
+		// Reset jump flag
+		command_context.flags &= ~MASK (F_WAS_JUMP);
+
+		// Zero handle means no-op
+		if (!command.cached_handle)
+			return;
+
+		// V_MAX means no stack operations, MMU should support it
 		mmu ->SelectStack (command.type);
 
+		// Execute the command
 		if (command.cached_executor)
 			command.cached_executor ->Execute (command.cached_handle, command);
 
 		else
-			Fcast<void(*)(ProcessorAPI*, Command&)> (command.cached_handle) (proc_, command);
+			Fcast<void (*) (ProcessorAPI*, Command&) > (command.cached_handle) (proc_, command);
+
+
+		// If there was neither exit nor jump, advance the PC
+		if (! (command_context.flags & MASK (F_EXIT)) &&
+				! (command_context.flags & MASK (F_WAS_JUMP)))
+			++command_context.ip;
 	}
 
 	size_t Logic::ChecksumState()
@@ -70,9 +97,8 @@ namespace ProcessorImplementation
 
 		/*
 		 * Checksum contains:
-		 * - current context
+		 * - current section limits
 		 * - current code image
-		 * - current symbol map
 		 */
 
 		IMMU* mmu = proc_ ->MMU();
@@ -80,10 +106,13 @@ namespace ProcessorImplementation
 		Context& ctx = mmu ->GetContext();
 		checksum = hasher_xroll (&ctx, sizeof (ctx), checksum);
 
-		size_t text_length = mmu ->GetTextSize();
-		while (text_length--)
+		size_t sections_limits[SEC_MAX];
+		mmu ->QueryLimits (sections_limits);
+		checksum = hasher_xroll (sections_limits, SEC_MAX, checksum);
+
+		for (size_t i = 0; i < sections_limits[SEC_CODE_IMAGE]; ++i)
 		{
-			checksum = hasher_xroll (&mmu ->ACommand (text_length), sizeof (Command), checksum);
+			checksum = hasher_xroll (&mmu ->ACommand (i), sizeof (Command), checksum);
 		}
 
 		// TODO hash symbol map
@@ -95,13 +124,14 @@ namespace ProcessorImplementation
 		verify_method;
 
 		Context& ctx = proc_ ->MMU() ->GetContext();
-		ctx.flags &= ~(MASK (F_ZERO) | MASK (F_NEGATIVE) | MASK (F_INVALIDFP));
+		ctx.flags &= ~ (MASK (F_ZERO) | MASK (F_NEGATIVE) | MASK (F_INVALIDFP));
 
 		switch (value.type)
 		{
 		case Value::V_FLOAT:
 		{
 			int classification = fpclassify (value.fp);
+
 			switch (classification)
 			{
 			case FP_NAN:
@@ -115,8 +145,10 @@ namespace ProcessorImplementation
 
 			case FP_SUBNORMAL:
 			case FP_NORMAL:
+
 				if (value.fp < 0)
 					ctx.flags |= MASK (F_NEGATIVE);
+
 				break;
 
 			default:
@@ -340,26 +372,26 @@ namespace ProcessorImplementation
 
 		switch (index)
 		{
-			case 0:
-			{
-				calc_t input_data = proc_ ->MMU() ->ARegister (R_F);
-				__assert (input_data.type == Value::V_INTEGER, "Non-integer value in register $rf");
+		case 0:
+		{
+			calc_t input_data = proc_ ->MMU() ->ARegister (R_F);
+			__assert (input_data.type == Value::V_INTEGER, "Non-integer value in register $rf");
 
-				msg (E_INFO, E_USER, "Application output: \"%s\"", proc_ ->MMU() ->ABytepool (input_data.integer));
-				break;
-			}
+			msg (E_INFO, E_USER, "Application output: \"%s\"", proc_ ->MMU() ->ABytepool (input_data.integer));
+			break;
+		}
 
-			case 1:
-			{
-				msg (E_INFO, E_USER, "Reading integer from command-line");
-				char buffer[STATIC_LENGTH];
-				gets (buffer);
-				StackPush (static_cast<int_t> (atoi (buffer)));
-			}
+		case 1:
+		{
+			msg (E_INFO, E_USER, "Reading integer from command-line");
+			char buffer[STATIC_LENGTH];
+			gets (buffer);
+			StackPush (static_cast<int_t> (atoi (buffer)));
+		}
 
-			default:
-				msg (E_WARNING, E_VERBOSE, "Undefined syscall index: %zu", index);
-				break;
+		default:
+			msg (E_WARNING, E_VERBOSE, "Undefined syscall index: %zu", index);
+			break;
 		}
 	}
 

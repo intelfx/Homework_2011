@@ -52,7 +52,7 @@ namespace Processor
 		IModuleBase*	shadow_reader_;
 		IModuleBase*	shadow_writer_;
 		IModuleBase*	shadow_mmu_;
-		IModuleBase*	shadow_executors_[Value::V_MAX +1];
+		IModuleBase*	shadow_executors_[Value::V_MAX + 1];
 		IModuleBase*	shadow_backend_;
 		IModuleBase*	shadow_linker_;
 		IModuleBase*	shadow_cset_;
@@ -97,7 +97,7 @@ namespace Processor
 		ProcessorAPI();
 
 		void Attach (IModuleBase* module);
-		void Detach (const Processor::IModuleBase* module);
+		void Detach (const IModuleBase* module);
 		void Initialise (bool value = 1);
 
 		IReader*	Reader()					{ return CheckReturnModule (reader_, "reader"); }
@@ -106,7 +106,7 @@ namespace Processor
 		IBackend*	Backend()					{ return CheckReturnModule (backend_, "backend"); }
 		IExecutor*	Executor (Value::Type type)	{ return CheckReturnModule (executors_[type], "executor"); }
 		ILinker*	Linker()					{ return CheckReturnModule (linker_, "linker"); }
-		ICommandSet*CommandSet()				{ return CheckReturnModule (cset_, "command set"); }
+		ICommandSet* CommandSet()				{ return CheckReturnModule (cset_, "command set"); }
 		ILogic*		LogicProvider()				{ return CheckReturnModule (internal_logic_, "logic provider"); }
 
 
@@ -177,6 +177,7 @@ namespace Processor
 		virtual void	StackPush (calc_t value) = 0; // Calculation stack "push" operation
 
 		virtual void	ExecuteSingleCommand (Command& command) = 0; // Execute a single command
+		virtual char* 	DumpCommand (Command& command) const = 0; // Decode and log a single command
 	};
 
 	class INTERPRETER_API ICommandSet : LogBase (ICommandSet), public IModuleBase
@@ -192,45 +193,39 @@ namespace Processor
 		// In case of not found command, exception is thrown.
 		virtual void AddCommandImplementation (const char* mnemonic, size_t module, void* handle) = 0;
 
-		virtual const CommandTraits& DecodeCommand (const char* mnemonic) const = 0;
-		virtual const CommandTraits& DecodeCommand (cid_t id) const = 0;
+		// Decode given command by mnemonic or opcode.
+		// WARNING can return 0 with meaning "invalid/unregistered command".
+		virtual const CommandTraits* DecodeCommand (const char* mnemonic) const = 0;
+		virtual const CommandTraits* DecodeCommand (cid_t id) const = 0;
 
 		// Returns handle for given command and implementation.
-		// WARNING can return 0 with meaning "no registered handler".
-		virtual void* GetExecutionHandle (cid_t id, size_t module) = 0;
 		virtual void* GetExecutionHandle (const CommandTraits& cmd, size_t module) = 0;
 	};
 
-	// many would want to do a shared R/W handler to share some routines
+// many would want to do a shared R/W handler to share some routines
 	class INTERPRETER_API IReader : LogBase (IReader), virtual public IModuleBase
 	{
 	public:
-		// Sections in list are in file appearance order.
-		virtual FileProperties RdSetup (FILE* file) = 0;
-		virtual void RdReset (FileProperties* prop) = 0;
+		virtual FileType RdSetup (FILE* file) = 0;
+		virtual void RdReset() = 0;
 
 		// Advance file to the next section and return information about the new section.
 		// Successive calls to read functions should then read from this section.
-		// Returns if the section switch has been performed (0 in case of last section).
-		virtual size_t NextSection (FileProperties* prop,
-									FileSectionType* type, size_t* count, size_t* bytes) = 0;
+		// Returns 1 if call succeeded (0 if there is no sections).
+		virtual size_t NextSection (MemorySectionType* type, size_t* count, size_t* bytes) = 0;
 
-		// Reads next element from current section into "destination", writing no more
-		// than "max" bytes.
-		// Returns count of successfully read elements (0 or 1).
-		virtual size_t ReadNextElement (FileProperties* prop, void* destination, size_t max) = 0;
+		// Reads current section image into "destination".
+		virtual void ReadSectionImage (void* destination) = 0;
 
-		// Reads current section image (that is, which is described by section list front element)
-		// into "destination", writing no more than "max" bytes.
-		// Returns count of successfully read elements.
-		virtual size_t ReadSectionImage (FileProperties* prop, void* destination, size_t max) = 0;
+		// Reads current section symbol map into "destination".
+		virtual void ReadSymbols (symbol_map& destination) = 0;
 
-		// Reads and decodes next element of non-uniform stream section.
-		// Returns count of successfully read stream units (0 or 1).
-		virtual size_t ReadStream (FileProperties* prop, DecodeResult* destination) = 0;
+		// Reads and decodes next element of uniform stream section.
+		// Returns pointer to decoded unit (if any).
+		virtual DecodeResult* ReadStream() = 0;
 	};
 
-	// many would want to do a shared R/W handler to share some routines
+// many would want to do a shared R/W handler to share some routines
 	class INTERPRETER_API IWriter : LogBase (IWriter), virtual public IModuleBase
 	{
 	public:
@@ -243,45 +238,31 @@ namespace Processor
 	class INTERPRETER_API IMMU : LogBase (IMMU), public IModuleBase
 	{
 	public:
-		virtual Context&		GetContext	() = 0; // Get current context data
-		virtual void			DumpContext	() const = 0; // Print context data to the log
+		virtual Context&		GetContext	() = 0; // Get current context data (persistent)
+		virtual void			DumpContext	(const char** ctx,
+											 const char** regs,
+											 const char** stacks) const = 0; // Print context data to the string
 
-		virtual void			SelectStack	(Value::Type type); // In implementations with multiple stacks, selects stack for consequent operations.
+
+		virtual void			SelectStack	(Value::Type type); // Selects stack for consequent operations
+		virtual void			QueryActiveStack (Value::Type* type, size_t* top) = 0; // Request information about selected stack
+		virtual void			AlterStackTop (short offset) = 0; // Change stack top relatively (-1 is pop).
 
 		virtual calc_t&			AStackFrame	(int offset) = 0; // Access calculation stack relative to context's stack frame pointer
 		virtual calc_t&			AStackTop	(size_t offset) = 0; // Access calculation stack relative to its top
 		virtual calc_t&			ARegister	(Register reg_id) = 0; // Access register
 		virtual Command&		ACommand	(size_t ip) = 0; // Access CODE section
-		Command&				ACommand	() { return ACommand (GetContext().ip); }
-		virtual calc_t&			AData		(size_t addr) = 0;   // Access DATA section
-		virtual symbol_type&	ASymbol		(size_t hash) = 0;   // Access symbol buffer
+		virtual calc_t&			AData	(size_t addr) = 0;  // Access DATA section
+		virtual symbol_type&	ASymbol	(size_t hash) = 0;  // Access symbol buffer
 		virtual char*			ABytepool	(size_t offset) = 0; // Access byte pool
 
-		virtual void			ReadStack	(calc_t* image, size_t size, bool selected_only) = 0; // Read stack(s) data (closer to image end is closer to top).
-		virtual void			ReadData	(calc_t* image, size_t size) = 0; // Read data buffer
-		virtual void			ReadText	(Command* image, size_t size) = 0; // Read code buffer
-		virtual void			ReadSyms	(void* image, size_t size) = 0; // read symbol buffer (deserialize)
+		virtual void			QueryLimits (size_t limits[SEC_MAX]) const = 0; // Query current section limits (to array)
+		virtual void			ReadSection (MemorySectionType section, void* image, size_t count) = 0; // Read and append section image
+		virtual void			WriteSection (MemorySectionType section, void* image) const = 0; // Write section to image
+		virtual void			ReadSymbolImage (symbol_map && symbols) = 0; // Read symbol map
+		virtual void			WriteSymbolImage (symbol_map& symbols) const = 0; // Write symbol map to image
 
-		virtual void			InsertData	(calc_t value) = 0; // add a data entry to the buffer end
-		virtual void			InsertText	(const Command& command) = 0; // add a code entry to the buffer end
-		virtual void			InsertSyms	(symbol_map&& syms) = 0; // Read prepared symbol buffer
-
-		virtual void			WriteStack	(calc_t* image, bool selected_only) const = 0; // write stack(s) data (closer to image end is closer to top).
-		virtual void			WriteData	(calc_t* image) const = 0; // write data buffer
-		virtual void			WriteText	(Command* image) const = 0; // write code buffer
-		virtual void			WriteSyms	(void** image, size_t* bytes, size_t* count) const = 0; // serialize symbol map
-
-		virtual void			AllocBytes	(size_t base, size_t length) = 0; // request byte pool to be at least this long
-		virtual void			SetBytes	(size_t base, size_t length, const char* data) = 0; // fill byte pool, allocating as necessary
-
-		virtual size_t			GetTextSize	() const = 0;
-		virtual size_t			GetDataSize	() const = 0;
-		virtual size_t			GetPoolSize () const = 0;
-		virtual size_t			GetStackTop () const = 0;
-
-		virtual void			AlterStackTop (short offset) = 0; // Change stack top relatively (-1 is pop).
-
-		virtual void VerifyReference (const DirectReference& ref) const = 0;
+		virtual void VerifyReference (const DirectReference& ref) const = 0; // Check if given reference is valid to access
 
 		virtual void ResetBuffers (size_t ctx_id) = 0; // Reset specified context buffer
 		virtual void ResetEverything() = 0; // Reset MMU to its initial state, clearing all stacks.
@@ -293,7 +274,7 @@ namespace Processor
 		virtual void NextContextBuffer() = 0; // Push context on call stack; clear all and increment context ID
 		virtual void AllocContextBuffer() = 0; // Switch to next context buffer; reset the buffer
 
-        void SetTemporaryContext (size_t ctx_id);
+		void SetTemporaryContext (size_t ctx_id);
 	};
 
 	class INTERPRETER_API IExecutor : LogBase (IExecutor), public IModuleBase
@@ -322,28 +303,20 @@ namespace Processor
 	class INTERPRETER_API ILinker : LogBase (ILinker), public IModuleBase
 	{
 	public:
-		static const size_t symbol_auto_placement_addr = static_cast<size_t> (-1);
+		// Prepare for direct on-load symbol linkage.
+		virtual void DirectLink_Init() = 0;
 
-		// Clear internal buffer symbol tables.
-		virtual void InitLinkSession() = 0;
+		// Commit collected buffers to the MMU.
+		virtual void DirectLink_Commit() = 0;
 
-		// Commit internal buffers to the MMU.
-		// Function expects MMU to be set up to desired context and everything else except symbols
-		// already committed and interpreted by MMU.
-		virtual void Finalize() = 0;
+		// Collect symbols in decode stage.
+		// Use provided offsets for auto-placement.
+		virtual void DirectLink_Add (symbol_map& symbols, size_t offsets[SEC_MAX]) = 0;
 
-		// Link symbols created by partial decoding.
-		// Function expects MMU to be set up to desired context
-		// and last instruction not yet stored onto the TEXT top.
-		// Function expects symbols to be auto-addressed (labels) to have address equal to
-		// "symbol_auto_placement_addr".
-		// If there is a full symbol image (read from binary file), push it to MMU directly.
-		virtual void LinkSymbols (DecodeResult& input) = 0;
-
-		// Retrieve a direct reference for given arbitary reference.
+		// Retrieve a direct reference for given arbitrary reference.
 		virtual DirectReference Resolve (Reference& reference) = 0; // or get an unresolved symbol error
 	};
 }
 
 #endif // _INTERFACES_H
-// kate: indent-mode cstyle; replace-tabs off; indent-width 4; tab-width 4;
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

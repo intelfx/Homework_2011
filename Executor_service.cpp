@@ -200,8 +200,16 @@ namespace ProcessorImplementation
 			break;
 
 		case C_DCX:
-			proc_ ->MMU() ->DumpContext();
-			break;
+		{
+			const char* ctx_dump, *reg_dump, *stack_dump;
+			proc_ ->MMU() ->DumpContext (&ctx_dump, &reg_dump, &stack_dump);
+
+			msg (E_INFO, E_USER, "Context dump:");
+			msg (E_INFO, E_USER, "%s", ctx_dump);
+			msg (E_INFO, E_USER, "%s", reg_dump);
+			msg (E_INFO, E_USER, "%s", stack_dump);
+		}
+		break;
 
 		case C_SNFC:
 			proc_ ->MMU() ->GetContext().flags |=  MASK (F_NFC);

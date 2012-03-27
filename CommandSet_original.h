@@ -43,12 +43,12 @@ namespace ProcessorImplementation
 		virtual void AddCommand (CommandTraits&& command);
 		virtual void AddCommandImplementation (const char* mnemonic, size_t module, void* handle);
 
-		virtual const CommandTraits& DecodeCommand (const char* mnemonic) const;
-		virtual const CommandTraits& DecodeCommand (cid_t id) const;
+		virtual const CommandTraits* DecodeCommand (const char* mnemonic) const;
+		virtual const CommandTraits* DecodeCommand (cid_t id) const;
 
-		virtual void* GetExecutionHandle (Processor::cid_t id, size_t module);
 		virtual void* GetExecutionHandle (const CommandTraits& cmd, size_t module);
 	};
 }
 
 #endif // _CSET_ORIGINAL_H
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

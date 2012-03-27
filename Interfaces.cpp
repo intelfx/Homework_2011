@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "Interfaces.h"
 
 // -----------------------------------------------------------------------------
@@ -279,21 +279,23 @@ namespace Processor
 	}
 
 	ProcessorAPI::ProcessorAPI() :
-	reader_ (0),
-	writer_ (0),
-	mmu_ (0),
-	executors_({}),
-	backend_ (0),
-	linker_ (0),
-	cset_ (0),
-	internal_logic_ (0),
-	shadow_reader_ (0),
-	shadow_writer_ (0),
-	shadow_mmu_ (0),
-	shadow_executors_ ({}),
-	shadow_backend_ (0),
-	initialise_completed (0)
+		reader_ (0),
+		writer_ (0),
+		mmu_ (0),
+		executors_ (),
+		backend_ (0),
+		linker_ (0),
+		cset_ (0),
+		internal_logic_ (0),
+		shadow_reader_ (0),
+		shadow_writer_ (0),
+		shadow_mmu_ (0),
+		shadow_executors_ (),
+		shadow_backend_ (0),
+		initialise_completed (0)
 	{
+		memset (executors_, 0, Value::V_MAX);
+		memset (shadow_executors_, 0, Value::V_MAX);
 	}
 
 } // namespace Processor

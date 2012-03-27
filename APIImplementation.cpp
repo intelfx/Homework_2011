@@ -7,157 +7,164 @@ namespace Processor
 	{
 		verify_method;
 
-		mmu_ ->ResetEverything();
-		cset_ ->ResetCommandSet();
+		MMU() ->ResetEverything();
+		CommandSet() ->ResetCommandSet();
+
 		for (unsigned i = 0; i <= Value::V_MAX; ++i)
-			executors_[i] ->ResetImplementations();
+			Executor (static_cast<Value::Type> (i)) ->ResetImplementations();
 	}
 
 	void ProcessorAPI::Reset()
 	{
 		verify_method;
 
-		mmu_ ->ClearContext();
+		MMU() ->ClearContext();
 	}
 
 	void ProcessorAPI::Clear()
 	{
 		verify_method;
 
-		mmu_ ->ResetBuffers (mmu_ ->GetContext().buffer);
+		IMMU* mmu = MMU();
+		mmu ->ResetBuffers (mmu ->GetContext().buffer);
 	}
 
 	void ProcessorAPI::Delete()
 	{
 		verify_method;
 
-		mmu_ ->RestoreContext();
+		MMU() ->RestoreContext();
 	}
 
 	void ProcessorAPI::Load (FILE* file)
 	{
 		verify_method;
 
-		mmu_ ->AllocContextBuffer();
-		msg (E_INFO, E_VERBOSE, "Loading from stream -> context %zu", mmu_ ->GetContext().buffer);
+		MMU() ->AllocContextBuffer();
+		msg (E_INFO, E_VERBOSE, "Loading from stream -> context %zu", MMU() ->GetContext().buffer);
 
-		__assert (reader_, "Loader module is not attached");
+		__assert (Reader(), "Loader module is not attached");
 
-		FileProperties rd_prop = reader_ ->RdSetup (file);
+		FileType file_type = Reader() ->RdSetup (file);
 
-		FileSectionType sec_type = FileSectionType::SEC_MAX;
-		size_t sec_size = 0, read_size = 0, req_bytes = 0;
-
-		while (reader_ ->NextSection (&rd_prop, &sec_type, &sec_size, &req_bytes))
+		switch (file_type)
 		{
-			__assert (sec_type < SEC_MAX, "Invalid section type");
+		case FT_BINARY:
+		{
+			MemorySectionType sec_type;
+			size_t elements_count, buffer_size;
 
-			msg (E_INFO, E_DEBUG, "Loading section: type \"%s\" size %zu",
-				 ProcDebug::FileSectionType_ids[sec_type], sec_size);
+			void* image_section_buffer = 0;
+			size_t image_section_buffer_size = 0;
 
-			// Read uniform section as a whole image
-			if (sec_type != SEC_NON_UNIFORM)
+			msg (E_INFO, E_DEBUG, "Loading binary file absolute image");
+
+			while (Reader() ->NextSection (&sec_type, &elements_count, &buffer_size))
 			{
-				__assert (sec_size, "Section size is zero");
-				__assert (req_bytes, "Required length is zero");
-
-				char* data_buffer = reinterpret_cast<char*> (malloc (req_bytes));
-				__assert (data_buffer, "Unable to malloc() read buffer");
-
-				read_size = reader_ ->ReadSectionImage (&rd_prop, data_buffer, req_bytes);
-				__assert (read_size == sec_size, "Failed to read section: received %zu elements of %zu",
-						  read_size, sec_size);
-
-				msg (E_INFO, E_DEBUG, "Passing image to MMU");
-
-				switch (sec_type)
+				if (sec_type == SEC_SYMBOL_MAP)
 				{
-				case SEC_CODE_IMAGE:
-					mmu_ ->ReadText (reinterpret_cast<Command*> (data_buffer), read_size);
-					break;
+					msg (E_INFO, E_DEBUG, "Reading symbols section: %d records");
+					symbol_map external_symbols;
 
-				case SEC_DATA_IMAGE:
-					mmu_ ->ReadData (reinterpret_cast<calc_t*> (data_buffer), read_size);
-					break;
+					Reader() ->ReadSymbols (external_symbols);
 
-				case SEC_STACK_IMAGE:
-					mmu_ ->ReadStack (reinterpret_cast<calc_t*> (data_buffer), read_size, 0);
-					break;
+					__assert (external_symbols.size() == elements_count, "Invalid symbol map size: %d",
+							  external_symbols.size());
 
-				case SEC_SYMBOL_MAP:
-					mmu_ ->ReadSyms (data_buffer, read_size);
-					break;
-
-				case SEC_NON_UNIFORM:
-				case SEC_MAX:
-				default:
-					__asshole ("Switch error");
-				} // switch (section type)
-
-				free (data_buffer);
-				data_buffer = 0;
-
-			} // uniform-type section
-
-			else /* non-uniform section */
-			{
-				DecodeResult decode_result;
-
-				linker_ ->InitLinkSession();
-
-				msg (E_INFO, E_DEBUG, "Non-uniform section decode start");
-
-				while (reader_ ->ReadStream (&rd_prop, &decode_result))
-				{
-					if (!decode_result.mentioned_symbols.empty())
-					{
-						msg (E_INFO, E_DEBUG, "Adding symbols");
-						linker_ ->LinkSymbols (decode_result);
-					}
-
-					switch (decode_result.type)
-					{
-					case DecodeResult::DEC_COMMAND:
-						msg (E_INFO, E_DEBUG, "Decode completed - Adding command");
-						mmu_ ->InsertText (decode_result.command);
-						break;
-
-					case DecodeResult::DEC_DATA:
-						msg (E_INFO, E_DEBUG, "Decode completed - Adding data");
-						mmu_ ->InsertData (decode_result.data);
-						break;
-
-					case DecodeResult::DEC_NOTHING:
-						msg (E_WARNING, E_DEBUG, "Reader returned no primary data in decoded set");
-						break;
-
-					default:
-						__asshole ("Switch error");
-						break;
-					}
+					MMU() ->ReadSymbolImage (std::move (external_symbols));
 				}
 
-				msg (E_INFO, E_DEBUG, "Non-uniform section decode OK, linking phase");
-				linker_ ->Finalize();
+				else
+				{
+					msg (E_INFO, E_DEBUG, "Reading section type \"%s\": %d records (%d bytes)",
+						 ProcDebug::FileSectionType_ids[sec_type], elements_count, buffer_size);
 
-			} // non-uniform section
+					if (buffer_size > image_section_buffer_size)
+					{
+						image_section_buffer = realloc (image_section_buffer, buffer_size);
+						__assert (image_section_buffer, "Could not allocate section image buffer: \"%s\"",
+								  strerror (errno));
 
-		} // while (nextsection)
+						image_section_buffer_size = buffer_size;
+					}
+
+					Reader() ->ReadSectionImage (image_section_buffer);
+					MMU() ->ReadSection (sec_type, image_section_buffer, elements_count);
+				}
+			} // while (next section)
+
+			msg (E_INFO, E_DEBUG, "Binary file read completed");
+			free (image_section_buffer);
+
+			break;
+		} // binary file
+
+		case FT_STREAM:
+		{
+			msg (E_INFO, E_DEBUG, "Stream file decode start");
+			Linker() ->DirectLink_Init();
+
+			while (DecodeResult* result = Reader() ->ReadStream())
+			{
+				size_t mmu_limits[SEC_MAX];
+				MMU() ->QueryLimits (mmu_limits);
+
+				if (!result ->mentioned_symbols.empty())
+				{
+					msg (E_INFO, E_DEBUG, "Adding symbols");
+					Linker() ->DirectLink_Add (result ->mentioned_symbols, mmu_limits);
+				}
+
+				if (!result ->commands.empty())
+				{
+					msg (E_INFO, E_DEBUG, "Adding commands: %d", result ->commands.size());
+					MMU() ->ReadSection (SEC_CODE_IMAGE, result ->commands.data(), result ->commands.size());
+				}
+
+				if (!result ->data.empty())
+				{
+					msg (E_INFO, E_DEBUG, "Adding data: %d", result ->data.size());
+					MMU() ->ReadSection (SEC_DATA_IMAGE, result ->data.data(), result ->data.size());
+				}
+
+				if (!result ->bytepool.empty())
+				{
+					msg (E_INFO, E_DEBUG, "Adding bytepool data: %d bytes", result ->bytepool.size());
+					MMU() ->ReadSection (SEC_BYTEPOOL_IMAGE, result ->bytepool.data(), result ->bytepool.size());
+				}
+
+			}
+
+			msg (E_INFO, E_DEBUG, "Stream decode completed - committing symbols");
+			Linker() ->DirectLink_Commit();
+
+			break;
+
+		} // stream file
+
+		case FT_NON_UNIFORM:
+			__asshole ("Not implemented");
+			break;
+
+		default:
+			__asshole ("Switch error");
+			break;
+		} // switch (file_type)
 
 		msg (E_INFO, E_VERBOSE, "Loading completed");
-		reader_ ->RdReset (&rd_prop);
+		Reader() ->RdReset();
 	}
 
 	void ProcessorAPI::Dump (FILE* file)
 	{
 		verify_method;
 
-		msg (E_INFO, E_VERBOSE, "Writing state to stream (ctx %zu)", mmu_ ->GetContext().buffer);
-		__assert (writer_, "Writer module is not attached");
+		msg (E_INFO, E_VERBOSE, "Writing context to stream (ctx %zu)", MMU() ->GetContext().buffer);
+		__assert (Writer(), "Writer module is not attached");
 
-		writer_ ->WrSetup (file);
-		writer_ ->Write (mmu_ ->GetContext().buffer);
-		writer_ ->WrReset();
+		Writer() ->WrSetup (file);
+		Writer() ->Write (MMU() ->GetContext().buffer);
+		Writer() ->WrReset();
 	}
 
 	void ProcessorAPI::Compile()
@@ -166,14 +173,13 @@ namespace Processor
 
 		try
 		{
-			msg (E_INFO, E_VERBOSE, "Attempting to compile context %zu", mmu_ ->GetContext().buffer);
-			__assert (backend_, "Backend is not attached");
+			msg (E_INFO, E_VERBOSE, "Attempting to compile context %zu", MMU() ->GetContext().buffer);
+			__assert (Backend(), "Backend is not attached");
 
-			mmu_ ->ClearContext(); // reset all fields since we (hopefully) won't use interpreter on this context
-			size_t chk = internal_logic_ ->ChecksumState(); // checksum the system state right after the cleanup
+			size_t chk = LogicProvider() ->ChecksumState();
 
-			backend_ ->CompileBuffer (chk, &InterpreterCallbackFunction);
-			__assert (backend_ ->ImageIsOK (chk), "Backend reported compile error");
+			Backend() ->CompileBuffer (chk, &InterpreterCallbackFunction);
+			__assert (Backend() ->ImageIsOK (chk), "Backend reported compile error");
 
 			msg (E_INFO, E_VERBOSE, "Compilation OK: checksum assigned %p", chk);
 		}
@@ -188,13 +194,14 @@ namespace Processor
 	{
 		verify_method;
 
-		size_t initial_ctx = mmu_ ->GetContext().buffer;
-		size_t chk = internal_logic_ ->ChecksumState();
+		Context& interpreter_context = MMU() ->GetContext();
+		size_t chk = LogicProvider() ->ChecksumState();
 
-// 		msg (E_INFO, E_VERBOSE, "Starting execution of context %zu (system checksum %p)", initial_ctx, chk);
+		msg (E_INFO, E_VERBOSE, "Starting execution of context %zu (system checksum %p)",
+			 interpreter_context.buffer, chk);
 
 		// Try to use backend if image was compiled
-		if (backend_ && backend_ ->ImageIsOK (chk))
+		if (Backend() && Backend() ->ImageIsOK (chk))
 		{
 			msg (E_INFO, E_VERBOSE, "Backend reports image is OK. Using precompiled image");
 
@@ -202,72 +209,61 @@ namespace Processor
 			{
 				SetCallbackProcAPI (this);
 
-				void* address = backend_ ->GetImage (chk);
+				void* address = Backend() ->GetImage (chk);
 				calc_t result = ExecuteGate (address);
 
 				SetCallbackProcAPI (0);
 
-				ProcDebug::PrintValue (result);
-				msg (E_INFO, E_VERBOSE, "Execution OK: Result = %s", ProcDebug::debug_buffer);
-				mmu_ ->RestoreContext();
+				msg (E_INFO, E_VERBOSE, "Native code execution COMPLETED.");
 				return result;
 			}
 
 			catch (std::exception& e)
 			{
-				msg (E_CRITICAL, E_USER, "Execution FAILED: Error = %s. Reverting to interpreter", e.what());
+				msg (E_CRITICAL, E_USER, "Execution FAILED: Error = \"%s\". Reverting to interpreter", e.what());
 			}
 		}
 
 		// Else fall back to the interpreter.
 		msg (E_INFO, E_VERBOSE, "Using interpreter");
-		calc_t last_result;
 
-		for (;;)
+		while (! (interpreter_context.flags & MASK (F_EXIT)))
 		{
-			Command& command = mmu_ ->ACommand();
+			Command& command = MMU() ->ACommand (interpreter_context.ip);
 
 			try
 			{
-
-				internal_logic_ ->ExecuteSingleCommand (command);
-				Context& command_context = mmu_ ->GetContext();
-
-				if (command_context.flags & MASK (F_EXIT))
-				{
-					if (command_context.buffer == initial_ctx)
-						break;
-
-					mmu_ ->RestoreContext();
-				}
-
-				else if (! (command_context.flags & MASK (F_WAS_JUMP)))
-				{
-					++command_context.ip;
-				}
-
+				LogicProvider() ->ExecuteSingleCommand (command);
 			}
 
 			catch (std::exception& e)
 			{
-				const CommandTraits& cmd_traits = cset_ ->DecodeCommand (command.id);
-				msg (E_WARNING, E_USER, "Last executed command [PC=%zu] \"%s\" (%s) argument \"%s\"",
-					 mmu_ ->GetContext().ip, cmd_traits.mnemonic, ProcDebug::ValueType_ids[command.type],
-					 (ProcDebug::PrintArgument (cmd_traits.arg_type, command.arg, mmu_), ProcDebug::debug_buffer));
+
+				msg (E_WARNING, E_USER, "Last executed command: %s", LogicProvider() ->DumpCommand (command));
+
+				const char* ctx_dump, *reg_dump, *stack_dump;
+				MMU() ->DumpContext (&ctx_dump, &reg_dump, &stack_dump);
+
+				msg (E_WARNING, E_USER, "MMU context dump:");
+				msg (E_WARNING, E_USER, "%s", ctx_dump);
+				msg (E_WARNING, E_USER, "%s", reg_dump);
+				msg (E_WARNING, E_USER, "%s", stack_dump);
 
 				throw;
 			}
+		} // interpreter loop
 
-		} // for (interpreter)
+		calc_t result;
+
+		// Interpreter return value is in stack of last command.
+		size_t last_command_stack_top = 0;
+		MMU() ->QueryActiveStack (0, &last_command_stack_top);
+
+		if (last_command_stack_top)
+			result = MMU() ->AStackTop (0);
 
 		msg (E_INFO, E_VERBOSE, "Interpreter COMPLETED.");
-
-		if (mmu_ ->GetStackTop())
-			last_result = mmu_ ->AStackTop (0);
-
-		mmu_ ->ClearContext();
-
-		return last_result;
+		return result;
 	}
 
 	void ProcessorAPI::SetCallbackProcAPI (ProcessorAPI* procapi)

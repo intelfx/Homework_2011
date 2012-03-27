@@ -108,7 +108,7 @@ void PrintValue (const Value& val)
 		break;
 
 	case Value::V_MAX:
-		snprintf (debug_buffer, STATIC_LENGTH, "<uninitialised>");
+		snprintf (debug_buffer, STATIC_LENGTH, "<unset>");
 		break;
 
 	default:
@@ -122,7 +122,7 @@ void PrintArgument (ArgumentType arg_type, const Command::Argument& argument, IM
 	switch (arg_type)
 	{
 	case A_NONE:
-		strncpy (debug_buffer, "no argument", STATIC_LENGTH);
+		strncpy (debug_buffer, "absent", STATIC_LENGTH);
 		break;
 
 	case A_REFERENCE:

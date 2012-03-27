@@ -9,50 +9,56 @@ DeclareDescriptor (AsmHandler);
 
 namespace ProcessorImplementation
 {
-	using namespace Processor;
+using namespace Processor;
 
-	class INTERPRETER_API AsmHandler : virtual LogBase (AsmHandler), public Processor::IReader, public Processor::IWriter
-	{
-		FILE* writing_file_;
+class INTERPRETER_API AsmHandler : virtual LogBase (AsmHandler), public Processor::IReader, public Processor::IWriter
+{
+	FILE* reading_file_;
+	FILE* writing_file_;
 
-		void			ReadSingleStatement (size_t line_num, char* input, Processor::DecodeResult& output);
-		void			ReadSingleDeclaration (const char* decl_data, Processor::DecodeResult& output);
-		void			ReadSingleCommand (const char* command, char* argument, Processor::DecodeResult& output);
+	unsigned current_line_num;
+	Value::Type last_statement_type;
+	DecodeResult decode_output;
 
-		void InternalWriteFile();
-		char* PrepLine (char* read_buffer);
-		char* ParseLabel (char* current_position);
+	void			ReadSingleStatement (char* input);
+	void			ReadSingleDeclaration (const char* decl_data);
+	void			ReadSingleCommand (const char* command, char* argument);
 
-		AddrType DecodeSectionType (char id);
+	void InternalWriteFile();
+	char* PrepLine (char* read_buffer);
+	char* ParseLabel (char* current_position);
 
-		Reference::SingleRef ParseInsertString (char* arg);
+	AddrType DecodeSectionType (char id);
 
-		Reference ParseFullReference					(char* arg, symbol_map& symbols);
-		Reference::BaseRef ParseBaseReference			(char* arg, symbol_map& symbols);
-		Reference::IndirectRef ParseIndirectReference	(char* arg, symbol_map& symbols);
-		Reference::SingleRef ParseSingleReference		(char* arg, symbol_map& symbols);
-		Reference::SingleRef ParseRegisterReference		(char* arg);
+	void					ParseInsertString		(char* arg);
 
-	protected:
-		virtual bool _Verify() const;
+	Reference				ParseFullReference		(char* arg);
+	Reference::BaseRef		ParseBaseReference		(char* arg);
+	Reference::IndirectRef	ParseIndirectReference	(char* arg);
+	Reference::SingleRef	ParseSingleReference	(char* arg);
+	Reference::SingleRef	ParseRegisterReference	(char* arg);
 
-	public:
-		AsmHandler();
+protected:
+	virtual bool _Verify() const;
 
-		virtual void RdReset (FileProperties* prop);
-		virtual FileProperties RdSetup (FILE* file);
+public:
+	AsmHandler();
+	virtual ~AsmHandler();
 
-		virtual size_t NextSection (Processor::FileProperties* prop, Processor::FileSectionType* type, size_t*, size_t*);
+	virtual void RdReset();
+	virtual FileType RdSetup (FILE* file);
 
-		virtual size_t ReadNextElement (FileProperties* prop, void* destination, size_t max);
-		virtual size_t ReadSectionImage (FileProperties* prop, void* destination, size_t max);
-		virtual size_t ReadStream (FileProperties* prop, DecodeResult* destination);
+	virtual size_t NextSection (Processor::MemorySectionType*, size_t*, size_t*);
 
-		virtual void WrSetup (FILE* file);
-		virtual void WrReset();
+	virtual void ReadSectionImage (void* destination);
+	virtual DecodeResult* ReadStream();
+	virtual void ReadSymbols (Processor::symbol_map&);
 
-		virtual void Write (size_t ctx_id);
-	};
+	virtual void WrSetup (FILE* file);
+	virtual void WrReset();
+
+	virtual void Write (size_t ctx_id);
+};
 }
 
 #endif // _ASM_IO_H

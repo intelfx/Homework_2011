@@ -26,7 +26,7 @@
 
 namespace Processor
 {
-	// Main processing types
+// Main processing types
 
 #if defined (TARGET_X64)
 	typedef double fp_t; // main floating-point type
@@ -39,7 +39,7 @@ namespace Processor
 	static_assert (sizeof (fp_t) == sizeof (int_t),
 				   "FP data type size does not equal integer data type size");
 
-	// ABI types
+// ABI types
 
 	/*
 	 * ABI conversion scheme:
@@ -88,8 +88,6 @@ namespace Processor
 		R_MAX
 	};
 
-	const Register indirect_addressing_register = R_F;
-
 	enum ArgumentType
 	{
 		A_NONE = 0,
@@ -97,24 +95,33 @@ namespace Processor
 		A_REFERENCE
 	};
 
+	const Register indirect_addressing_register = R_F;
+
 	enum AddrType
 	{
 		S_NONE = 0,
 		S_CODE,
 		S_DATA,
 		S_REGISTER,
+		S_BYTEPOOL,
 		S_FRAME,
 		S_FRAME_BACK, // Parameters to function
-		S_BYTEPOOL,
 		S_MAX
 	};
 
-	enum FileSectionType
+	enum FileType
 	{
-		SEC_NON_UNIFORM = 0,
-		SEC_SYMBOL_MAP,
+		FT_BINARY,
+		FT_STREAM,
+		FT_NON_UNIFORM
+	};
+
+	enum MemorySectionType
+	{
+		SEC_SYMBOL_MAP = 0,
 		SEC_CODE_IMAGE,
 		SEC_DATA_IMAGE,
+		SEC_BYTEPOOL_IMAGE,
 		SEC_STACK_IMAGE,
 		SEC_MAX
 	};
@@ -205,18 +212,18 @@ namespace Processor
 
 
 		Symbol (const char* name) :
-		hash (hasher_bsd_string (name)), ref(), is_resolved (0) {}
+			hash (hasher_bsd_string (name)), ref(), is_resolved (0) {}
 
 		Symbol (const char* name, const Reference& resolved_reference) :
-		hash (hasher_bsd_string (name)), ref (resolved_reference), is_resolved (1) {}
+			hash (hasher_bsd_string (name)), ref (resolved_reference), is_resolved (1) {}
 
 
 		bool operator== (const Symbol& that) const { return hash == that.hash; }
 		bool operator!= (const Symbol& that) const { return hash != that.hash; }
 	};
 
-	// This is something like TR1's std::unordered_map with manual hashing,
-	// since we need to have direct access to hashes themselves.
+// This is something like TR1's std::unordered_map with manual hashing,
+// since we need to have direct access to hashes themselves.
 	typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
 	typedef symbol_map::value_type::second_type symbol_type;
 
@@ -237,18 +244,18 @@ namespace Processor
 		} type;
 
 		Value() :
-		type (V_MAX)
+			type (V_MAX)
 		{
 		}
 
 		Value (fp_t src) :
-		type (V_FLOAT)
+			type (V_FLOAT)
 		{
 			fp = src;
 		}
 
 		Value (int_t src) :
-		type (V_INTEGER)
+			type (V_INTEGER)
 		{
 			integer = src;
 		}
@@ -268,20 +275,20 @@ namespace Processor
 
 			switch (GenType (that.type))
 			{
-				case V_FLOAT:
-					fp = that.fp;
-					break;
+			case V_FLOAT:
+				fp = that.fp;
+				break;
 
-				case V_INTEGER:
-					integer = that.integer;
-					break;
+			case V_INTEGER:
+				integer = that.integer;
+				break;
 
-				case V_MAX:
-					break;
+			case V_MAX:
+				break;
 
-				default:
-					__sasshole ("Switch error");
-					break;
+			default:
+				__sasshole ("Switch error");
+				break;
 			}
 		}
 
@@ -313,26 +320,26 @@ namespace Processor
 		{
 			switch (type)
 			{
-				case V_INTEGER:
-				{
-					int_abi_t tmp = integer;
-					return reinterpret_cast<abiret_t&> (tmp);
-				}
+			case V_INTEGER:
+			{
+				int_abi_t tmp = integer;
+				return reinterpret_cast<abiret_t&> (tmp);
+			}
 
-				case V_FLOAT:
-				{
-					fp_abi_t tmp = fp;
-					fp_abi_t* ptmp = &tmp;
-					return **reinterpret_cast<abiret_t**> (ptmp);
-				}
+			case V_FLOAT:
+			{
+				fp_abi_t tmp = fp;
+				fp_abi_t* ptmp = &tmp;
+				return **reinterpret_cast<abiret_t**> (ptmp);
+			}
 
-				case V_MAX:
-					__sasshole ("Uninitialised value is being read");
-					break;
+			case V_MAX:
+				__sasshole ("Uninitialised value is being read");
+				break;
 
-				default:
-					__sasshole ("Switch error");
-					break;
+			default:
+				__sasshole ("Switch error");
+				break;
 			}
 
 			return 0;
@@ -344,19 +351,19 @@ namespace Processor
 
 			switch (type)
 			{
-				case V_INTEGER:
-					integer = **reinterpret_cast<int_abi_t**> (&pvalue);
+			case V_INTEGER:
+				integer = **reinterpret_cast<int_abi_t**> (&pvalue);
 
-				case V_FLOAT:
-					fp = **reinterpret_cast<fp_abi_t**> (&pvalue);
+			case V_FLOAT:
+				fp = **reinterpret_cast<fp_abi_t**> (&pvalue);
 
-				case V_MAX:
-					__sasshole ("Uninitialised value is being set from ABI data");
-					break;
+			case V_MAX:
+				__sasshole ("Uninitialised value is being set from ABI data");
+				break;
 
-				default:
-					__sasshole ("Switch error");
-					break;
+			default:
+				__sasshole ("Switch error");
+				break;
 			}
 		}
 
@@ -390,10 +397,10 @@ namespace Processor
 			unsigned char char_representation;
 			long result;
 
-			if ((string[0] == '\'') &&
-				(char_representation = string[1]) &&
-				(string[2] == '\'') &&
-				!string[3])
+			if ( (string[0] == '\'') &&
+					(char_representation = string[1]) &&
+					(string[2] == '\'') &&
+					!string[3])
 			{
 				result = static_cast<long> (char_representation);
 			}
@@ -463,14 +470,26 @@ namespace Processor
 			Reference ref;
 		} arg;
 
+		/*
+		 * The virtual command opcode in current command set.
+		 */
 		cid_t id;
+
+		/*
+		 * Type of the command is which stack it is operating with.
+		 * V_MAX represents "no stack ops".
+		 */
 		Value::Type type;
 
-		void* cached_handle;
+		/*
+		 * Executor module for command is selected coherent with command type and service flag.
+		 * Together with handle, it represents actual command opcode.
+		 */
 		IExecutor* cached_executor;
+		void* cached_handle;
 
 		Command() :
-		arg ({}), id (0), type (Value::V_MAX), cached_handle (0), cached_executor (0) {}
+			arg ( {}), id (0), type (Value::V_MAX), cached_executor (0), cached_handle (0) {}
 	};
 
 	struct Context
@@ -495,74 +514,22 @@ namespace Processor
 		std::map<size_t, void*> execution_handles;
 	};
 
-	struct FileProperties
-	{
-		std::list< std::pair<FileSectionType, size_t> > file_description;
-		FILE* file;
-
-		void Reset()
-		{
-			if (file) rewind (file);
-			file_description.clear();
-			file_description.push_back (std::make_pair (SEC_MAX, 0)); // placeholder
-		}
-
-		FileProperties (const FileProperties&) = delete;
-		FileProperties& operator= (const FileProperties&) = delete;
-
-		FileProperties (FILE* target_file) :
-		file (target_file)
-		{
-			Reset();
-		}
-
-		FileProperties (FileProperties&& that) :
-		file_description (std::move (that.file_description)),
-		file (that.file)
-		{
-			that.file = 0;
-			that.file_description.clear();
-		}
-
-		FileProperties& operator= (FileProperties&& that)
-		{
-			if (this == &that)
-				return *this;
-
-			if (file) fclose (file);
-			file_description.clear();
-
-			file = that.file; that.file = 0;
-			file_description = std::move (that.file_description);
-			that.file_description.clear();
-
-			return *this;
-		}
-
-		~FileProperties()
-		{
-			if (file) fclose (file);
-		}
-	};
-
 	struct DecodeResult
 	{
-		union
-		{
-			Command command;
-			calc_t data;
-		};
-
-		enum
-		{
-			DEC_NOTHING = 0,
-			DEC_COMMAND,
-			DEC_DATA
-		} type;
+		std::vector<Command> commands;
+		std::vector<calc_t> data;
+		std::vector<char> bytepool;
 
 		symbol_map mentioned_symbols;
 
-		DecodeResult() : command(), type (DEC_NOTHING), mentioned_symbols() {}
+		void Clear()
+		{
+			commands.clear();
+			data.clear();
+			bytepool.clear();
+
+			mentioned_symbols.clear();
+		}
 	};
 
 	class IReader;
@@ -620,3 +587,4 @@ namespace Processor
 #endif // _UTILITY_H
 
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
+

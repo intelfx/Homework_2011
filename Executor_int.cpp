@@ -123,7 +123,7 @@ namespace ProcessorImplementation
 
 	inline void IntegerExecutor::WriteResult (Reference& ref)
 	{
-		proc_ ->LogicProvider() ->Write (proc_ ->Linker() ->Resolve(ref), temp[0]);
+		proc_ ->LogicProvider() ->Write (proc_ ->Linker() ->Resolve (ref), temp[0]);
 	}
 
 	void IntegerExecutor::Execute (void* handle, Command& command)

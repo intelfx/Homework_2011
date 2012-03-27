@@ -9,7 +9,7 @@
 int main (int argc, char** argv)
 {
 	Debug::System::Instance().SetTargetProperties (Debug::CreateTarget ("stderr",
-																		EVERYTHING & ~(MASK (Debug::E_OBJCREATION) | MASK (Debug::E_OBJDESTRUCTION)),
+																		EVERYTHING & ~ (MASK (Debug::E_OBJCREATION) | MASK (Debug::E_OBJDESTRUCTION)),
 																		EVERYTHING),
 												   &FXConLog::Instance());
 
@@ -67,3 +67,4 @@ int main (int argc, char** argv)
 
 	Debug::System::Instance().CloseTargets();
 }
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4; 

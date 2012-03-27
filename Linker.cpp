@@ -12,20 +12,18 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
-void UATLinker::LinkSymbols (DecodeResult& input)
+void UATLinker::DirectLink_Add (Processor::symbol_map& symbols, size_t offsets[SEC_MAX])
 {
 	verify_method;
-	msg (E_INFO, E_DEBUG, "Linking symbols: %zu", input.mentioned_symbols.size());
+	msg (E_INFO, E_DEBUG, "Linking symbols: %zu", symbols.size());
 
 	char sym_nm_buf[STATIC_LENGTH];
 
-	for (symbol_map::value_type & symbol_record: input.mentioned_symbols)
+for (symbol_map::value_type & symbol_record: symbols)
 	{
 		Symbol& symbol			= symbol_record.second.second;
 		const std::string& name	= symbol_record.second.first;
 		size_t hash				= symbol.hash;
-		size_t caddress			= proc_ ->MMU() ->GetTextSize();
-		size_t daddress			= proc_ ->MMU() ->GetDataSize();
 		auto existing_record	= temporary_map.find (hash);
 
 		snprintf (sym_nm_buf, STATIC_LENGTH, "\"%s\" (hash %zx)", name.c_str(), hash);
@@ -47,21 +45,21 @@ void UATLinker::LinkSymbols (DecodeResult& input)
 				{
 				case S_CODE:
 					msg (E_INFO, E_DEBUG, "Definition of TEXT label %s: assigning address %zu",
-						 sym_nm_buf, caddress);
-					symbol.ref.components[0].target.memory_address = caddress;
+						 sym_nm_buf, offsets[SEC_CODE_IMAGE]);
+					symbol.ref.components[0].target.memory_address = offsets[SEC_CODE_IMAGE];
 					break;
 
 				case S_DATA:
 					msg (E_INFO, E_DEBUG, "Definition of DATA label %s: assigning address %zu",
-						 sym_nm_buf, daddress);
-					symbol.ref.components[0].target.memory_address = daddress;
+						 sym_nm_buf, offsets[SEC_DATA_IMAGE]);
+					symbol.ref.components[0].target.memory_address = offsets[SEC_DATA_IMAGE];
 					break;
 
 				case S_REGISTER:
 				case S_FRAME:
 				case S_FRAME_BACK:
 				case S_BYTEPOOL:
-					__asshole ("Definition of symbol \"%s\" : type %s, cannot auto-assign",
+					__asshole ("Definition of symbol %s : type %s, cannot auto-assign",
 							   sym_nm_buf, ProcDebug::AddrType_ids [symbol.ref.global_section]);
 					break;
 
@@ -77,14 +75,14 @@ void UATLinker::LinkSymbols (DecodeResult& input)
 
 			else
 			{
-				msg (E_INFO, E_DEBUG, "Definition of symbol \"%s\"", sym_nm_buf);
+				msg (E_INFO, E_DEBUG, "Definition of symbol %s", sym_nm_buf);
 			}
 
 			// Attach to any existing record (checking it is reference, not definition).
 			if (existing_record != temporary_map.end())
 			{
 				__verify (!existing_record ->second.second.is_resolved,
-						  "Symbol redefinition: \"%s\"", sym_nm_buf);
+						  "Symbol redefinition: %s", sym_nm_buf);
 
 				existing_record ->second.second = symbol;
 			}
@@ -92,7 +90,7 @@ void UATLinker::LinkSymbols (DecodeResult& input)
 
 		else
 		{
-			msg (E_INFO, E_DEBUG, "Usage of symbol \"%s\"", sym_nm_buf);
+			msg (E_INFO, E_DEBUG, "Usage of symbol %s", sym_nm_buf);
 		}
 
 		// Add symbol if it does not exist at all.
@@ -159,7 +157,7 @@ DirectReference UATLinker::Resolve (Reference& reference)
 	return result;
 }
 
-void UATLinker::InitLinkSession()
+void UATLinker::DirectLink_Init()
 {
 	verify_method;
 
@@ -167,17 +165,15 @@ void UATLinker::InitLinkSession()
 	temporary_map.clear();
 }
 
-void UATLinker::Finalize()
+void UATLinker::DirectLink_Commit()
 {
 	verify_method;
 
 	msg (E_INFO, E_VERBOSE, "Linking %lu symbols", temporary_map.size());
 
-	msg (E_INFO, E_DEBUG, "Checking image completeness");
-
 	char sym_nm_buf[STATIC_LENGTH];
 
-	for (symbol_map::value_type & symbol_iterator: temporary_map)
+for (symbol_map::value_type & symbol_iterator: temporary_map)
 	{
 		symbol_type* current_symbol_record = &symbol_iterator.second;
 
@@ -194,7 +190,7 @@ void UATLinker::Finalize()
 
 	} // for (temporary_map)
 
-	proc_ ->MMU() ->InsertSyms (std::move (temporary_map));
+	proc_ ->MMU() ->ReadSymbolImage (std::move (temporary_map));
 	temporary_map.clear(); // Well, MMU should move-assign our map, but who knows...
 
 	msg (E_INFO, E_VERBOSE, "Linking session completed");

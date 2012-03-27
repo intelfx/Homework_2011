@@ -214,4 +214,4 @@ int main()
 	fprintf (f, "};\n");
 	fclose (f);
 }
-// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4; 

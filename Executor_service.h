@@ -17,7 +17,7 @@ namespace ProcessorImplementation
 {
 	using namespace Processor;
 
-	class INTERPRETER_API ServiceExecutor : LogBase(ServiceExecutor), public IExecutor
+	class INTERPRETER_API ServiceExecutor : LogBase (ServiceExecutor), public IExecutor
 	{
 		static const char* supported_mnemonics[];
 
@@ -32,3 +32,5 @@ namespace ProcessorImplementation
 }
 
 #endif // _EXECUTOR_SERVICE_H
+// kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
+

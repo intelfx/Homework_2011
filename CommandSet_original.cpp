@@ -50,11 +50,11 @@ namespace ProcessorImplementation
 
 		command.id = get_id (command.mnemonic);
 
-		msg (E_INFO, E_DEBUG, "Adding custom command: \"%s\" (\"%s\") -> # %u",
+		msg (E_INFO, E_DEBUG, "Adding custom command: \"%s\" (\"%s\") -> 0x%04hx",
 			 command.mnemonic, command.description, command.id);
 
-		auto byid_ins_res = by_id.insert (std::make_pair (command.id, std::move (command)));
-		__assert (byid_ins_res.second, "Command already exists: \"%s\"", command.mnemonic);
+		auto command_iresult = by_id.insert (std::make_pair (command.id, std::move (command)));
+		__assert (command_iresult.second, "Command already exists: \"%s\"", command.mnemonic);
 	}
 
 	void CommandSet_mkI::AddCommandImplementation (const char* mnemonic, size_t module, void* handle)
@@ -65,52 +65,50 @@ namespace ProcessorImplementation
 			 mnemonic, module);
 
 		__assert (mnemonic, "NULL mnemonic");
-		cid_t cmd_id = get_id (mnemonic);
-		auto cmd_it = by_id.find (cmd_id);
 
-		if (cmd_it == by_id.end())
+		auto cmd_iterator = by_id.find (get_id (mnemonic));
+
+		if (cmd_iterator == by_id.end())
 		{
 			msg (E_WARNING, E_VERBOSE, "Registering implementation driver for invalid mnemonic: \"%s\"", mnemonic);
 			return;
 		}
 
-		auto impl_ins_res = cmd_it ->second.execution_handles.insert (std::make_pair (module, handle));
-		__assert (impl_ins_res.second, "Implementation of \"%s\" -> module %zx has already been registered",
+		auto handle_iresult = cmd_iterator ->second.execution_handles.insert (std::make_pair (module, handle));
+		__assert (handle_iresult.second, "Implementation of \"%s\" -> module %zx has already been registered",
 				  mnemonic, module);
-	}
-
-	void* CommandSet_mkI::GetExecutionHandle (cid_t id, size_t module)
-	{
-		const CommandTraits& cmd = DecodeCommand (id);
-		return GetExecutionHandle (cmd, module);
 	}
 
 	void* CommandSet_mkI::GetExecutionHandle (const CommandTraits& cmd, size_t module)
 	{
-		auto impl_it = cmd.execution_handles.find (module);
+		auto handle_iterator = cmd.execution_handles.find (module);
 
-		if (impl_it == cmd.execution_handles.end())
-			return 0;
+		if (handle_iterator != cmd.execution_handles.end())
+			return handle_iterator ->second;
 
-		return impl_it ->second;
+		return 0;
 	}
 
-	const CommandTraits& CommandSet_mkI::DecodeCommand (const char* mnemonic) const
+	const CommandTraits* CommandSet_mkI::DecodeCommand (const char* mnemonic) const
 	{
 		__assert (mnemonic, "NULL mnemonic");
-		cid_t cmd_id = get_id (mnemonic);
-		auto cmd_it = by_id.find (cmd_id);
-		__assert (cmd_it != by_id.end(), "Invalid or unregistered mnemonic: \"%s\"", mnemonic);
 
-		return cmd_it ->second;
+		auto cmd_iterator = by_id.find (get_id (mnemonic));
+
+		if (cmd_iterator != by_id.end())
+			return &cmd_iterator ->second;
+
+		return 0;
 	}
 
-	const CommandTraits& CommandSet_mkI::DecodeCommand (cid_t id) const
+	const CommandTraits* CommandSet_mkI::DecodeCommand (Processor::cid_t id) const
 	{
-		auto cmd_it = by_id.find (id);
-		__assert (cmd_it != by_id.end(), "Invalid or unregistered ID: %hhu", id);
+		auto cmd_iterator = by_id.find (id);
 
-		return cmd_it ->second;
+		if (cmd_iterator != by_id.end())
+			return &cmd_iterator ->second;
+
+		return 0;
 	}
 
 	const CommandSet_mkI::ICD CommandSet_mkI::initial_commands[] =
