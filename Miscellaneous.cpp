@@ -1,12 +1,20 @@
 #include "stdafx.h"
 #include "Interfaces.h"
 
+// -------------------------------------------------------------------------------------
+// Library:		Homework
+// File:		Miscellaneous.cpp
+// Author:		Ivan Shapovalov <intelfx100@gmail.com>
+// Description:	Miscellaneous (mostly debug data) definitions.
+// -------------------------------------------------------------------------------------
+
 namespace Processor
 {
+
 namespace ProcDebug
 {
-const char* FileSectionType_ids[SEC_MAX] =
-{
+
+const char* FileSectionType_ids[SEC_MAX] = {
 	"non-uniform",
 	"symbol map",
 	"text image"
@@ -15,8 +23,7 @@ const char* FileSectionType_ids[SEC_MAX] =
 	"invalid type"
 };
 
-const char* AddrType_ids[S_MAX] =
-{
+const char* AddrType_ids[S_MAX] = {
 	"invalid type",
 	"code",
 	"data",
@@ -26,8 +33,7 @@ const char* AddrType_ids[S_MAX] =
 	"byte-granular pool"
 };
 
-const char* ValueType_ids[Value::V_MAX + 1] =
-{
+const char* ValueType_ids[Value::V_MAX + 1] = {
 	"integer",
 	"floating-point",
 	"undefined"
@@ -35,160 +41,155 @@ const char* ValueType_ids[Value::V_MAX + 1] =
 
 char debug_buffer[STATIC_LENGTH];
 
-void PrintSingleReference (char*& output, const Reference::SingleRef& ref, IMMU* mmu)
+void PrintSingleReference( char*& output, const Reference::SingleRef& ref, IMMU* mmu )
 {
-	if (ref.is_indirect)
-	{
-		output += snprintf (output, STATIC_LENGTH - (output - debug_buffer), "indirect: ");
+	if( ref.is_indirect ) {
+		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "indirect: " );
 
-		if (ref.indirect.section != S_NONE)
-			output += snprintf (output, STATIC_LENGTH - (output - debug_buffer), "section %s ", AddrType_ids[ref.indirect.section]);
+		if( ref.indirect.section != S_NONE )
+			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "section %s ", AddrType_ids[ref.indirect.section] );
 	}
 
-	const Reference::BaseRef& bref = (ref.is_indirect) ? ref.indirect.target : ref.target;
+	const Reference::BaseRef& bref = ( ref.is_indirect ) ? ref.indirect.target : ref.target;
 
-	if (bref.is_symbol)
-	{
-		if (mmu)
-			output += snprintf (output, STATIC_LENGTH - (output - debug_buffer), "symbol \"%s\"",
-								mmu ->ASymbol (bref.symbol_hash).first.c_str());
+	if( bref.is_symbol ) {
+		if( mmu )
+			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "symbol \"%s\"",
+			                    mmu->ASymbol( bref.symbol_hash ).first.c_str() );
 
 		else
-			output += snprintf (output, STATIC_LENGTH - (output - debug_buffer), "symbol [0x%zx]",
-								bref.symbol_hash);
+			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "symbol [%zx]",
+			                    bref.symbol_hash );
 	}
 
 	else
-		output += snprintf (output, STATIC_LENGTH - (output - debug_buffer), "address %zu", bref.memory_address);
+		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "address %zu", bref.memory_address );
 }
 
-void PrintReference (const DirectReference& ref)
+void PrintReference( const DirectReference& ref )
 {
-	snprintf (debug_buffer, STATIC_LENGTH, "section %s address %zu",
-			  AddrType_ids[ref.section], ref.address);
+	snprintf( debug_buffer, STATIC_LENGTH, "section %s address %zu",
+	          AddrType_ids[ref.section], ref.address );
 }
 
-void PrintReference (const Reference& ref, IMMU* mmu)
+void PrintReference( const Reference& ref, IMMU* mmu )
 {
 	char* output = debug_buffer;
 
-	if (ref.global_section != S_NONE)
-		output += snprintf (output, STATIC_LENGTH - (output - debug_buffer),
-							"section %s ", AddrType_ids[ref.global_section]);
+	if( ref.global_section != S_NONE )
+		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ),
+		                    "section %s ", AddrType_ids[ref.global_section] );
 
-	if (ref.needs_linker_placement)
-		output += snprintf (output, STATIC_LENGTH - (output - debug_buffer),
-							"unresolved");
+	if( ref.needs_linker_placement )
+		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ),
+		                    "unresolved" );
 
-	else
-	{
-		PrintSingleReference (output, ref.components[0], mmu);
+	else {
+		PrintSingleReference( output, ref.components[0], mmu );
 
-		if (ref.has_second_component)
-		{
-			strcpy (output, " + ");
+		if( ref.has_second_component ) {
+			strcpy( output, " + " );
 			output += 3;
 
-			PrintSingleReference (output, ref.components[1], mmu);
+			PrintSingleReference( output, ref.components[1], mmu );
 		}
 	}
 }
 
 
-void PrintValue (const Value& val)
+void PrintValue( const Value& val )
 {
-	switch (val.type)
-	{
+	switch( val.type ) {
 	case Value::V_INTEGER:
-		snprintf (debug_buffer, STATIC_LENGTH, "int:%ld", val.integer);
+		snprintf( debug_buffer, STATIC_LENGTH, "int:%ld", val.integer );
 		break;
 
 	case Value::V_FLOAT:
-		snprintf (debug_buffer, STATIC_LENGTH, "float:%lg", val.fp);
+		snprintf( debug_buffer, STATIC_LENGTH, "float:%lg", val.fp );
 		break;
 
 	case Value::V_MAX:
-		snprintf (debug_buffer, STATIC_LENGTH, "<unset>");
+		snprintf( debug_buffer, STATIC_LENGTH, "<unset>" );
 		break;
 
 	default:
-		__sasshole ("Switch error");
+		s_casshole( "Switch error" );
 		break;
 	}
 }
 
-void PrintArgument (ArgumentType arg_type, const Command::Argument& argument, IMMU* mmu)
+void PrintArgument( ArgumentType arg_type, const Command::Argument& argument, IMMU* mmu )
 {
-	switch (arg_type)
-	{
+	switch( arg_type ) {
 	case A_NONE:
-		strncpy (debug_buffer, "absent", STATIC_LENGTH);
+		strncpy( debug_buffer, "absent", STATIC_LENGTH );
 		break;
 
 	case A_REFERENCE:
-		PrintReference (argument.ref, mmu);
+		PrintReference( argument.ref, mmu );
 		break;
 
 	case A_VALUE:
-		PrintValue (argument.value);
+		PrintValue( argument.value );
 		break;
 
 	default:
-		__sasshole ("Switch error");
+		s_casshole( "Switch error" );
 		break;
 	}
 }
-}
 
-typedef abiret_t (*abi_gate_pointer) (unsigned*);
+} // namespace ProcDebug
 
-calc_t ExecuteGate (void* address)
+typedef abiret_t ( *abi_gate_pointer )( unsigned* );
+
+calc_t ExecuteGate( void* address )
 {
-	__sassert (address, "Invalid image");
+	s_cassert( address, "Invalid image" );
 
 	abiret_t return_value;
 	Value::Type return_type = Value::V_MAX;
 
-	abi_gate_pointer jit_compiled_function = reinterpret_cast<abi_gate_pointer> (address);
-	unsigned* jit_compiled_function_argument = reinterpret_cast<unsigned*> (&return_type);
+	abi_gate_pointer jit_compiled_function = reinterpret_cast<abi_gate_pointer>( address );
+	unsigned* jit_compiled_function_argument = reinterpret_cast<unsigned*>( &return_type );
 
 	/*
 	 * Say your goodbyes
 	 * That was your life
 	 * Pay all your penance
-	 * JIT-compiled death sentence
+	 * JIT-compiler death sentence
 	 */
-	return_value = jit_compiled_function (jit_compiled_function_argument);
+	return_value = jit_compiled_function( jit_compiled_function_argument );
 
-	if (return_type == Value::V_MAX)
-		return calc_t (); /* uninitialised */
+	if( return_type == Value::V_MAX )
+		return calc_t(); /* uninitialised */
 
-	else
-	{
+	else {
 		calc_t result;
 		result.type = return_type;
-		result.SetFromABI (return_value);
+		result.SetFromABI( return_value );
 		return result;
 	}
 }
 
-void IMMU::SetTemporaryContext (size_t ctx_id)
+void IMMU::SetTemporaryContext( size_t ctx_id )
 {
 	verify_method;
 
-	msg (E_INFO, E_DEBUG, "Setting up temporary context [buffer %zu depth %zu] -> %zu",
-		 GetContext().buffer, GetContext().depth, ctx_id);
+	msg( E_INFO, E_DEBUG, "Setting up temporary context [buffer %zu depth %zu]-> %zu",
+	     GetContext().buffer, GetContext().depth, ctx_id );
 
 	SaveContext();
 	ClearContext();
 	GetContext().buffer = ctx_id;
-	ResetBuffers (ctx_id);
+	ResetBuffers( ctx_id );
 }
 
-void IMMU::SelectStack (Value::Type type)
+void IMMU::SelectStack( Value::Type type )
 {
-	msg (E_INFO, E_DEBUG, "Stack change request (req. \"%s\") is unsupported by MMU",
-		 ProcDebug::ValueType_ids[type]);
+	msg( E_WARNING, E_DEBUG, "Stack change request (req. \"%s\") is unsupported by MMU",
+	     ProcDebug::ValueType_ids[type] );
 }
-}
+
+} // namespace Processor
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

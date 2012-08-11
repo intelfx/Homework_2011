@@ -1,36 +1,37 @@
-#ifndef _EXECUTOR_SERVICE_H
-#define _EXECUTOR_SERVICE_H
+#ifndef INTERPRETER_EXECUTOR_SERVICE_H
+#define INTERPRETER_EXECUTOR_SERVICE_H
 
 #include "build.h"
+
 #include "Interfaces.h"
 
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
 // Library		Homework
 // File			Executor_service.h
-// Author		intelfx
-// Description	Service (no stack access) virtual executor implementation
-// -----------------------------------------------------------------------------
+// Author		Ivan Shapovalov <intelfx100@gmail.com>
+// Description	Untyped interpreter plugin implementation.
+// -------------------------------------------------------------------------------------
 
-DeclareDescriptor (ServiceExecutor);
+DeclareDescriptor( ServiceExecutor, INTERPRETER_API, INTERPRETER_TE );
 
 namespace ProcessorImplementation
 {
-	using namespace Processor;
+using namespace Processor;
 
-	class INTERPRETER_API ServiceExecutor : LogBase (ServiceExecutor), public IExecutor
-	{
-		static const char* supported_mnemonics[];
+class INTERPRETER_API ServiceExecutor : LogBase( ServiceExecutor ), public IExecutor
+{
+	static const char* supported_mnemonics[];
 
-	protected:
-		virtual void OnAttach();
-		virtual Value::Type SupportedType() const;
+protected:
+	virtual void OnAttach();
+	virtual Value::Type SupportedType() const;
 
-	public:
-		virtual void Execute (void* handle, Command& command);
-		virtual void ResetImplementations();
-	};
-}
+public:
+	virtual void Execute( void* handle, Command& command );
+	virtual void ResetImplementations();
+};
 
-#endif // _EXECUTOR_SERVICE_H
+} // namespace ProcessorImplementation
+
+#endif // INTERPRETER_EXECUTOR_SERVICE_H
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
-

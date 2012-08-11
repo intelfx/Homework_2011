@@ -1,15 +1,16 @@
-#ifndef _LINKER_H
-#define _LINKER_H
-
-// -----------------------------------------------------------------------------
-// Library		Homework
-// File			Linker.h
-// Author		intelfx
-// Description	Unit-At-a-Time linker implementation
-// -----------------------------------------------------------------------------
+#ifndef INTERPRETER_LINKER_H
+#define INTERPRETER_LINKER_H
 
 #include "build.h"
+
 #include "Interfaces.h"
+
+// -------------------------------------------------------------------------------------
+// Library		Homework
+// File			Linker.h
+// Author		Ivan Shapovalov <intelfx100@gmail.com>
+// Description	Default linker plugin implementation.
+// -------------------------------------------------------------------------------------
 
 namespace ProcessorImplementation
 {
@@ -21,12 +22,13 @@ class INTERPRETER_API UATLinker: public ILinker
 
 public:
 	virtual void DirectLink_Init();
-	virtual void DirectLink_Add (symbol_map& symbols, size_t offsets[SEC_MAX]);
+	virtual void DirectLink_Add( symbol_map& symbols, size_t offsets[SEC_MAX] );
 	virtual void DirectLink_Commit();
 
-	DirectReference Resolve (Reference& reference);
+	DirectReference Resolve( Reference& reference );
 };
-}
 
-#endif // _LINKER_H
+} // namespace ProcessorImplementation
+
+#endif // INTERPRETER_LINKER_H
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

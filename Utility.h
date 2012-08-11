@@ -1,590 +1,511 @@
-#ifndef _UTILITY_H
-#define _UTILITY_H
+#ifndef INTERPRETER_UTILITY_H
+#define INTERPRETER_UTILITY_H
 
 #include "build.h"
-#include "Verifier.h"
 
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
 // Library		Homework
 // File			Utility.h
-// Author		intelfx
+// Author		Ivan Shapovalov <intelfx100@gmail.com>
 // Description	Utilitary structures and definitions.
-// -----------------------------------------------------------------------------
-
-#define SYMCONST(str)																	\
-	((static_cast <unsigned long long> ( str[0])) |										\
-	 (static_cast <unsigned long long> ( str[1]) << 8) |								\
-	 (static_cast <unsigned long long> ( str[2]) << 16) |								\
-	 (static_cast <unsigned long long> ( str[3]) << 24) |								\
-	 (static_cast <unsigned long long> ( str[4]) << 32) |								\
-	 (static_cast <unsigned long long> ( str[5]) << 40) |								\
-	 (static_cast <unsigned long long> ( str[6]) << 48) |								\
-	 (static_cast <unsigned long long> ( str[7]) << 56))
-
-#define init(x) memset (&x, 0, sizeof (x));
-
+// -------------------------------------------------------------------------------------
 
 namespace Processor
 {
-// Main processing types
 
-#if defined (TARGET_X64)
-	typedef double fp_t; // main floating-point type
-	typedef long int_t; // main integer type
-#elif defined (TARGET_X86)
-	typedef float fp_t;
-	typedef long int_t;
-#endif
-
-	static_assert (sizeof (fp_t) == sizeof (int_t),
-				   "FP data type size does not equal integer data type size");
-
-// ABI types
-
-	/*
-	 * ABI conversion scheme:
-	 *  first conversion is a valid C cast (with precision loss)
-	 *  second conversion is type punning to integer type (same size, but exact copying)
-	 *  fp_t -> fp_abi_t -> abiret_t
-	 *  int_t -> int_abi_t -> abiret_t
-	 */
-
-	typedef float fp_abi_t; // ABI intermediate floating-point type
-	typedef unsigned int_abi_t; // ABI intermediate integer type
-
-	typedef unsigned abiret_t; // final ABI interaction type
+static const size_t BUFFER_NUM = 4;
 
 
-	static_assert (sizeof (fp_abi_t) == sizeof (abiret_t),
-				   "ABI data type size does not equal FP intermediate data type size");
+enum ProcessorFlags
+{
+	F_WAS_JUMP = 1, // Last instruction executed had changed the Program Counter
+	F_EXIT, // Context exit condition
+	F_NFC, // No Flag Change - prohibits flag file from being changed as side-effect
+	F_ZERO, // Zero Flag - set if last result was zero (or equal)
+	F_NEGATIVE, // Negative Flag - set if last result was negative (or below)
+	F_INVALIDFP // Invalid Floating-Point Flag - set if last result was infinite or NAN
+};
 
-	static_assert (sizeof (int_abi_t) == sizeof (abiret_t),
-				   "ABI data type size does not equal integer intermediate data type size");
+enum Register
+{
+	R_A = 0,
+	R_B,
+	R_C,
+	R_D,
+	R_E,
+	R_F,
+	R_MAX
+};
 
+enum ArgumentType
+{
+	A_NONE = 0,
+	A_VALUE,
+	A_REFERENCE
+};
 
-	typedef unsigned short cid_t; // command identifier type
+const Register indirect_addressing_register = R_F;
 
-	static const size_t BUFFER_NUM = 4;
+enum AddrType
+{
+	S_NONE = 0,
+	S_CODE,
+	S_DATA,
+	S_REGISTER,
+	S_BYTEPOOL,
+	S_FRAME,
+	S_FRAME_BACK, // Parameters to function
+	S_MAX
+};
 
+enum FileType
+{
+	FT_BINARY,
+	FT_STREAM,
+	FT_NON_UNIFORM
+};
 
-	enum ProcessorFlags
+enum MemorySectionType
+{
+	SEC_SYMBOL_MAP = 0,
+	SEC_CODE_IMAGE,
+	SEC_DATA_IMAGE,
+	SEC_BYTEPOOL_IMAGE,
+	SEC_STACK_IMAGE,
+	SEC_MAX
+};
+
+/*
+ * Possible reference types:
+ * - symbol				"variable"
+ * - symbol+offset		"variable+10"
+ * - symbol+indirect	"variable+(reference)"
+ * - absolute			"d:10"
+ * - absolute+offset	"d:10+20"
+ * - absolute+indirect	"d:10+(reference)"
+ * - indirect			"d:(reference)"
+ * - indirect+indirect	"d:(reference)+(reference)"
+ *
+ * Result:
+ * address  ::=  register | memory | string
+ *
+ * register ::= '$' {enum Register}
+ * memory   ::=  [ section ':' ] single [ '+' single ]
+ *
+ * single   ::= base | indirect
+ * base     ::= symbol | absolute
+ * indirect ::= '(' register | [ section ':' ] base ')'
+ *
+ * section  ::= {enum AddrType}
+ * symbol   ::= ['_' 'a'-'z' 'A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9' ]*
+ * absolute ::= [0-9]*
+ * string   ::= '\"' [^'\"']* '\"'
+ *
+ * Semantics:
+ * - There should not be more than one section specifier, including inherited from symbols.
+ */
+
+struct Reference
+{
+	struct BaseRef
 	{
-		F_WAS_JUMP = 1, // Last instruction executed had changed the Program Counter
-		F_EXIT, // Context exit condition
-		F_NFC, // No Flag Change - prohibits flag file from being changed as side-effect
-		F_ZERO, // Zero Flag - set if last result was zero (or equal)
-		F_NEGATIVE, // Negative Flag - set if last result was negative (or below)
-		F_INVALIDFP // Invalid Floating-Point Flag - set if last result was infinite or NAN
-	};
-
-	enum Register
-	{
-		R_A = 0,
-		R_B,
-		R_C,
-		R_D,
-		R_E,
-		R_F,
-		R_MAX
-	};
-
-	enum ArgumentType
-	{
-		A_NONE = 0,
-		A_VALUE,
-		A_REFERENCE
-	};
-
-	const Register indirect_addressing_register = R_F;
-
-	enum AddrType
-	{
-		S_NONE = 0,
-		S_CODE,
-		S_DATA,
-		S_REGISTER,
-		S_BYTEPOOL,
-		S_FRAME,
-		S_FRAME_BACK, // Parameters to function
-		S_MAX
-	};
-
-	enum FileType
-	{
-		FT_BINARY,
-		FT_STREAM,
-		FT_NON_UNIFORM
-	};
-
-	enum MemorySectionType
-	{
-		SEC_SYMBOL_MAP = 0,
-		SEC_CODE_IMAGE,
-		SEC_DATA_IMAGE,
-		SEC_BYTEPOOL_IMAGE,
-		SEC_STACK_IMAGE,
-		SEC_MAX
-	};
-
-	/*
-	 * Possible reference types:
-	 * - symbol				"variable"
-	 * - symbol+offset		"variable+10"
-	 * - symbol+indirect	"variable+(reference)"
-	 * - absolute			"d:10"
-	 * - absolute+offset	"d:10+20"
-	 * - absolute+indirect	"d:10+(reference)"
-	 * - indirect			"d:(reference)"
-	 * - indirect+indirect	"d:(reference)+(reference)"
-	 *
-	 * Result:
-	 * address  ::=  register | memory | string
-	 *
-	 * register ::= '$' {enum Register}
-	 * memory   ::=  [ section ':' ] single [ '+' single ]
-	 *
-	 * single   ::= base | indirect
-	 * base     ::= symbol | absolute
-	 * indirect ::= '(' register | [ section ':' ] base ')'
-	 *
-	 * section  ::= {enum AddrType}
-	 * symbol   ::= ['_' 'a'-'z' 'A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9' ]*
-	 * absolute ::= [0-9]*
-	 * string   ::= '\"' [^'\"']* '\"'
-	 *
-	 * Semantics:
-	 * - There should not be more than one section specifier, including inherited from symbols.
-	 */
-
-	struct Reference
-	{
-		struct BaseRef
-		{
-			union
-			{
-				size_t	symbol_hash;
-				size_t memory_address;
-			};
-
-			bool is_symbol;
+		union {
+			size_t	symbol_hash;
+			size_t memory_address;
 		};
 
-		struct IndirectRef
-		{
-			AddrType	section;
-			BaseRef		target;
-		};
-
-		struct SingleRef
-		{
-			union
-			{
-				BaseRef		target;
-				IndirectRef indirect;
-			};
-
-			bool is_indirect;
-		};
-
-		AddrType global_section;
-		SingleRef components[2];
-
-		/* one can iterate components with such loop:
-		 * for (int i = 0; i <= reference.has_second_component; ++i)
-		 */
-		bool has_second_component;
-
-		bool needs_linker_placement;
+		bool is_symbol;
 	};
 
-	struct DirectReference
+	struct IndirectRef
 	{
 		AddrType	section;
-		size_t		address;
+		BaseRef		target;
 	};
 
-	struct Symbol
+	struct SingleRef
 	{
+		union {
+			BaseRef		target;
+			IndirectRef indirect;
+		};
 
-		size_t hash; // Yes, redundant - but failsafe
-		Reference ref;
-		bool is_resolved; // When returning from decode, this means "is defined"
-
-
-		Symbol (const char* name) :
-			hash (hasher_bsd_string (name)), ref(), is_resolved (0) {}
-
-		Symbol (const char* name, const Reference& resolved_reference) :
-			hash (hasher_bsd_string (name)), ref (resolved_reference), is_resolved (1) {}
-
-
-		bool operator== (const Symbol& that) const { return hash == that.hash; }
-		bool operator!= (const Symbol& that) const { return hash != that.hash; }
+		bool is_indirect;
 	};
+
+	AddrType global_section;
+	SingleRef components[2];
+
+	/* one can iterate components with such loop:
+	 * for (int i = 0; i <= reference.has_second_component; ++i)
+	 */
+	bool has_second_component;
+
+	bool needs_linker_placement;
+};
+
+struct DirectReference
+{
+	AddrType	section;
+	size_t		address;
+};
+
+struct Symbol
+{
+	size_t hash; // Yes, redundant - but failsafe
+	Reference ref;
+	bool is_resolved; // When returning from decode, this means "is defined"
+
+
+	Symbol( const char* name ) :
+		hash( hasher_bsd_string( name ) ), ref(), is_resolved( 0 ) {}
+
+	Symbol( const char* name, const Reference& resolved_reference ) :
+		hash( hasher_bsd_string( name ) ), ref( resolved_reference ), is_resolved( 1 ) {}
+
+
+	bool operator== ( const Symbol& that ) const { return hash == that.hash; }
+	bool operator!= ( const Symbol& that ) const { return hash != that.hash; }
+};
 
 // This is something like TR1's std::unordered_map with manual hashing,
 // since we need to have direct access to hashes themselves.
-	typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
-	typedef symbol_map::value_type::second_type symbol_type;
+typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
+typedef symbol_map::value_type::second_type symbol_type;
 
 
-	typedef struct Value
-	{
-		union
-		{
-			fp_t fp;
-			int_t integer;
-		};
+typedef struct Value {
+	union {
+		fp_t fp;
+		int_t integer;
+	};
 
-		enum Type
-		{
-			V_INTEGER = 0,
-			V_FLOAT,
-			V_MAX
-		} type;
+	enum Type {
+		V_INTEGER = 0,
+		V_FLOAT,
+		V_MAX
+	} type;
 
-		Value() :
-			type (V_MAX)
-		{
+	Value() :
+		type( V_MAX ) {
+	}
+
+	Value( fp_t src ) :
+		type( V_FLOAT ) {
+		fp = src;
+	}
+
+	Value( int_t src ) :
+		type( V_INTEGER ) {
+		integer = src;
+	}
+
+	inline void Expect( Processor::Value::Type required_type, bool allow_uninitialised = 0 ) const;
+	inline Type GenType( Type required_type ) const {
+		return ( required_type == V_MAX ) ? type : required_type;
+	}
+
+	// Verify type equality and assign contents of another value object to this.
+	// Should not be used with registers, since they are untyped in JIT mode.
+	inline void Assign( const Value& that ) {
+		s_cassert( that.type != V_MAX, "Attempt to assign an uninitialised value" );
+		Expect( that.type );
+
+		switch( GenType( that.type ) ) {
+		case V_FLOAT:
+			fp = that.fp;
+			break;
+
+		case V_INTEGER:
+			integer = that.integer;
+			break;
+
+		case V_MAX:
+			break;
+
+		default:
+			s_casshole( "Switch error" );
+			break;
+		}
+	}
+
+	// Verify type equality and assign the correct value to given reference.
+	// Pass "V_MAX" as type to disable type checking.
+	// API should use "allow_uninitialised" switch to read data from registers (since they are untyped in JIT mode).
+	template <typename T> void Get( Type required_type, T& dest, bool allow_uninitialised = 0 ) const {
+		Expect( required_type, allow_uninitialised );
+
+		switch( GenType( required_type ) ) {
+		case V_FLOAT:
+			dest = fp;
+			break;
+
+		case V_INTEGER:
+			dest = integer;
+			break;
+
+		case V_MAX:
+		default:
+			s_casshole( "Switch error" );
+			break;
+		}
+	}
+
+	abiret_t GetABI() const {
+		switch( type ) {
+		case V_INTEGER: {
+			int_abi_t tmp = integer;
+			return reinterpret_cast<abiret_t&>( tmp );
 		}
 
-		Value (fp_t src) :
-			type (V_FLOAT)
-		{
+		case V_FLOAT: {
+			fp_abi_t tmp = fp;
+			fp_abi_t* ptmp = &tmp;
+			return **reinterpret_cast<abiret_t**>( ptmp );
+		}
+
+		case V_MAX:
+			s_casshole( "Uninitialised value is being read" );
+			break;
+
+		default:
+			s_casshole( "Switch error" );
+			break;
+		}
+
+		return 0;
+	}
+
+	void SetFromABI( abiret_t value ) {
+		abiret_t* pvalue = &value;
+
+		switch( type ) {
+		case V_INTEGER:
+			integer = **reinterpret_cast<int_abi_t**>( &pvalue );
+
+		case V_FLOAT:
+			fp = **reinterpret_cast<fp_abi_t**>( &pvalue );
+
+		case V_MAX:
+			s_casshole( "Uninitialised value is being set from ABI data" );
+			break;
+
+		default:
+			s_casshole( "Switch error" );
+			break;
+		}
+	}
+
+	// Verify type equality and set correct value from given object.
+	// Pass "V_MAX" as type to disable type checking.
+	// API should use "allow_uninitialised" switch to write data to registers (since they are untyped in JIT mode).
+	template <typename T> void Set( Type required_type, const T& src, bool allow_uninitialised = 0 ) {
+		Expect( required_type, allow_uninitialised );
+
+		switch( GenType( required_type ) ) {
+		case V_FLOAT:
 			fp = src;
-		}
+			break;
 
-		Value (int_t src) :
-			type (V_INTEGER)
-		{
+		case V_INTEGER:
 			integer = src;
+			break;
+
+		case V_MAX:
+		default:
+			s_casshole( "Switch error" );
+			break;
+		}
+	}
+
+	static int_t IntParse( const char* string ) {
+		char* endptr;
+		unsigned char char_representation;
+		long result;
+
+		if( ( string[0] == '\'' ) &&
+		        ( char_representation = string[1] ) &&
+		        ( string[2] == '\'' ) &&
+		        !string[3] ) {
+			result = static_cast<long>( char_representation );
 		}
 
-		inline void Expect (Processor::Value::Type required_type, bool allow_uninitialised = 0) const;
-		inline Type GenType (Type required_type) const
-		{
-			return (required_type == V_MAX) ? type : required_type;
-		}
-
-		// Verify type equality and assign contents of another value object to this.
-		// Should not be used with registers, since they are untyped in JIT mode.
-		inline void Assign (const Value& that)
-		{
-			__sassert (that.type != V_MAX, "Attempt to assign an uninitialised value");
-			Expect (that.type);
-
-			switch (GenType (that.type))
-			{
-			case V_FLOAT:
-				fp = that.fp;
-				break;
-
-			case V_INTEGER:
-				integer = that.integer;
-				break;
-
-			case V_MAX:
-				break;
-
-			default:
-				__sasshole ("Switch error");
-				break;
-			}
-		}
-
-		// Verify type equality and assign the correct value to given reference.
-		// Pass "V_MAX" as type to disable type checking.
-		// API should use "allow_uninitialised" switch to read data from registers (since they are untyped in JIT mode).
-		template <typename T> void Get (Type required_type, T& dest, bool allow_uninitialised = 0) const
-		{
-			Expect (required_type, allow_uninitialised);
-
-			switch (GenType (required_type))
-			{
-			case V_FLOAT:
-				dest = fp;
-				break;
-
-			case V_INTEGER:
-				dest = integer;
-				break;
-
-			case V_MAX:
-			default:
-				__sasshole ("Switch error");
-				break;
-			}
-		}
-
-		abiret_t GetABI() const
-		{
-			switch (type)
-			{
-			case V_INTEGER:
-			{
-				int_abi_t tmp = integer;
-				return reinterpret_cast<abiret_t&> (tmp);
-			}
-
-			case V_FLOAT:
-			{
-				fp_abi_t tmp = fp;
-				fp_abi_t* ptmp = &tmp;
-				return **reinterpret_cast<abiret_t**> (ptmp);
-			}
-
-			case V_MAX:
-				__sasshole ("Uninitialised value is being read");
-				break;
-
-			default:
-				__sasshole ("Switch error");
-				break;
-			}
-
-			return 0;
-		}
-
-		void SetFromABI (abiret_t value)
-		{
-			abiret_t* pvalue = &value;
-
-			switch (type)
-			{
-			case V_INTEGER:
-				integer = **reinterpret_cast<int_abi_t**> (&pvalue);
-
-			case V_FLOAT:
-				fp = **reinterpret_cast<fp_abi_t**> (&pvalue);
-
-			case V_MAX:
-				__sasshole ("Uninitialised value is being set from ABI data");
-				break;
-
-			default:
-				__sasshole ("Switch error");
-				break;
-			}
-		}
-
-		// Verify type equality and set correct value from given object.
-		// Pass "V_MAX" as type to disable type checking.
-		// API should use "allow_uninitialised" switch to write data to registers (since they are untyped in JIT mode).
-		template <typename T> void Set (Type required_type, const T& src, bool allow_uninitialised = 0)
-		{
-			Expect (required_type, allow_uninitialised);
-
-			switch (GenType (required_type))
-			{
-			case V_FLOAT:
-				fp = src;
-				break;
-
-			case V_INTEGER:
-				integer = src;
-				break;
-
-			case V_MAX:
-			default:
-				__sasshole ("Switch error");
-				break;
-			}
-		}
-
-		static int_t IntParse (const char* string)
-		{
-			char* endptr;
-			unsigned char char_representation;
-			long result;
-
-			if ( (string[0] == '\'') &&
-					(char_representation = string[1]) &&
-					(string[2] == '\'') &&
-					!string[3])
-			{
-				result = static_cast<long> (char_representation);
-			}
-
-			else
-			{
-				errno = 0;
-				result = strtol (string, &endptr, 0); /* base autodetermine */
-				__sverify (!errno && (endptr != string) && (*endptr == '\0'),
-						   "Malformed integer: \"%s\": non-ASCII and strtol() says \"%s\"",
-						   string, strerror (errno));
-			}
-
-			return result;
-		}
-
-		static fp_t FPParse (const char* string)
-		{
-			char* endptr;
-			fp_t result;
-			int classification;
-
+		else {
 			errno = 0;
-			result = strtof (string, &endptr);
-			__sverify (!errno && (endptr != string) && (*endptr == '\0'),
-					   "Malformed floating-point: \"%s\": strtof() says \"%s\"",
-					   string, strerror (errno));
-
-			classification = fpclassify (result);
-			__sverify (classification == FP_NORMAL || classification == FP_ZERO,
-					   "Invalid floating-point value: \"%s\" -> %lg", string, result);
-
-			return result;
+			result = strtol( string, &endptr, 0 ); /* base autodetermine */
+			s_cverify( !errno && ( endptr != string ) && ( *endptr == '\0' ),
+			           "Malformed integer: \"%s\": non-ASCII and strtol() says \"%s\"",
+			           string, strerror( errno ) );
 		}
 
-		void Parse (const char* string)
-		{
-			switch (type)
-			{
-			case V_INTEGER:
-				integer = IntParse (string);
-				break;
+		return result;
+	}
 
-			case V_FLOAT:
-				fp = FPParse (string);
-				break;
+	static fp_t FPParse( const char* string ) {
+		char* endptr;
+		fp_t result;
+		int classification;
 
-			case V_MAX:
-				__sasshole ("Uninitialised value");
-				break;
+		errno = 0;
+		result = strtof( string, &endptr );
+		s_cverify( !errno && ( endptr != string ) && ( *endptr == '\0' ),
+		           "Malformed floating-point: \"%s\": strtof() says \"%s\"",
+		           string, strerror( errno ) );
 
-			default:
-				__sasshole ("Switch error");
-				break;
-			}
+		classification = fpclassify( result );
+		s_cverify( classification == FP_NORMAL || classification == FP_ZERO,
+		           "Invalid floating-point value: \"%s\"-> %lg", string, result );
+
+		return result;
+	}
+
+	void Parse( const char* string ) {
+		switch( type ) {
+		case V_INTEGER:
+			integer = IntParse( string );
+			break;
+
+		case V_FLOAT:
+			fp = FPParse( string );
+			break;
+
+		case V_MAX:
+			s_casshole( "Uninitialised value" );
+			break;
+
+		default:
+			s_casshole( "Switch error" );
+			break;
 		}
-	} calc_t;
+	}
+} calc_t;
 // 	typedef fp_t calc_t; // until we support multitype
 
-	class IExecutor;
+class IExecutor;
 
-	struct Command
+struct Command
+{
+	union Argument
 	{
-		union Argument
-		{
-			calc_t value;
-			Reference ref;
-		} arg;
+		calc_t value;
+		Reference ref;
+	} arg;
 
-		/*
-		 * The virtual command opcode in current command set.
-		 */
-		cid_t id;
+	/*
+	 * The virtual command opcode in current command set.
+	 */
+	cid_t id;
 
-		/*
-		 * Type of the command is which stack it is operating with.
-		 * V_MAX represents "no stack ops".
-		 */
-		Value::Type type;
+	/*
+	 * Type of the command is which stack it is operating with.
+	 * V_MAX represents "no stack ops".
+	 */
+	Value::Type type;
 
-		/*
-		 * Executor module for command is selected coherent with command type and service flag.
-		 * Together with handle, it represents actual command opcode.
-		 */
-		IExecutor* cached_executor;
-		void* cached_handle;
+	/*
+	 * Executor module for command is selected coherent with command type and service flag.
+	 * Together with handle, it represents actual command opcode.
+	 */
+	IExecutor* cached_executor;
+	void* cached_handle;
 
-		Command() :
-			arg ( {}), id (0), type (Value::V_MAX), cached_executor (0), cached_handle (0) {}
-	};
+	Command() :
+		arg( {} ), id( 0 ), type( Value::V_MAX ), cached_executor( 0 ), cached_handle( 0 ) {}
+};
 
-	struct Context
+struct Context
+{
+	mask_t flags;
+	size_t ip;
+	size_t buffer;
+	size_t depth;
+	size_t frame;
+};
+
+struct CommandTraits
+{
+	const char* mnemonic;
+	const char* description;
+	ArgumentType arg_type;
+
+	bool is_service_command;
+
+	// assigned by command set
+	cid_t id;
+	std::map<size_t, void*> execution_handles;
+};
+
+struct DecodeResult
+{
+	std::vector<Command> commands;
+	std::vector<calc_t> data;
+	std::vector<char> bytepool;
+
+	symbol_map mentioned_symbols;
+
+	void Clear()
 	{
-		mask_t flags;
-		size_t ip;
-		size_t buffer;
-		size_t depth;
-		size_t frame;
-	};
+		commands.clear();
+		data.clear();
+		bytepool.clear();
 
-	struct CommandTraits
-	{
-		const char* mnemonic;
-		const char* description;
-		ArgumentType arg_type;
-
-		bool is_service_command;
-
-		// assigned by command set
-		cid_t id;
-		std::map<size_t, void*> execution_handles;
-	};
-
-	struct DecodeResult
-	{
-		std::vector<Command> commands;
-		std::vector<calc_t> data;
-		std::vector<char> bytepool;
-
-		symbol_map mentioned_symbols;
-
-		void Clear()
-		{
-			commands.clear();
-			data.clear();
-			bytepool.clear();
-
-			mentioned_symbols.clear();
-		}
-	};
-
-	class IReader;
-	class IWriter;
-	class IMMU;
-	class ILinker;
-	class IExecutor;
-	class IBackend;
-	class ICommandSet;
-	class ILogic;
-	class IModuleBase;
-
-	calc_t ExecuteGate (void* address);
-
-	inline void InsertSymbol (const Symbol& symbol, const char* name, symbol_map& target_map)
-	{
-		target_map.insert (std::make_pair (symbol.hash, std::make_pair (std::string (name), symbol)));
+		mentioned_symbols.clear();
 	}
+};
 
-	namespace ProcDebug
-	{
-		INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
-		INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
-		INTERPRETER_API extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
+class IReader;
+class IWriter;
+class IMMU;
+class ILinker;
+class IExecutor;
+class IBackend;
+class ICommandSet;
+class ILogic;
+class IModuleBase;
 
-		INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
+calc_t ExecuteGate( void* address );
 
-		INTERPRETER_API void PrintReference (const Reference& ref, IMMU* mmu = 0);
-		INTERPRETER_API void PrintReference (const Processor::DirectReference& ref);
-		INTERPRETER_API void PrintValue (const Value& val);
-		INTERPRETER_API void PrintArgument (ArgumentType arg_type,
-											const Command::Argument& argument,
-											IMMU* mmu = 0);
+inline void InsertSymbol( const Symbol& symbol, const char* name, symbol_map& target_map )
+{
+	target_map.insert( std::make_pair( symbol.hash, std::make_pair( std::string( name ), symbol ) ) );
+}
+
+namespace ProcDebug
+{
+
+INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
+INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
+INTERPRETER_API extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
+
+INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
+
+INTERPRETER_API void PrintReference( const Reference& ref, IMMU* mmu = 0 );
+INTERPRETER_API void PrintReference( const Processor::DirectReference& ref );
+INTERPRETER_API void PrintValue( const Value& val );
+INTERPRETER_API void PrintArgument( ArgumentType arg_type,
+                                    const Command::Argument& argument,
+                                    IMMU* mmu = 0 );
+
+} // namespace ProcDebug
+
+void Value::Expect( Processor::Value::Type required_type, bool allow_uninitialised ) const
+{
+	if( !allow_uninitialised )
+		s_cverify( type != V_MAX, "Cannot access uninitialised value" );
+
+	else {
+		s_cassert( required_type != V_MAX, "Type autodetermine requested while uninitialised values are allowed" );
+
+		if( type == V_MAX )
+			return;
+
+		s_cverify( type == required_type,
+		           "Cannot operate on non-matching types (expected \"%s\" instead of \"%s\")",
+		           ProcDebug::ValueType_ids[required_type], ProcDebug::ValueType_ids[type] );
 	}
+}
 
-	void Value::Expect (Processor::Value::Type required_type, bool allow_uninitialised) const
-	{
-		if (!allow_uninitialised)
-			__sverify (type != V_MAX, "Cannot access uninitialised value");
-
-		else
-		{
-			__sassert (required_type != V_MAX, "Type autodetermine requested while uninitialised values are allowed");
-
-			if (type == V_MAX)
-				return;
-
-			__sverify (type == required_type,
-					   "Cannot operate on non-matching types (expected \"%s\" instead of \"%s\")",
-					   ProcDebug::ValueType_ids[required_type], ProcDebug::ValueType_ids[type]);
-		}
-	}
 } // namespace Processor
 
-#endif // _UTILITY_H
-
+#endif // INTERPRETER_UTILITY_H
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
-

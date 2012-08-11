@@ -29,7 +29,7 @@ find_assert_library ("rt" LIBRARIES)
 
 # Source specification
 # ----
-set (INTERPRETER_SRC Verifier.h Verifier.cpp Utility.h Interfaces.cpp Interfaces.h)
+set (INTERPRETER_SRC Utility.h Interfaces.cpp Interfaces.h)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Miscellaneous.cpp APIImplementation.cpp)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} MMU.h MMU.cpp Linker.cpp Linker.h AssemblyIO.cpp AssemblyIO.h)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Logic.h Logic.cpp CommandSet_original.h CommandSet_original.cpp)
