@@ -100,10 +100,49 @@ endmacro()
 
 # ----
 
+# Determine compiler and system
+# ----
+if (NOT ${CMAKE_C_COMPILER_ID} STREQUAL ${CMAKE_CXX_COMPILER_ID})
+	message(FATAL_ERROR "C compiler identification does not match CXX compiler identification, cannot continue for now")
+endif(NOT ${CMAKE_C_COMPILER_ID} STREQUAL ${CMAKE_CXX_COMPILER_ID})
+
+SET(FX_COMPILER_ID ${CMAKE_C_COMPILER_ID})
+# ----
+
 
 # Compiler arguments
 # ----
-if (CMAKE_COMPILER_IS_GNUC OR CMAKE_COMPILER_IS_GNUCXX)
+if ("${FX_COMPILER_ID}" STREQUAL "Clang")
+	SET(FX_C_ARGS "-std=c99 -Wold-style-definition -Wstrict-prototypes")
+	SET(FX_CXX_ARGS "-std=c++11 -Wold-style-cast -Woverloaded-virtual -fvisibility-inlines-hidden")
+	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wall -Wextra -Wmain -Wswitch-enum -Wswitch-default")
+	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wmissing-include-dirs -Wstrict-overflow=4 -Wpointer-arith")
+	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wunreachable-code -Wundef")
+	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wcast-align -Wwrite-strings -Wcast-qual")
+	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wredundant-decls -Winit-self -Wshadow -Wabi -Wstrict-aliasing")
+	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Winvalid-pch")
+
+	# Already enabled on MinGW
+	if (NOT WIN32)
+		SET(FX_TUNE_ARGS "-fPIC")
+	endif (NOT WIN32)
+	
+	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fvisibility=hidden")
+	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -ftrapv -pipe")
+	SET(FX_OPT_ARGS		"-O4 -flto -emit-llvm")
+	SET(FX_LD_OPT_ARGS	"-Wl,-O1")
+
+	SET(FX_INSTR_ARGS	"-march=native")
+	SET(FX_DBG_ARGS		"")
+	SET(FX_LD_FLAGS		"")
+
+	# Settings for MinGW
+	if (WIN32)
+# 		SET(FX_LD_FLAGS "${FX_LD_FLAGS} -static")
+	endif (WIN32)
+endif("${FX_COMPILER_ID}" STREQUAL "Clang")
+
+if ("${FX_COMPILER_ID}" STREQUAL "GNU")
 	SET(FX_C_ARGS "-std=c99 -Wold-style-definition -Wstrict-prototypes")
 	SET(FX_CXX_ARGS "-std=c++11 -Wold-style-cast -Woverloaded-virtual -fvisibility-inlines-hidden")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wall -Wextra -Wmain -Wswitch-enum -Wswitch-default")
@@ -140,7 +179,7 @@ if (CMAKE_COMPILER_IS_GNUC OR CMAKE_COMPILER_IS_GNUCXX)
 	if (WIN32)
 # 		SET(FX_LD_FLAGS "${FX_LD_FLAGS} -static")
 	endif (WIN32)
-endif (CMAKE_COMPILER_IS_GNUC OR CMAKE_COMPILER_IS_GNUCXX)
+endif ("${FX_COMPILER_ID}" STREQUAL "GNU")
 
 # TODO MSVC compiler arguments
 # ----
@@ -192,20 +231,29 @@ set_directory_properties (PROPERTIES COMPILE_DEFINITIONS_RELWITHDEBINFO NDEBUG)
 # ----
 
 if (UNIX)
+	message(STATUS "Project configuration: system is UNIX")
 	add_definitions(-DTARGET_POSIX)
 endif (UNIX)
 
 if (WIN32)
+	message(STATUS "Project configuration: system is Win32")
 	add_definitions(-DTARGET_WINDOWS)
 endif (WIN32)
 
 if (MSVC)
+	message(STATUS "Project configuration: compiler is MSVC")
 	add_definitions(-DCOMPILER_MSVC)
 endif (MSVC)
 
-if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_GNUC)
+if ("${FX_COMPILER_ID}" STREQUAL "GNU")
+	message(STATUS "Project configuration: compiler is GNUC")
 	add_definitions(-DCOMPILER_GNUC)
-endif (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_GNUC)
+endif ("${FX_COMPILER_ID}" STREQUAL "GNU")
+
+if ("${FX_COMPILER_ID}" STREQUAL "Clang")
+	message(STATUS "Project configuration: compiler is Clang")
+	add_definitions(-DCOMPILER_GNUC)
+endif ("${FX_COMPILER_ID}" STREQUAL "Clang")
 
 # ----
 
