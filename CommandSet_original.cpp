@@ -27,13 +27,11 @@ void CommandSet_mkI::ResetCommandSet()
 	by_id.clear();
 
 	for( const InternalCommandDescriptor* dsc = initial_commands; dsc->name; ++dsc ) {
-		CommandTraits traits { dsc->name,
+		CommandTraits traits ( dsc->name,
 		                       dsc->description,
 		                       dsc->arg_type,
-		                       dsc->is_service_command,
-		                       get_id( dsc->name ),
-		                       {}
-		                     };
+		                       dsc->is_service_command );
+		traits.id = get_id( dsc->name );
 
 		msg( E_INFO, E_DEBUG, "mkI command: \"%s\"-> %u", dsc->name, traits.id );
 		auto byid_ins_res = by_id.insert( std::make_pair( traits.id, std::move( traits ) ) );

@@ -433,6 +433,16 @@ struct CommandTraits
 	// assigned by command set
 	cid_t id;
 	std::map<size_t, void*> execution_handles;
+
+	CommandTraits( const char* mnem, const char* desc, ArgumentType arg, bool is_service ) :
+	mnemonic( mnem ),
+	description( desc ),
+	arg_type( arg ),
+	is_service_command( is_service ),
+	id( 0 ),
+	execution_handles()
+	{
+	}
 };
 
 struct DecodeResult

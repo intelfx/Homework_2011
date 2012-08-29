@@ -128,28 +128,17 @@ AddrType AsmHandler::DecodeSectionType( char id )
 	switch( id ) {
 	case 'c':
 		return S_CODE;
-		break;
-
 	case 'd':
 		return S_DATA;
-		break;
-
 	case 'f':
 		return S_FRAME;
-		break;
-
 	case 'p':
 		return S_FRAME_BACK;
-		break;
-
 	case 'r':
 		return S_REGISTER;
-		break;
-
 	default:
 		casshole( "Invalid plain address specifier: '%c'", id );
 	}
-
 	return S_NONE; /* for compiler not to complain */
 }
 
@@ -691,9 +680,6 @@ DecodeResult* AsmHandler::ReadStream()
 			msg( E_CRITICAL, E_USER, "Parser internal error on line %d: %s",
 			     current_line_num, e.what() );
 			break;
-
-		default:
-			break; // no need in throwing different exception...
 		}
 
 		throw; // ...since we can just rethrow this one.

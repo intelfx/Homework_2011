@@ -230,7 +230,7 @@ bool ProcessorAPI::_Verify() const
 	verify_submodule( mmu_, "MMU" );
 
 	for( unsigned i = 0; i <= Value::V_MAX; ++i ) {
-		verify_submodule( executors_[i], "%s executor", ProcDebug::AddrType_ids[i] );
+		verify_submodule_x( executors_[i], "%s executor", ProcDebug::AddrType_ids[i] );
 	}
 
 	if( backend_ )
