@@ -17,65 +17,23 @@ namespace Processor
 
 static const size_t BUFFER_NUM = 4;
 
+static_assert( SEC_MAX - SEC_STACK_IMAGE == 1,
+               "Invalid section indices disposition: SEC_STACK_IMAGE shall be the last entry" );
+static const size_t SEC_COUNT = SEC_STACK_IMAGE + Value::V_MAX;
 
-enum ProcessorFlags
+namespace ProcDebug
 {
-	F_WAS_JUMP = 1, // Last instruction executed had changed the Program Counter
-	F_EXIT, // Context exit condition
-	F_NFC, // No Flag Change - prohibits flag file from being changed as side-effect
-	F_ZERO, // Zero Flag - set if last result was zero (or equal)
-	F_NEGATIVE, // Negative Flag - set if last result was negative (or below)
-	F_INVALIDFP // Invalid Floating-Point Flag - set if last result was infinite or NAN
-};
 
-enum Register
-{
-	R_A = 0,
-	R_B,
-	R_C,
-	R_D,
-	R_E,
-	R_F,
-	R_MAX
-};
+INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
+INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
 
-enum ArgumentType
-{
-	A_NONE = 0,
-	A_VALUE,
-	A_REFERENCE
-};
+INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
 
-const Register indirect_addressing_register = R_F;
+INTERPRETER_API void PrintReference( const Reference& ref, IMMU* mmu = 0 );
+INTERPRETER_API void PrintReference( const Processor::DirectReference& ref );
+INTERPRETER_API void PrintValue( const Value& val );
 
-enum AddrType
-{
-	S_NONE = 0,
-	S_CODE,
-	S_DATA,
-	S_REGISTER,
-	S_BYTEPOOL,
-	S_FRAME,
-	S_FRAME_BACK, // Parameters to function
-	S_MAX
-};
-
-enum FileType
-{
-	FT_BINARY,
-	FT_STREAM,
-	FT_NON_UNIFORM
-};
-
-enum MemorySectionType
-{
-	SEC_SYMBOL_MAP = 0,
-	SEC_CODE_IMAGE,
-	SEC_DATA_IMAGE,
-	SEC_BYTEPOOL_IMAGE,
-	SEC_STACK_IMAGE,
-	SEC_MAX
-};
+} // namespace ProcDebug
 
 /*
  * Possible reference types:
@@ -176,8 +134,6 @@ typedef std::map<size_t, std::pair<std::string, Symbol> > symbol_map;
 typedef symbol_map::value_type::second_type symbol_type;
 
 
-class IExecutor;
-
 struct Command
 {
 	union Argument
@@ -207,6 +163,14 @@ struct Command
 	Command() :
 		arg( {} ), id( 0 ), type( Value::V_MAX ), cached_executor( 0 ), cached_handle( 0 ) {}
 };
+
+namespace ProcDebug
+{
+
+INTERPRETER_API void PrintArgument( ArgumentType arg_type,
+                                    const Command::Argument& argument,
+                                    IMMU* mmu = 0 );
+} // namespace ProcDebug
 
 struct Context
 {
@@ -258,39 +222,12 @@ struct DecodeResult
 	}
 };
 
-class IReader;
-class IWriter;
-class IMMU;
-class ILinker;
-class IExecutor;
-class IBackend;
-class ICommandSet;
-class ILogic;
-class IModuleBase;
-
 calc_t ExecuteGate( void* address );
 
 inline void InsertSymbol( const Symbol& symbol, const char* name, symbol_map& target_map )
 {
 	target_map.insert( std::make_pair( symbol.hash, std::make_pair( std::string( name ), symbol ) ) );
 }
-
-namespace ProcDebug
-{
-
-INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
-INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
-
-INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
-
-INTERPRETER_API void PrintReference( const Reference& ref, IMMU* mmu = 0 );
-INTERPRETER_API void PrintReference( const Processor::DirectReference& ref );
-INTERPRETER_API void PrintValue( const Value& val );
-INTERPRETER_API void PrintArgument( ArgumentType arg_type,
-                                    const Command::Argument& argument,
-                                    IMMU* mmu = 0 );
-
-} // namespace ProcDebug
 
 } // namespace Processor
 

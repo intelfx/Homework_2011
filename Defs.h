@@ -58,8 +58,94 @@ static_assert( sizeof( fp_abi_t ) == sizeof( abiret_t ),
 static_assert( sizeof( int_abi_t ) == sizeof( abiret_t ),
                "ABI data type size does not equal integer intermediate data type size" );
 
+// API types
 
 typedef unsigned short cid_t; // command identifier type
+typedef unsigned long ctx_t; // context identifier type
+
+// Possible plugin types
+
+class IReader;
+class IWriter;
+class IMMU;
+class ILinker;
+class IExecutor;
+class IBackend;
+class ICommandSet;
+class ILogic;
+class IModuleBase;
+
+// Utilitary constants
+
+enum ProcessorFlags
+{
+	F_WAS_JUMP = 1, // Last instruction executed had changed the Program Counter
+	F_EXIT, // Context exit condition
+	F_NFC, // No Flag Change - prohibits flag file from being changed as side-effect
+	F_ZERO, // Zero Flag - set if last result was zero (or equal)
+	F_NEGATIVE, // Negative Flag - set if last result was negative (or below)
+	F_INVALIDFP // Invalid Floating-Point Flag - set if last result was infinite or NAN
+};
+
+enum Register
+{
+	R_A = 0,
+	R_B,
+	R_C,
+	R_D,
+	R_E,
+	R_F,
+	R_MAX
+};
+
+enum ArgumentType
+{
+	A_NONE = 0,
+	A_VALUE,
+	A_REFERENCE
+};
+
+const Register indirect_addressing_register = R_F;
+
+enum AddrType
+{
+	S_NONE = 0,
+	S_CODE,
+	S_DATA,
+	S_REGISTER,
+	S_BYTEPOOL,
+	S_FRAME,
+	S_FRAME_BACK, // Parameters to function
+	S_MAX
+};
+
+enum FileType
+{
+	FT_BINARY,
+	FT_STREAM,
+	FT_NON_UNIFORM
+};
+
+enum MemorySectionType
+{
+	SEC_CODE_IMAGE = 1,
+	SEC_DATA_IMAGE,
+	SEC_BYTEPOOL_IMAGE,
+	SEC_SYMBOL_MAP,
+	SEC_STACK_IMAGE,
+	SEC_MAX
+};
+
+// Utilitary structures pre-declarations
+class MemorySectionIdentifier;
+class Offsets;
+struct Reference;
+struct DirectReference;
+struct Symbol;
+struct Command;
+struct Context;
+struct CommandTraits;
+struct DecodeResult;
 
 } // namespace Processor
 
