@@ -83,7 +83,8 @@ macro(GCC_ADD_GCH _header gch_file)
 						COMMAND rm -f ${${gch_file}}
 						COMMAND ${CMAKE_CXX_COMPILER} ${gch_flags} ${io_spec}
 						MAIN_DEPENDENCY ${header}
-						DEPENDS ${header})
+						DEPENDS ${header}
+						IMPLICIT_DEPENDS CXX ${header})
 endmacro(GCC_ADD_GCH)
 
 macro(MAIN_ADD_GCH _header sources)
