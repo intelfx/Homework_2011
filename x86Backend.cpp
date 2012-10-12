@@ -109,6 +109,9 @@ void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 	size_t section_limits[SEC_MAX];
 	mmu->QueryLimits( section_limits );
 
+	msg( E_INFO, E_DEBUG, "Emitting prologue" );
+	CompilePrologue();
+
 	for( size_t pc = 0; pc < section_limits[SEC_CODE_IMAGE]; ++pc ) {
 		Command& cmd = mmu->ACommand( pc );
 		msg( E_INFO, E_DEBUG, "Emitting native code for command [PC=%zu] \"%s\"",

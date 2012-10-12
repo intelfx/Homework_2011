@@ -39,6 +39,7 @@ class x86Backend : public IBackend
 	void Clear();
 
 	void CompileCommand( Command& cmd );
+	void CompilePrologue();
 
 protected:
 	virtual bool _Verify() const;
