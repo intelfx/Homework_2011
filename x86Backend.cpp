@@ -98,6 +98,80 @@ void x86Backend::Clear()
 	current_image_->data.clear();
 }
 
+void x86Backend::Emit( unsigned char data )
+{
+	verify_method;
+	current_image_->data.append( 1, &data );
+}
+
+void x86Backend::Emit( const char* data, size_t length )
+{
+	verify_method;
+	current_image_->data.append( length, data );
+}
+
+void x86Backend::CompilePrologue()
+{
+	Emit( 0x49, 0x89, 0xfb );       // mov r11, rdi
+	Emit( 0x53 );                   // push rbx
+	Emit( 0xc8, 0x00, 0x00, 0x00 ); // enter 0, 0
+}
+
+#define INVALID_TYPE case Value::V_MAX: casshole( "Invalid command type" )
+
+void x86Backend::CompileCommand( Command& cmd )
+{
+	if( IsCmd( cmd, "quit" ) ) {
+		Emit( 0x41, 0xc7, 0x03 );
+		EmitRaw<Value::Type>( cmd.type ); // mov dword [r11], value_type
+
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// no-op, value in rax
+			break;
+
+		case Value::V_FLOAT:
+			Emit( 0x48, 0x83, 0xec, 0x08 ); // sub rsp, 8
+			Emit( 0xd9, 0x1c, 0x24 );       // fstp dword [rsp]
+			Emit( 0x58 );                   // pop rax
+			break;
+
+		case Value::V_MAX:
+			Emit( 0x48, 0x31, 0xc0 ); // xor rax, rax
+			break;
+		}
+
+		Emit( 0x9b, 0xdb, 0xe3 ); // finit
+		Emit( 0xc9 );             // leave
+		Emit( 0x5b );             // pop rbx
+		Emit( 0xc3 );             // retn
+	}
+
+	else if( IsCmd( cmd, "push" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			Emit( 0x50 );                     // push rax
+			Emit( 0x48, 0xb8 );
+			EmitRaw( cmd.arg.value.integer ); // mov rax, <value>
+			break;
+
+		case Value::V_FLOAT:
+			Emit( 0x48, 0xb9 );
+			EmitRaw( cmd.arg.value.fp ); // mov rcx, <fp 64-bit value> - a temporary reg
+			Emit( 0x51 );                // push rcx
+			Emit( 0xdd, 0x04, 0x24 );    // fld qword [rsp]
+			Emit( 0x59 );                // pop rcx - a garbage reg (>/dev/null)
+			break;
+
+		INVALID_TYPE;
+		}
+	}
+
+	else {
+		casshole( "Callback unimplemented" );
+	}
+}
+
 void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 {
 	msg( E_INFO, E_DEBUG, "Compiling for checksum %zx", chk );
