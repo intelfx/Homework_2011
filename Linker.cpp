@@ -23,7 +23,6 @@ void UATLinker::DirectLink_Add( Processor::symbol_map& symbols, size_t offsets[S
 		Symbol& symbol			= symbol_record.second.second;
 		const std::string& name	= symbol_record.second.first;
 		size_t hash				= symbol.hash;
-		auto existing_record	= temporary_map.find( hash );
 
 		snprintf( sym_nm_buf, STATIC_LENGTH, "\"%s\" (hash %zx)", name.c_str(), hash );
 
@@ -72,23 +71,13 @@ void UATLinker::DirectLink_Add( Processor::symbol_map& symbols, size_t offsets[S
 			else {
 				msg( E_INFO, E_DEBUG, "Definition of symbol %s", sym_nm_buf );
 			}
-
-			// Attach to any existing record (checking it is reference, not definition).
-			if( existing_record != temporary_map.end() ) {
-				cverify( !existing_record->second.second.is_resolved,
-				         "Symbol redefinition: %s", sym_nm_buf );
-
-				existing_record->second.second = symbol;
-			}
 		} // if symbol is resolved (defined)
 
 		else {
 			msg( E_INFO, E_DEBUG, "Usage of symbol %s", sym_nm_buf );
 		}
 
-		// Add symbol if it does not exist at all.
-		if( existing_record == temporary_map.end() )
-			temporary_map.insert( symbol_record );
+		temporary_map.insert( symbol_record );
 	}
 
 	msg( E_INFO, E_DEBUG, "Link completed" );
@@ -151,30 +140,48 @@ void UATLinker::DirectLink_Init()
 	temporary_map.clear();
 }
 
-void UATLinker::DirectLink_Commit()
+void UATLinker::DirectLink_Commit( bool UAT )
 {
 	verify_method;
 
 	msg( E_INFO, E_VERBOSE, "Linking %lu symbols", temporary_map.size() );
+	symbol_map target_map;
 
 	char sym_nm_buf[STATIC_LENGTH];
 
 	for( symbol_map::value_type& symbol_iterator: temporary_map ) {
 		symbol_type* current_symbol_record = &symbol_iterator.second;
+		size_t hash                        = current_symbol_record->second.hash;
+		auto existing_record               = target_map.find( hash );
 
 		snprintf( sym_nm_buf, STATIC_LENGTH, "\"%s\" (hash %zx)",
-		          current_symbol_record->first.c_str(), current_symbol_record->second.hash );
+		          current_symbol_record->first.c_str(), hash );
 
-		cassert( current_symbol_record->second.hash == symbol_iterator.first,
-		         "Internal map inconsistency in %s: key %zx",
-		         sym_nm_buf, symbol_iterator.first );
+		cassert( hash == symbol_iterator.first,
+		         "Internal map inconsistency in %s: hash %zx <-> key %zx",
+		         sym_nm_buf, hash, symbol_iterator.first );
 
 		Symbol& symbol = current_symbol_record->second;
-		cverify( symbol.is_resolved, "Linker error: Unresolved symbol %s", sym_nm_buf );
 		cassert( !symbol.ref.needs_linker_placement, "Unplaced symbol %s", sym_nm_buf );
+
+		// Replace any reference already present in the map.
+		if( existing_record != target_map.end() ) {
+			bool existing_is_definition = existing_record->second.second.is_resolved;
+			bool new_is_definition = symbol.is_resolved;
+
+			if( existing_is_definition ) {
+				cverify( !new_is_definition, "Symbol redefinition: %s", sym_nm_buf );
+			} else if( new_is_definition ) {
+				existing_record->second.second = symbol;
+			}
+		}
 	} // for (temporary_map)
 
-	proc_->MMU()->ReadSymbolImage( std::move( temporary_map ) );
+	if( UAT ) {
+		casshole( "Not implemented" );
+	}
+
+	proc_->MMU()->ReadSymbolImage( std::move( target_map ) );
 	temporary_map.clear(); // Well, MMU should move-assign our map, but who knows...
 
 	msg( E_INFO, E_VERBOSE, "Linking session completed" );

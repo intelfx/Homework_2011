@@ -307,7 +307,7 @@ public:
 	virtual void DirectLink_Init() = 0;
 
 	// Commit collected buffers to the MMU.
-	virtual void DirectLink_Commit() = 0;
+	virtual void DirectLink_Commit( bool UAT = false ) = 0;
 
 	// Collect symbols in decode stage.
 	// Use provided offsets for auto-placement.
