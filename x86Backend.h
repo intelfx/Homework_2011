@@ -17,14 +17,14 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
-class x86Backend : public IBackend
+class INTERPRETER_API x86Backend : public IBackend
 {
 	struct NativeImage
 	{
 		llarray data; // primary working buffer
 		struct // mapped executable region
 		{
-			void* image; 
+			void* image;
 			size_t length;
 		} mm;
 		abi_callback_fn_t callback; // processor API callback function
@@ -43,8 +43,10 @@ class x86Backend : public IBackend
 
 protected:
 	virtual bool _Verify() const;
-	
+
 public:
+	x86Backend();
+	virtual ~x86Backend();
 	virtual void CompileBuffer( size_t chk, abi_callback_fn_t callback );
 	virtual abi_native_fn_t GetImage( size_t chk );
 	virtual bool ImageIsOK( size_t chk );

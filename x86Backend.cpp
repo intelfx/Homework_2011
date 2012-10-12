@@ -99,6 +99,7 @@ void x86Backend::Clear()
 
 void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 {
+	msg( E_INFO, E_DEBUG, "Compiling for checksum %zx", chk );
 	Select( chk, true );
 	Clear();
 	current_image_->callback = callback;
@@ -121,6 +122,16 @@ void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 
 	msg( E_INFO, E_VERBOSE, "Native code emission completed" );
 	Finalize();
+}
+
+x86Backend::x86Backend()
+{
+
+}
+
+x86Backend::~x86Backend()
+{
+
 }
 
 } // namespace ProcessorImplementation
