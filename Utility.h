@@ -15,8 +15,6 @@
 namespace Processor
 {
 
-static const size_t BUFFER_NUM = 4;
-
 static_assert( SEC_MAX - SEC_STACK_IMAGE == 1,
                "Invalid section indices disposition: SEC_STACK_IMAGE shall be the last entry" );
 static const size_t SEC_COUNT = SEC_STACK_IMAGE + Value::V_MAX;

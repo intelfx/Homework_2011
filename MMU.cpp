@@ -369,22 +369,13 @@ void MMU::ResetBuffers( size_t ctx_id )
 	cassert( ctx_id < buffers.size(), "Invalid given buffer ID [%zu]: max %zu", ctx_id, buffers.size() );
 
 	InternalContextBuffer& buffer_dest = buffers[ctx_id];
-
-	buffer_dest.commands.clear();
-	buffer_dest.data.clear();
-	buffer_dest.sym_table.clear();
-
 	free( buffer_dest.bytepool_data );
-	buffer_dest.bytepool_data = 0;
-	buffer_dest.bytepool_length = 0;
-
-	for( size_t reg_id = 0; reg_id < R_MAX; ++reg_id )
-		buffer_dest.registers[reg_id] = calc_t();
+	buffer_dest = InternalContextBuffer();
 }
 
 void MMU::ResetEverything()
 {
-	// Firstly reset context to put MMU into unitialised state
+	// Firstly reset context to put MMU into uninitialised state
 	ClearContext();
 	context.buffer = -1;
 
@@ -394,9 +385,10 @@ void MMU::ResetEverything()
 	context_stack.clear();
 
 	// Finally, clear context buffers
-	for( size_t buf_id = 0; buf_id < BUFFER_NUM; ++buf_id )
-		ResetBuffers( buf_id );
-
+	for( InternalContextBuffer& buffer: buffers ) {
+		free( buffer.bytepool_data );
+	}
+	buffers.clear();
 }
 
 void MMU::SaveContext()
@@ -435,6 +427,9 @@ void MMU::NextContextBuffer()
 	SaveContext();
 	ClearContext();
 	++context.buffer;
+	if( buffers.size() <= context.buffer ) {
+		buffers.resize( context.buffer + 1 );
+	}
 
 	if( context.buffer )
 		msg( E_INFO, E_DEBUG, "Switched to next context buffer [%zu]", context.buffer );
