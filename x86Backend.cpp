@@ -38,10 +38,10 @@ bool x86Backend::ImageIsOK( size_t chk )
 
 bool x86Backend::_Verify() const
 {
-	verify_statement( current_image_, "No image is selected" );
-	auto it = images_.find( current_chk_ );
-	verify_statement( it != images_.end(), "Image not found for the current checksum %zx", current_chk_ );
-	verify_statement( &it->second == current_image_, "Looked up image does not match selected (chk %zx)", current_chk_ );
+// 	verify_statement( current_image_, "No image is selected" );
+// 	auto it = images_.find( current_chk_ );
+// 	verify_statement( it != images_.end(), "Image not found for the current checksum %zx", current_chk_ );
+// 	verify_statement( &it->second == current_image_, "Looked up image does not match selected (chk %zx)", current_chk_ );
 	return true;
 }
 
