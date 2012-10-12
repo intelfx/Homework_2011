@@ -260,6 +260,8 @@ public:
 	virtual void			ReadSymbolImage( symbol_map && symbols ) = 0; // Read symbol map
 	virtual void			WriteSymbolImage( symbol_map& symbols ) const = 0; // Write symbol map to image
 
+	virtual void			PasteFromContext( size_t ctx_id ) = 0; // Paste the specified context over the current one
+
 	virtual void VerifyReference( const DirectReference& ref ) const = 0; // Check if given reference is valid to access
 
 	virtual void ResetBuffers( size_t ctx_id ) = 0; // Reset specified context buffer
