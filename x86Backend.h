@@ -45,7 +45,7 @@ protected:
 	
 public:
 	virtual void CompileBuffer( size_t chk, abi_callback_fn_t callback );
-	virtual void* GetImage( size_t chk );
+	virtual abi_native_fn_t GetImage( size_t chk );
 	virtual bool ImageIsOK( size_t chk );
 };
 

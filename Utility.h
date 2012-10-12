@@ -220,7 +220,7 @@ struct DecodeResult
 	}
 };
 
-calc_t ExecuteGate( void* address );
+calc_t ExecuteGate( abi_native_fn_t jit_compiled_function );
 
 inline void InsertSymbol( const Symbol& symbol, const char* name, symbol_map& target_map )
 {

@@ -45,10 +45,10 @@ bool x86Backend::_Verify() const
 	return true;
 }
 
-void* x86Backend::GetImage( size_t chk )
+abi_native_fn_t x86Backend::GetImage( size_t chk )
 {
 	cassert( ImageIsOK( chk ), "Image for checksum %zx is not good/ready", chk );
-	return images_.find( chk )->second.mm.image;
+	return reinterpret_cast<abi_native_fn_t>( images_.find( chk )->second.mm.image );
 }
 
 void x86Backend::Select( size_t chk, bool create )

@@ -216,7 +216,7 @@ calc_t ProcessorAPI::Exec()
 		try {
 			SetCallbackProcAPI( this );
 
-			void* address = backend->GetImage( chk );
+			abi_native_fn_t address = backend->GetImage( chk );
 			calc_t result = ExecuteGate( address );
 
 			SetCallbackProcAPI( 0 );
