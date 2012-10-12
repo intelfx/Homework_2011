@@ -172,11 +172,11 @@ void FloatExecutor::Execute( void* handle, Command& command )
 	case C_LDINT:
 		ReadArgument( command.arg.ref, Value::V_INTEGER );
 		PushResult();
-		WriteIntResult( command.arg.ref );
 		break;
 
 	case C_STINT:
 		PopArguments( 1 );
+		WriteIntResult( command.arg.ref );
 		break;
 
 	case C_ABS:
