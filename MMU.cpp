@@ -388,6 +388,27 @@ void MMU::WriteSection( MemorySectionType section, void* image ) const
 	}
 }
 
+void MMU::ShiftImages( size_t offsets[SEC_MAX] )
+{
+	verify_method;
+
+	msg( E_INFO, E_DEBUG, "Shifting sections in context %zu", context.buffer );
+
+	CurrentBuffer().commands.insert( CurrentBuffer().commands.begin(), offsets[SEC_CODE_IMAGE], Command() );
+	CurrentBuffer().data.insert( CurrentBuffer().data.begin(), offsets[SEC_DATA_IMAGE], calc_t() );
+
+	size_t bytepool_shift_offset = offsets[SEC_BYTEPOOL_IMAGE];
+	char* new_bytepool = reinterpret_cast<char*>( malloc( CurrentBuffer().bytepool_length + bytepool_shift_offset ) );
+	cassert( new_bytepool, "Could not allocate bytepool image for shifting context (shift by %zu)",
+			 bytepool_shift_offset );
+	memset( new_bytepool, 0, bytepool_shift_offset );
+	memcpy( new_bytepool + bytepool_shift_offset, CurrentBuffer().bytepool_data, CurrentBuffer().bytepool_length );
+
+	free( CurrentBuffer().bytepool_data );
+	CurrentBuffer().bytepool_data = new_bytepool;
+	CurrentBuffer().bytepool_length += bytepool_shift_offset;
+}
+
 void MMU::PasteFromContext( size_t ctx_id )
 {
 	verify_method;

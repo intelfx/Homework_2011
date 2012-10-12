@@ -260,6 +260,7 @@ public:
 	virtual void			ReadSymbolImage( symbol_map && symbols ) = 0; // Read symbol map
 	virtual void			WriteSymbolImage( symbol_map& symbols ) const = 0; // Write symbol map to image
 
+	virtual void			ShiftImages( size_t offsets[SEC_MAX] ) = 0; // Shift forth all sections by specified offset, filling space with empty data.
 	virtual void			PasteFromContext( size_t ctx_id ) = 0; // Paste the specified context over the current one
 
 	virtual void VerifyReference( const DirectReference& ref ) const = 0; // Check if given reference is valid to access
