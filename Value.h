@@ -131,9 +131,11 @@ typedef struct Value
 		switch( type ) {
 		case V_INTEGER:
 			integer = **reinterpret_cast<int_abi_t**>( &pvalue );
+			break;
 
 		case V_FLOAT:
 			fp = **reinterpret_cast<fp_abi_t**>( &pvalue );
+			break;
 
 		case V_MAX:
 			s_casshole( "Uninitialised value is being set from ABI data" );
