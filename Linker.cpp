@@ -187,5 +187,57 @@ void UATLinker::DirectLink_Commit( bool UAT )
 	msg( E_INFO, E_VERBOSE, "Linking session completed" );
 }
 
+void UATLinker::RelocateReference( Reference& ref, size_t offsets[SEC_MAX] )
+{
+	for( size_t i = 0; i < 1 + ref.has_second_component; ++i ) {
+		Reference::SingleRef& sref = ref.components[i];
+		cassert( !sref.is_indirect, "Shall not relocate indirect references" );
+		cassert( !sref.target.is_symbol, "Shall not relocate symbol references" );
+
+		sref.target.memory_address += offsets[ref.global_section];
+	}
+}
+
+void UATLinker::Relocate( size_t offsets[SEC_MAX] )
+{
+	symbol_map source;
+	proc_->MMU()->WriteSymbolImage( source );
+
+	for( symbol_map::value_type& symbol_pair: source ) {
+		Symbol& symbol = symbol_pair.second.second;
+
+		// Relocate only defined symbol records.
+		// Reason: for relocation of an image A (i. e., shifting all data in the image A)
+		// we need to adjust only symbols pointing to definitions inside the image A -
+		// that is, only defined symbols.
+		// It is guaranteed that any unresolved/undefined symbol in the map
+		// cannot be resolved inside the given context (and so points to some definition that
+		// is going to be imported in process of merging).
+		if( !symbol.is_resolved ) {
+			continue;
+		}
+
+		Reference& ref = symbol.ref;
+		cassert( !ref.needs_linker_placement, "Reference needs to be link-placed; inconsistency." );
+
+		// Do not relocate what seems to be an alias.
+		// Reason: too much corner-cases.
+		// Though we can relocate bicomponent plain references, despite they seem highly
+		// unusual (like "d:(4+2)").
+		bool do_skip = false;
+		for( size_t i = 0; i < 1 + ref.has_second_component; ++i ) {
+			if( ref.components[i].is_indirect ||
+				ref.components[i].target.is_symbol ) {
+				do_skip = true;
+				break;
+			}
+		}
+
+		if( !do_skip ) {
+			RelocateReference( ref, offsets );
+		}
+	}
+}
+
 } // namespace ProcessorImplementation
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

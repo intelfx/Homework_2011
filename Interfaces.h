@@ -313,6 +313,11 @@ public:
 	// Use provided offsets for auto-placement.
 	virtual void DirectLink_Add( symbol_map& symbols, size_t offsets[SEC_MAX] ) = 0;
 
+	// Relocate the image:
+	// - adjust symbols and (possibly) references
+	// - rebase section images on the new offsets
+	virtual void Relocate( size_t offsets[SEC_MAX] ) = 0;
+
 	// Retrieve a direct reference for given arbitrary reference.
 	virtual DirectReference Resolve( Reference& reference ) = 0; // or get an unresolved symbol error
 };
