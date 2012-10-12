@@ -23,6 +23,30 @@
 namespace Processor
 {
 
+// Utilitary structures pre-declarations
+
+class MemorySectionIdentifier;
+class Offsets;
+struct Reference;
+struct DirectReference;
+struct Symbol;
+struct Command;
+struct Context;
+struct CommandTraits;
+struct DecodeResult;
+
+// Possible plugin types
+
+class IReader;
+class IWriter;
+class IMMU;
+class ILinker;
+class IExecutor;
+class IBackend;
+class ICommandSet;
+class ILogic;
+class IModuleBase;
+
 // Main processing types
 
 #if defined (TARGET_X64)
@@ -58,22 +82,12 @@ static_assert( sizeof( fp_abi_t ) == sizeof( abiret_t ),
 static_assert( sizeof( int_abi_t ) == sizeof( abiret_t ),
                "ABI data type size does not equal integer intermediate data type size" );
 
+typedef abiret_t( *abi_gate_pointer )( unsigned* );
+
 // API types
 
 typedef unsigned short cid_t; // command identifier type
 typedef unsigned long ctx_t; // context identifier type
-
-// Possible plugin types
-
-class IReader;
-class IWriter;
-class IMMU;
-class ILinker;
-class IExecutor;
-class IBackend;
-class ICommandSet;
-class ILogic;
-class IModuleBase;
 
 // Utilitary constants
 
@@ -135,17 +149,6 @@ enum MemorySectionType
 	SEC_STACK_IMAGE,
 	SEC_MAX
 };
-
-// Utilitary structures pre-declarations
-class MemorySectionIdentifier;
-class Offsets;
-struct Reference;
-struct DirectReference;
-struct Symbol;
-struct Command;
-struct Context;
-struct CommandTraits;
-struct DecodeResult;
 
 } // namespace Processor
 

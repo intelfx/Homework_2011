@@ -141,8 +141,6 @@ void PrintArgument( ArgumentType arg_type, const Command::Argument& argument, IM
 
 } // namespace ProcDebug
 
-typedef abiret_t ( *abi_gate_pointer )( unsigned* );
-
 calc_t ExecuteGate( void* address )
 {
 	s_cassert( address, "Invalid image" );
