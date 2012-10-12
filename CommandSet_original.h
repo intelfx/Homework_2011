@@ -30,7 +30,7 @@ class INTERPRETER_API CommandSet_mkI : public ICommandSet
 	static const InternalCommandDescriptor initial_commands[];
 
 	inline static cid_t get_id( const char* mnemonic ) {
-		return hasher_bsd_string( mnemonic );
+		return crc32_runtime( mnemonic );
 	}
 
 protected:

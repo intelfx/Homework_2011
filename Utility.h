@@ -118,10 +118,10 @@ struct Symbol
 
 
 	Symbol( const char* name ) :
-		hash( hasher_bsd_string( name ) ), ref(), is_resolved( 0 ) {}
+		hash( crc32_runtime( name ) ), ref(), is_resolved( 0 ) {}
 
 	Symbol( const char* name, const Reference& resolved_reference ) :
-		hash( hasher_bsd_string( name ) ), ref( resolved_reference ), is_resolved( 1 ) {}
+		hash( crc32_runtime( name ) ), ref( resolved_reference ), is_resolved( 1 ) {}
 
 
 	bool operator== ( const Symbol& that ) const { return hash == that.hash; }
