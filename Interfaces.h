@@ -117,6 +117,7 @@ public:
 	void	Clear(); // Clear current execution buffers
 	void	Load( FILE* file ); // Load into a new context/buffer
 	void	Dump( FILE* file ); // Dump current context/buffer
+	void	MergeWithContext( size_t ctx_id ); // Merge the last context with the specified one
 	void	Delete(); // Return to previous context/buffer
 	void	Compile(); // Invoke backend to compile the bytecode
 	calc_t	Exec(); // Execute current system state whatever it is now
