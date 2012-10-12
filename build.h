@@ -15,6 +15,7 @@
 #include <uXray/fxmisc.h>
 #include <uXray/fxhash_functions.h>
 #include <uXray/fxcrc32.h>
+#include <uXray/fxjitruntime.h>
 
 #ifdef INTERPRETER_STDAFX_H
 # define INTERPRETER_API EXPORT

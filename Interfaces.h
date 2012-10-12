@@ -61,6 +61,8 @@ class INTERPRETER_API ProcessorAPI : LogBase( ProcessorAPI )
 
 	bool initialise_completed;
 
+	NativeExecutionManager nem_;
+
 	void Attach_( IReader* reader );
 	void Attach_( IWriter* writer );
 	void Attach_( IMMU* mmu );
@@ -106,6 +108,8 @@ public:
 	ILinker*	Linker()					{ return CheckReturnModule( linker_, "linker" ); }
 	ICommandSet* CommandSet()				{ return CheckReturnModule( cset_, "command set" ); }
 	ILogic*		LogicProvider()				{ return CheckReturnModule( internal_logic_, "logic provider" ); }
+
+	NativeExecutionManager& ExecutionManager() { return nem_; }
 
 
 	void	Flush(); // Completely reset and reinitialise the system

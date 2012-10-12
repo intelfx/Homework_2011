@@ -275,6 +275,10 @@ void ProcessorAPI::SetCallbackProcAPI( ProcessorAPI* procapi )
 
 abiret_t ProcessorAPI::InterpreterCallbackFunction( Command* cmd )
 {
+	// TODO, FIXME: this does not account for arguments.
+	// While it is clear how to pass integer arguments (just use varargs to steal them from the native stack),
+	// passing fp ones is unclear...
+	// For now just manifest it in the trampoline's limitations.
 	ILogic* logic = callback_procapi->LogicProvider();
 	logic->ExecuteSingleCommand( *cmd );
 
