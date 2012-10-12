@@ -157,6 +157,7 @@ calc_t ExecuteGate( void* address )
 	 * Pay all your penance
 	 * JIT-compiler death sentence
 	 */
+	smsg( E_WARNING, E_DEBUG, "Going hot now..." );
 	return_value = jit_compiled_function( jit_compiled_function_argument );
 
 	if( return_type == Value::V_MAX )
