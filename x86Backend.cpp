@@ -85,6 +85,7 @@ void x86Backend::Finalize()
 			 current_image_->data.size() );
 	memcpy( img, current_image_->data, current_image_->data.size() );
 	current_image_->mm.image = img;
+	current_image_->mm.length = current_image_->data.size();
 
 	cassert( ImageIsOK( current_chk_ ), "Newly finalized image is not OK - inconsistency" );
 }
