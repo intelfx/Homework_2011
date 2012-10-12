@@ -319,6 +319,10 @@ public:
 	// - rebase section images on the new offsets
 	virtual void Relocate( size_t offsets[SEC_MAX] ) = 0;
 
+	// Collect symbols from another linked source.
+	// Do not auto-place.
+	virtual void MergeLink_Add( const symbol_map& symbols ) = 0;
+
 	// Retrieve a direct reference for given arbitrary reference.
 	virtual DirectReference Resolve( Reference& reference ) = 0; // or get an unresolved symbol error
 };

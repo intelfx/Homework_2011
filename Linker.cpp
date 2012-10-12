@@ -239,5 +239,31 @@ void UATLinker::Relocate( size_t offsets[SEC_MAX] )
 	}
 }
 
+void UATLinker::MergeLink_Add( const symbol_map& symbols )
+{
+	/*
+	 * The semantics of merge-linking.
+	 *
+	 * If the context to be merged is going to be pasted at offset == 0
+	 * (precisely like it is done in the API context merge implementation),
+	 * then we just need to merge the symbol maps.
+	 */
+
+	msg( E_INFO, E_DEBUG, "Merge-linking %zu symbols", symbols.size() );
+
+	symbol_map source;
+	proc_->MMU()->WriteSymbolImage( source );
+
+	msg( E_INFO, E_DEBUG, "Inserting source symbols (count: %zu)", source.size() );
+	for( symbol_map::value_type& source_sym: source ) {
+		temporary_map.insert( source_sym );
+	}
+
+	msg( E_INFO, E_DEBUG, "Inserting target symbols" );
+	for( const symbol_map::value_type& target_sym: symbols ) {
+		temporary_map.insert( target_sym );
+	}
+}
+
 } // namespace ProcessorImplementation
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

@@ -29,6 +29,8 @@ public:
 	virtual void DirectLink_Add( symbol_map& symbols, size_t offsets[SEC_MAX] );
 	virtual void DirectLink_Commit( bool UAT );
 
+	virtual void MergeLink_Add( const symbol_map& symbols );
+
 	virtual void Relocate( size_t offsets[SEC_MAX] );
 
 	DirectReference Resolve( Reference& reference );
