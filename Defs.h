@@ -82,6 +82,7 @@ static_assert( sizeof( fp_abi_t ) == sizeof( abiret_t ),
 static_assert( sizeof( int_abi_t ) == sizeof( abiret_t ),
                "ABI data type size does not equal integer intermediate data type size" );
 
+typedef abiret_t( *abi_callback_fn_t )( Command* );
 typedef abiret_t( *abi_gate_pointer )( unsigned* );
 
 // API types

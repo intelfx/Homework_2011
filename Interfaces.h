@@ -293,7 +293,7 @@ public:
 class INTERPRETER_API IBackend : LogBase( IBackend ), public IModuleBase
 {
 public:
-	virtual void		CompileBuffer( size_t chk, abiret_t( *callback_function )( Command* ) ) = 0;
+	virtual void		CompileBuffer( size_t chk, abi_callback_fn_t callback ) = 0;
 	virtual bool		ImageIsOK( size_t chk ) = 0;
 	virtual void*		GetImage( size_t chk ) = 0;
 };
