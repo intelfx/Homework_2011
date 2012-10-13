@@ -15,7 +15,7 @@ using namespace Processor;
 void UATLinker::DirectLink_Add( Processor::symbol_map& symbols, size_t offsets[SEC_MAX] )
 {
 	verify_method;
-	msg( E_INFO, E_DEBUG, "Linking symbols: %zu", symbols.size() );
+	msg( E_INFO, E_DEBUG, "(Direct link) adding symbols: %zu", symbols.size() );
 
 	char sym_nm_buf[STATIC_LENGTH];
 
@@ -98,25 +98,33 @@ DirectReference UATLinker::Resolve( Reference& reference )
 {
 	verify_method;
 
+	msg( E_INFO, E_DEBUG, "Resolving reference to %s",
+		 ( ProcDebug::PrintReference( reference, proc_->MMU() ), ProcDebug::debug_buffer ) );
+
 	DirectReference result; mem_init( result );
 	result.section = reference.global_section;
+	msg( E_INFO, E_DEBUG, "Global section: %s", ProcDebug::AddrType_ids[result.section] );
 
 	for( unsigned i = 0; i <= reference.has_second_component; ++i ) {
 		DirectReference tmp_reference; mem_init( tmp_reference );
 
 		const Reference::SingleRef& cref = reference.components[i];
 		const Reference::BaseRef& bref = cref.is_indirect ? cref.indirect.target : cref.target;
+		msg( E_INFO, E_DEBUG, "[Component %u]: %s", i, cref.is_indirect ? "indirect" : "direct" );
 
 		/* resolve main base address of the component */
 		if( bref.is_symbol ) {
+			msg( E_INFO, E_DEBUG, "[Component %u]: reference to symbol, hash %zx", i, bref.symbol_hash );
 			symbol_type& referenced_symbol = proc_->MMU()->ASymbol( bref.symbol_hash );
 			cverify( referenced_symbol.second.is_resolved, "Undefined symbol requested at runtime: \"%s\"",
 					 referenced_symbol.first.c_str() );
 			tmp_reference = Resolve( referenced_symbol.second.ref );
 		}
 
-		else
+		else {
+			msg( E_INFO, E_DEBUG, "[Component %u]: memory offset %zu", i, bref.memory_address );
 			tmp_reference.address = bref.memory_address;
+		}
 
 		/* resolve indirection */
 		if( reference.components[i].is_indirect ) {
@@ -127,13 +135,22 @@ DirectReference UATLinker::Resolve( Reference& reference )
 			else
 				cassert( cref.indirect.section == S_NONE, "Duplicate specified section in indirection" );
 
+			msg( E_INFO, E_DEBUG, "[Component %u]: indirection to section %s",
+				 i, ProcDebug::AddrType_ids[tmp_reference.section] );
+
 			/* verify we have section set */
 			cassert( tmp_reference.section != S_NONE, "No section specified to resolve indirect address" );
 
 			/* load address value and reset section */
 			proc_->LogicProvider()->Read( tmp_reference ).Get( Value::V_INTEGER, tmp_reference.address );
 			tmp_reference.section = S_NONE;
+
+			msg( E_INFO, E_DEBUG, "[Component %u]: indirection resolved to memory offset %zu",
+				 i, tmp_reference.address );
 		}
+
+		msg( E_INFO, E_DEBUG, "[Component %u]: resolved to %s",
+			i, ( ProcDebug::PrintReference( tmp_reference ), ProcDebug::debug_buffer ) );
 
 		/* assign to result reference */
 		if( tmp_reference.section != S_NONE ) {
@@ -144,6 +161,8 @@ DirectReference UATLinker::Resolve( Reference& reference )
 		result.address += tmp_reference.address;
 	}
 
+	cassert( result.section < S_MAX, "Wrong section in resolved reference" );
+	msg( E_INFO, E_DEBUG, "Resolution result: %s", ( ProcDebug::PrintReference( result ), ProcDebug::debug_buffer ) );
 	return result;
 }
 
@@ -159,7 +178,7 @@ void UATLinker::DirectLink_Commit()
 {
 	verify_method;
 
-	msg( E_INFO, E_VERBOSE, "Linking %lu symbols", temporary_map.size() );
+	msg( E_INFO, E_VERBOSE, "Ending link session: linking %lu symbols", temporary_map.size() );
 
 	char sym_nm_buf[STATIC_LENGTH];
 
@@ -181,7 +200,7 @@ void UATLinker::DirectLink_Commit()
 	proc_->MMU()->ReadSymbolImage( std::move( temporary_map ) );
 	temporary_map.clear(); // Well, MMU should move-assign our map, but who knows...
 
-	msg( E_INFO, E_VERBOSE, "Linking session completed" );
+	msg( E_INFO, E_VERBOSE, "Link session completed" );
 }
 
 } // namespace ProcessorImplementation
