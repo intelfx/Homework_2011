@@ -111,10 +111,11 @@ void ProcessorAPI::Load( FILE* file )
 		linker->DirectLink_Init();
 
 		while( DecodeResult* result = reader->ReadStream() ) {
-			size_t mmu_limits[SEC_MAX];
-			mmu->QueryLimits( mmu_limits );
 
 			if( !result->mentioned_symbols.empty() ) {
+				size_t mmu_limits[SEC_MAX];
+				mmu->QueryLimits( mmu_limits );
+
 				msg( E_INFO, E_DEBUG, "Adding symbols" );
 				linker->DirectLink_Add( result->mentioned_symbols, mmu_limits );
 			}
