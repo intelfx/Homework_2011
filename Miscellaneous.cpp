@@ -15,12 +15,11 @@ namespace ProcDebug
 {
 
 const char* FileSectionType_ids[SEC_MAX] = {
-	"non-uniform",
-	"symbol map",
-	"text image"
+	"text image",
 	"data image",
-	"stack image",
-	"invalid type"
+	"byte-granular pool image",
+	"symbol map",
+	"stack image"
 };
 
 const char* AddrType_ids[S_MAX] = {
