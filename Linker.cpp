@@ -108,8 +108,12 @@ DirectReference UATLinker::Resolve( Reference& reference )
 		const Reference::BaseRef& bref = cref.is_indirect ? cref.indirect.target : cref.target;
 
 		/* resolve main base address of the component */
-		if( bref.is_symbol )
-			tmp_reference = Resolve( proc_->MMU()->ASymbol( bref.symbol_hash ).second.ref );
+		if( bref.is_symbol ) {
+			symbol_type& referenced_symbol = proc_->MMU()->ASymbol( bref.symbol_hash );
+			cverify( referenced_symbol.second.is_resolved, "Undefined symbol requested at runtime: \"%s\"",
+					 referenced_symbol.first.c_str() );
+			tmp_reference = Resolve( referenced_symbol.second.ref );
+		}
 
 		else
 			tmp_reference.address = bref.memory_address;
