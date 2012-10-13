@@ -178,9 +178,7 @@ void ProcessorAPI::MergeWithContext( size_t source_ctx )
 	ILinker* linker = Linker();
 	msg( E_INFO, E_VERBOSE, "Merging context buffers: %zu -> %zu", mmu->GetContext().buffer, source_ctx );
 
-	mmu->SaveContext();
-	mmu->ClearContext();
-	mmu->GetContext().buffer = ctx_id;
+	mmu->SetContext( source_ctx );
 
 	size_t source_limits[SEC_MAX];
 	mmu->QueryLimits( source_limits );

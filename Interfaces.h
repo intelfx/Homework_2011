@@ -276,7 +276,8 @@ public:
 	virtual void NextContextBuffer() = 0; // Push context on call stack; clear all and increment context ID
 	virtual void AllocContextBuffer() = 0; // Switch to next context buffer; reset the buffer
 
-	void SetTemporaryContext( size_t ctx_id );
+	void SetTemporaryContext( size_t ctx_id ); // Save, clear, set buffers, reset
+	void SetContext( size_t ctx_id ); // Save, clear, set buffers
 };
 
 class INTERPRETER_API IExecutor : LogBase( IExecutor ), public IModuleBase

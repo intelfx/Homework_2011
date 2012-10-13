@@ -184,6 +184,18 @@ void IMMU::SetTemporaryContext( size_t ctx_id )
 	ResetBuffers( ctx_id );
 }
 
+void IMMU::SetContext( size_t ctx_id )
+{
+	verify_method;
+
+	msg( E_INFO, E_DEBUG, "Setting up context [buffer %zu depth %zu]-> %zu",
+	     GetContext().buffer, GetContext().depth, ctx_id );
+
+	SaveContext();
+	ClearContext();
+	GetContext().buffer = ctx_id;
+}
+
 void IMMU::SelectStack( Value::Type type )
 {
 	msg( E_WARNING, E_DEBUG, "Stack change request (req. \"%s\") is unsupported by MMU",
