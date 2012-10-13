@@ -170,6 +170,41 @@ void ProcessorAPI::Dump( FILE* file )
 	writer->WrReset();
 }
 
+void ProcessorAPI::MergeWithContext( size_t source_ctx )
+{
+	verify_method;
+
+	IMMU* mmu = MMU();
+	ILinker* linker = Linker();
+	msg( E_INFO, E_VERBOSE, "Merging context buffers: %zu -> %zu", mmu->GetContext().buffer, source_ctx );
+
+	mmu->SetContext( source_ctx );
+
+	size_t source_limits[SEC_MAX];
+	mmu->QueryLimits( source_limits );
+
+	msg( E_INFO, E_DEBUG, "Source context buffer limits:" );
+	for( unsigned i = 0; i < SEC_MAX; ++i ) {
+		msg( E_INFO, E_DEBUG, "Section %s: %zu", ProcDebug::FileSectionType_ids[i], source_limits[i] );
+	}
+
+	msg( E_INFO, E_DEBUG, "Reading source context symbol map" );
+	symbol_map src_symbols;
+	mmu->WriteSymbolImage( src_symbols );
+
+	mmu->RestoreContext();
+
+	// Relocate dest section to free space for pasting
+	mmu->ShiftImages( source_limits );
+	linker->Relocate( source_limits );
+
+	mmu->PasteFromContext( source_ctx );
+
+	linker->DirectLink_Init();
+	linker->MergeLink_Add( src_symbols );
+	linker->DirectLink_Commit();
+}
+
 void ProcessorAPI::Compile()
 {
 	verify_method;

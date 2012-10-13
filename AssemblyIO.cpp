@@ -93,11 +93,9 @@ void AsmHandler::Write( size_t ctx_id )
 	msg( E_INFO, E_VERBOSE, "Beginning ASM write of context %zu", ctx_id );
 
 	IMMU* mmu = proc_->MMU();
-	mmu->SaveContext();
-	mmu->ClearContext();
-	mmu->GetContext().buffer = ctx_id;
+	mmu->SetContext( ctx_id );
 	InternalWriteFile();
-	proc_->MMU()->RestoreContext();
+	mmu->RestoreContext();
 }
 
 void AsmHandler::InternalWriteFile()

@@ -117,6 +117,7 @@ public:
 	void	Clear(); // Clear current execution buffers
 	void	Load( FILE* file ); // Load into a new context/buffer
 	void	Dump( FILE* file ); // Dump current context/buffer
+	void	MergeWithContext( size_t ctx_id ); // Merge the last context with the specified one
 	void	Delete(); // Return to previous context/buffer
 	void	Compile(); // Invoke backend to compile the bytecode
 	calc_t	Exec(); // Execute current system state whatever it is now
@@ -260,6 +261,9 @@ public:
 	virtual void			ReadSymbolImage( symbol_map && symbols ) = 0; // Read symbol map
 	virtual void			WriteSymbolImage( symbol_map& symbols ) const = 0; // Write symbol map to image
 
+	virtual void			ShiftImages( size_t offsets[SEC_MAX] ) = 0; // Shift forth all sections by specified offset, filling space with empty data.
+	virtual void			PasteFromContext( size_t ctx_id ) = 0; // Paste the specified context over the current one
+
 	virtual void VerifyReference( const DirectReference& ref ) const = 0; // Check if given reference is valid to access
 
 	virtual void ResetBuffers( size_t ctx_id ) = 0; // Reset specified context buffer
@@ -272,7 +276,8 @@ public:
 	virtual void NextContextBuffer() = 0; // Push context on call stack; clear all and increment context ID
 	virtual void AllocContextBuffer() = 0; // Switch to next context buffer; reset the buffer
 
-	void SetTemporaryContext( size_t ctx_id );
+	void SetTemporaryContext( size_t ctx_id ); // Save, clear, set buffers, reset
+	void SetContext( size_t ctx_id ); // Save, clear, set buffers
 };
 
 class INTERPRETER_API IExecutor : LogBase( IExecutor ), public IModuleBase
@@ -305,11 +310,20 @@ public:
 	virtual void DirectLink_Init() = 0;
 
 	// Commit collected buffers to the MMU.
-	virtual void DirectLink_Commit() = 0;
+	virtual void DirectLink_Commit( bool UAT = false ) = 0;
 
 	// Collect symbols in decode stage.
 	// Use provided offsets for auto-placement.
 	virtual void DirectLink_Add( symbol_map& symbols, size_t offsets[SEC_MAX] ) = 0;
+
+	// Relocate the image:
+	// - adjust symbols and (possibly) references
+	// - rebase section images on the new offsets
+	virtual void Relocate( size_t offsets[SEC_MAX] ) = 0;
+
+	// Collect symbols from another linked source.
+	// Do not auto-place.
+	virtual void MergeLink_Add( const symbol_map& symbols ) = 0;
 
 	// Retrieve a direct reference for given arbitrary reference.
 	virtual DirectReference Resolve( Reference& reference ) = 0; // or get an unresolved symbol error

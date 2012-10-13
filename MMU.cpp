@@ -1,6 +1,33 @@
 #include "stdafx.h"
 #include "MMU.h"
 
+namespace {
+
+template <typename T>
+void PasteVector( std::vector<T>& dest, const std::vector<T>& src )
+{
+	if( dest.size() <= src.size() ) {
+		dest = src;
+	} else {
+		for( size_t i = 0; i < src.size(); ++i ) {
+			dest[i] = src[i];
+		}
+	}
+}
+
+size_t PasteBytes( char* dest, size_t d_length, const char* source, size_t s_length )
+{
+	if( d_length < s_length ) {
+		char* new_dest = reinterpret_cast<char*>( realloc( dest, s_length ) );
+		s_cassert( new_dest, "Failed to reallocate %p from %zu to %zu bytes when pasting",
+		           dest, d_length, s_length );
+	}
+	memcpy( dest, source, s_length );
+	return std::max( d_length, s_length );
+}
+
+} // unnamed namespace
+
 namespace ProcessorImplementation
 {
 using namespace Processor;
@@ -359,6 +386,42 @@ void MMU::WriteSection( MemorySectionType section, void* image ) const
 		casshole( "Switch error" );
 		break;
 	}
+}
+
+void MMU::ShiftImages( size_t offsets[SEC_MAX] )
+{
+	verify_method;
+
+	msg( E_INFO, E_DEBUG, "Shifting sections in context %zu", context.buffer );
+
+	CurrentBuffer().commands.insert( CurrentBuffer().commands.begin(), offsets[SEC_CODE_IMAGE], Command() );
+	CurrentBuffer().data.insert( CurrentBuffer().data.begin(), offsets[SEC_DATA_IMAGE], calc_t() );
+
+	size_t bytepool_shift_offset = offsets[SEC_BYTEPOOL_IMAGE];
+	char* new_bytepool = reinterpret_cast<char*>( malloc( CurrentBuffer().bytepool_length + bytepool_shift_offset ) );
+	cassert( new_bytepool, "Could not allocate bytepool image for shifting context (shift by %zu)",
+			 bytepool_shift_offset );
+	memset( new_bytepool, 0, bytepool_shift_offset );
+	memcpy( new_bytepool + bytepool_shift_offset, CurrentBuffer().bytepool_data, CurrentBuffer().bytepool_length );
+
+	free( CurrentBuffer().bytepool_data );
+	CurrentBuffer().bytepool_data = new_bytepool;
+	CurrentBuffer().bytepool_length += bytepool_shift_offset;
+}
+
+void MMU::PasteFromContext( size_t ctx_id )
+{
+	verify_method;
+
+	msg( E_INFO, E_DEBUG, "Pasting context %zu to current context (%zu)", ctx_id, context.buffer );
+	cassert( ctx_id < buffers.size(), "Invalid given buffer ID [%zu]: max %zu", ctx_id, buffers.size() );
+
+	InternalContextBuffer& rhs = buffers.at( ctx_id );
+
+	PasteVector<Command>( CurrentBuffer().commands, rhs.commands );
+	PasteVector<calc_t>( CurrentBuffer().data, rhs.data );
+	CurrentBuffer().bytepool_length = PasteBytes( CurrentBuffer().bytepool_data, CurrentBuffer().bytepool_length,
+	                                              rhs.bytepool_data, rhs.bytepool_length );
 }
 
 void MMU::ResetBuffers( size_t ctx_id )
