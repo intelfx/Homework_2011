@@ -8,6 +8,22 @@
 // Description	Default linker plugin implementation.
 // -------------------------------------------------------------------------------------
 
+namespace
+{
+	using namespace Processor;
+
+	const MemorySectionType AT_to_MST[S_MAX] = {
+		SEC_MAX,            // S_NONE
+		SEC_CODE_IMAGE,     // S_CODE
+		SEC_DATA_IMAGE,     // S_DATA
+		SEC_MAX,            // S_REGISTER
+		SEC_BYTEPOOL_IMAGE, // S_BYTEPOOL
+		SEC_MAX,            // S_FRAME
+		SEC_MAX,            // S_FRAME_BACK
+	};
+
+} // unnamed namespace
+
 namespace ProcessorImplementation
 {
 using namespace Processor;
@@ -214,12 +230,18 @@ void UATLinker::DirectLink_Commit( bool UAT )
 
 void UATLinker::RelocateReference( Reference& ref, size_t offsets[SEC_MAX] )
 {
-	for( size_t i = 0; i < 1 + ref.has_second_component; ++i ) {
-		Reference::SingleRef& sref = ref.components[i];
-		cassert( !sref.is_indirect, "Shall not relocate indirect references" );
-		cassert( !sref.target.is_symbol, "Shall not relocate symbol references" );
+	Reference::SingleRef& sref = ref.components[0];
+	cassert( !sref.is_indirect, "Shall not relocate indirect references" );
+	cassert( !sref.target.is_symbol, "Shall not relocate symbol references" );
 
-		sref.target.memory_address += offsets[ref.global_section];
+	MemorySectionType section_to_reloc = AT_to_MST[ref.global_section];
+	if( section_to_reloc >= SEC_MAX ) {
+		msg( E_INFO, E_DEBUG, "Relocating: section %s - not relocating",
+		     ProcDebug::AddrType_ids[ref.global_section] );
+	} else {
+		msg( E_INFO, E_DEBUG, "Relocating: section %s offset %zu",
+		     ProcDebug::AddrType_ids[ref.global_section], offsets[section_to_reloc] );
+		sref.target.memory_address += offsets[section_to_reloc];
 	}
 }
 
@@ -268,6 +290,9 @@ void UATLinker::Relocate( size_t offsets[SEC_MAX] )
 			RelocateReference( ref, offsets );
 		}
 	}
+
+	// Save modified symbol image.
+	proc_->MMU()->ReadSymbolImage( std::move( source ) );
 }
 
 void UATLinker::MergeLink_Add( const symbol_map& symbols )
