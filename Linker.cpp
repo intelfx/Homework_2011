@@ -178,6 +178,8 @@ void UATLinker::DirectLink_Commit( bool UAT )
 			} else if( new_is_definition ) {
 				existing_record->second.second = symbol;
 			}
+		} else {
+			target_map.insert( symbol_iterator );
 		}
 	} // for (temporary_map)
 
