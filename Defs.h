@@ -143,7 +143,7 @@ enum FileType
 
 enum MemorySectionType
 {
-	SEC_CODE_IMAGE = 1,
+	SEC_CODE_IMAGE = 0,
 	SEC_DATA_IMAGE,
 	SEC_BYTEPOOL_IMAGE,
 	SEC_SYMBOL_MAP,
