@@ -52,8 +52,8 @@ int main( int argc, char** argv )
 
 		Processor::calc_t result = api.Exec();
 
-		Processor::ProcDebug::PrintValue( result );
-		smsg( E_INFO, E_USER, "Testing has apparently completed OK: result %s", Processor::ProcDebug::debug_buffer );
+		smsg( E_INFO, E_USER, "Testing has apparently completed OK: result %s",
+		      Processor::ProcDebug::PrintValue( result ).c_str() );
 	}
 
 	delete api.MMU();

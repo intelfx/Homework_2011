@@ -21,12 +21,12 @@ char* Logic::DumpCommand( Command& command ) const
 
 	if( cmd_traits )
 		sprintf( command_dump_buffer, "[PC=%zu] \"%s\" (%s type) argument %s",
-		         proc_->MMU()->GetContext().ip, cmd_traits->mnemonic, ProcDebug::ValueType_ids[command.type],
-		         ( ProcDebug::PrintArgument( cmd_traits->arg_type, command.arg, proc_->MMU() ), ProcDebug::debug_buffer ) );
+		         proc_->MMU()->GetContext().ip, cmd_traits->mnemonic, ProcDebug::Print( command.type ).c_str(),
+		         ProcDebug::PrintArgument( cmd_traits->arg_type, command.arg, proc_->MMU() ).c_str() );
 
 	else
 		sprintf( command_dump_buffer, "[PC=%zu] id=0x%04hd (%s type) command unknown",
-		         proc_->MMU()->GetContext().ip, command.id, ProcDebug::ValueType_ids[command.type] );
+		         proc_->MMU()->GetContext().ip, command.id, ProcDebug::Print( command.type ).c_str() );
 
 	return command_dump_buffer;
 }
@@ -59,7 +59,7 @@ void Logic::ExecuteSingleCommand( Command& command )
 			command.cached_executor = proc_->Executor( command_traits->is_service_command ? Value::V_MAX : command.type );
 
 			cassert( command.cached_executor, "Was unable to select executor for command type \"%s\"",
-			         ProcDebug::ValueType_ids[command.type] );
+			         ProcDebug::Print( command.type ).c_str() );
 
 			command.cached_handle = command_set->GetExecutionHandle( *command_traits, command.cached_executor->ID() );
 		}
@@ -203,7 +203,7 @@ void Logic::Jump( const DirectReference& ref )
 	verify_method;
 
 	cverify( ref.section == S_CODE, "Cannot jump to non-CODE reference to %s",
-	         ( ProcDebug::PrintReference( ref ), ProcDebug::debug_buffer ) );
+	         ProcDebug::PrintReference( ref ).c_str() );
 
 	msg( E_INFO, E_DEBUG, "Jumping-> %zu", ref.address );
 
@@ -219,7 +219,7 @@ void Logic::UpdateType( const DirectReference& ref, Value::Type requested_type )
 	switch( ref.section ) {
 	case S_CODE:
 		casshole( "Attempt to write type to CODE section: reference to %s",
-		          ( ProcDebug::PrintReference( ref ), ProcDebug::debug_buffer ) );
+		          ProcDebug::PrintReference( ref ).c_str() );
 		break;
 
 	case S_DATA:
@@ -229,7 +229,7 @@ void Logic::UpdateType( const DirectReference& ref, Value::Type requested_type )
 	case S_FRAME:
 	case S_FRAME_BACK:
 		casshole( "Attempt to write type to STACK: reference to %s",
-		          ( ProcDebug::PrintReference( ref ), ProcDebug::debug_buffer ) );
+		          ProcDebug::PrintReference( ref ).c_str() );
 		break;
 
 	case S_REGISTER:
@@ -238,7 +238,7 @@ void Logic::UpdateType( const DirectReference& ref, Value::Type requested_type )
 
 	case S_BYTEPOOL:
 		casshole( "Attempt to write type to BYTEPOOL: reference to %s",
-		          ( ProcDebug::PrintReference( ref ), ProcDebug::debug_buffer ) );
+		          ProcDebug::PrintReference( ref ).c_str() );
 		break;
 
 	case S_NONE:
@@ -256,7 +256,7 @@ void Logic::Write( const Processor::DirectReference& ref, Processor::calc_t valu
 	switch( ref.section ) {
 	case S_CODE:
 		casshole( "Attempt to write to CODE section: reference to %s",
-		          ( ProcDebug::PrintReference( ref ), ProcDebug::debug_buffer ) );
+		          ProcDebug::PrintReference( ref ).c_str() );
 		break;
 
 	case S_DATA:
@@ -270,7 +270,7 @@ void Logic::Write( const Processor::DirectReference& ref, Processor::calc_t valu
 
 	case S_FRAME_BACK:
 		msg( E_WARNING, E_VERBOSE, "Attempt to write to function parameter: reference to %s",
-		     ( ProcDebug::PrintReference( ref ), ProcDebug::debug_buffer ) );
+		     ProcDebug::PrintReference( ref ).c_str() );
 
 		// do type checking here - stack must be homogeneous
 		proc_->MMU()->AStackFrame( -ref.address ).Assign( value );
@@ -301,7 +301,7 @@ Processor::calc_t Logic::Read( const DirectReference& ref )
 	switch( ref.section ) {
 	case S_CODE:
 		casshole( "Attempt to read from CODE section: reference to %s",
-		          ( ProcDebug::PrintReference( ref ), ProcDebug::debug_buffer ) );
+		          ProcDebug::PrintReference( ref ).c_str() );
 
 	case S_DATA:
 		return proc_->MMU()->AData( ref.address );

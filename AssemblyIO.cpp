@@ -411,7 +411,7 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 		declaration_data.Parse( decl_data );
 
 		msg( E_INFO, E_DEBUG, "Declaration: unnamed DATA entry = %s",
-		     ( ProcDebug::PrintValue( declaration_data ), ProcDebug::debug_buffer ) );
+		     ProcDebug::PrintValue( declaration_data ).c_str() );
 
 		decode_output.data.push_back( declaration_data );
 		return;
@@ -437,7 +437,7 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 			declaration_data.Parse( initialiser );
 
 			msg( E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" = %s",
-			     name, ( ProcDebug::PrintValue( declaration_data ), ProcDebug::debug_buffer ) );
+			     name, ProcDebug::PrintValue( declaration_data ).c_str() );
 
 			decode_output.data.push_back( declaration_data );
 			break;
@@ -448,7 +448,7 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 			declaration_reference = ParseFullReference( initialiser );
 
 			msg( E_INFO, E_DEBUG, "Declaration: alias \"%s\" to %s",
-			     name, ( ProcDebug::PrintReference( declaration_reference ), ProcDebug::debug_buffer ) );
+			     name, ProcDebug::PrintReference( declaration_reference ).c_str() );
 
 			// No data is decoded
 			break;
@@ -475,7 +475,7 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 			uninitialised_data.Set( Value::V_MAX, 0 );
 
 			msg( E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" uninitialised (%s)",
-			     name, ( ProcDebug::PrintValue( uninitialised_data ), ProcDebug::debug_buffer ) );
+			     name, ProcDebug::PrintValue( uninitialised_data ).c_str() );
 		}
 
 		// otherwise, leave value uninitialised
@@ -554,7 +554,7 @@ void AsmHandler::ReadSingleCommand( const char* command,
 
 	msg( E_INFO, E_DEBUG, "Command: \"%s\" (0x%04hx) argument %s",
 	     desc->mnemonic, desc->id,
-	     ( ProcDebug::PrintArgument( desc->arg_type, output_command.arg ), ProcDebug::debug_buffer ) );
+	     ProcDebug::PrintArgument( desc->arg_type, output_command.arg ).c_str() );
 
 	// Write decode result
 	decode_output.commands.push_back( output_command );

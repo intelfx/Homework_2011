@@ -22,14 +22,12 @@ static const size_t SEC_COUNT = SEC_STACK_IMAGE + Value::V_MAX;
 namespace ProcDebug
 {
 
-INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
-INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
+INTERPRETER_API std::string PrintReference( const Reference& ref, IMMU* mmu = 0 );
+INTERPRETER_API std::string PrintReference( const Processor::DirectReference& ref );
+INTERPRETER_API std::string PrintValue( const Value& val );
 
-INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
-
-INTERPRETER_API void PrintReference( const Reference& ref, IMMU* mmu = 0 );
-INTERPRETER_API void PrintReference( const Processor::DirectReference& ref );
-INTERPRETER_API void PrintValue( const Value& val );
+INTERPRETER_API std::string Print( MemorySectionType arg );
+INTERPRETER_API std::string Print( AddrType arg );
 
 } // namespace ProcDebug
 
@@ -165,9 +163,9 @@ struct Command
 namespace ProcDebug
 {
 
-INTERPRETER_API void PrintArgument( ArgumentType arg_type,
-                                    const Command::Argument& argument,
-                                    IMMU* mmu = 0 );
+INTERPRETER_API std::string PrintArgument( ArgumentType arg_type,
+                                           const Command::Argument& argument,
+                                           IMMU* mmu = 0 );
 } // namespace ProcDebug
 
 struct Context

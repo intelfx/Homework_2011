@@ -105,7 +105,7 @@ void MMU::SelectStack( Value::Type type )
 	if( current_stack_type == type )
 		return;
 
-	msg( E_INFO, E_DEBUG, "Selecting stack type: \"%s\"", ProcDebug::ValueType_ids[type] );
+	msg( E_INFO, E_DEBUG, "Selecting stack type: \"%s\"", ProcDebug::Print( type ).c_str() );
 
 	current_stack = 0;
 	frame_stack = 0;
@@ -365,7 +365,7 @@ void MMU::WriteSection( MemorySectionType section, void* image ) const
 		CheckStackOperation();
 
 		msg( E_INFO, E_DEBUG, "Writing stack image (%s)-> %p",
-		     ProcDebug::ValueType_ids[current_stack_type], image );
+		     ProcDebug::Print( current_stack_type ).c_str(), image );
 
 		calc_t* dest = reinterpret_cast<calc_t*>( image );
 
@@ -540,7 +540,7 @@ void MMU::InternalDumpCtx( const Context& w_context ) const
 		for( unsigned reg_id = 0; reg_id < R_MAX; ++reg_id ) {
 			reg_out += sprintf( reg_out, " %s [%s]",
 			                    proc_->LogicProvider()->EncodeRegister( static_cast<Register>( reg_id ) ),
-			                    ( ProcDebug::PrintValue( cb.registers[reg_id] ), ProcDebug::debug_buffer ) );
+			                    ProcDebug::PrintValue( cb.registers[reg_id] ).c_str() );
 		}
 	}
 
@@ -563,16 +563,15 @@ void MMU::InternalDumpCtx( const Context& w_context ) const
 
 	if( current_stack ) {
 		if( current_stack->size() ) {
-			ProcDebug::PrintValue( current_stack->back() );
 			stacks_out += sprintf( stacks_out, " MAIN [\"%s\"] = (top (%zu) value (%s))",
-			                       ProcDebug::ValueType_ids[current_stack_type],
+			                       ProcDebug::Print( current_stack_type ).c_str(),
 			                       current_stack->size(),
-			                       ProcDebug::debug_buffer );
+			                       ProcDebug::PrintValue( current_stack->back() ).c_str() );
 		}
 
 		else {
 			stacks_out += sprintf( stacks_out, " MAIN [\"%s\"] = (empty)",
-			                       ProcDebug::ValueType_ids[current_stack_type] );
+			                       ProcDebug::Print( current_stack_type ).c_str() );
 		}
 	}
 
@@ -584,7 +583,7 @@ void MMU::InternalDumpCtx( const Context& w_context ) const
 
 	if( frame_stack ) {
 		stacks_out += sprintf( stacks_out, " FRAME [\"%s\"] = (top (%zu) + %s frame (%zu))",
-		                       ProcDebug::ValueType_ids[frame_stack_type],
+		                       ProcDebug::Print( frame_stack_type ).c_str(),
 		                       frame_stack->size(),
 		                       ( w_context.frame <= frame_stack->size() ) ? "valid" : "invalid",
 		                       w_context.frame );

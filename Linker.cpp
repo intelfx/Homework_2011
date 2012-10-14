@@ -71,7 +71,7 @@ void UATLinker::DirectLink_Add( Processor::symbol_map& symbols, size_t offsets[S
 				case S_FRAME_BACK:
 				case S_BYTEPOOL:
 					casshole( "Definition of symbol %s : type %s, cannot auto-assign",
-					          sym_nm_buf, ProcDebug::AddrType_ids [symbol.ref.global_section] );
+					          sym_nm_buf, ProcDebug::Print( symbol.ref.global_section ).c_str() );
 					break;
 
 				default:
@@ -104,11 +104,11 @@ DirectReference UATLinker::Resolve( Reference& reference )
 	verify_method;
 
 	msg( E_INFO, E_DEBUG, "Resolving reference to %s",
-		 ( ProcDebug::PrintReference( reference, proc_->MMU() ), ProcDebug::debug_buffer ) );
+		 ProcDebug::PrintReference( reference, proc_->MMU() ).c_str() );
 
 	DirectReference result; mem_init( result );
 	result.section = reference.global_section;
-	msg( E_INFO, E_DEBUG, "Global section: %s", ProcDebug::AddrType_ids[result.section] );
+	msg( E_INFO, E_DEBUG, "Global section: %s", ProcDebug::Print( result.section ).c_str() );
 
 	for( unsigned i = 0; i <= reference.has_second_component; ++i ) {
 		DirectReference tmp_reference; mem_init( tmp_reference );
@@ -141,7 +141,7 @@ DirectReference UATLinker::Resolve( Reference& reference )
 				cassert( cref.indirect.section == S_NONE, "Duplicate specified section in indirection" );
 
 			msg( E_INFO, E_DEBUG, "[Component %u]: indirection to section %s",
-				 i, ProcDebug::AddrType_ids[tmp_reference.section] );
+				 i, ProcDebug::Print( tmp_reference.section ).c_str() );
 
 			/* verify we have section set */
 			cassert( tmp_reference.section != S_NONE, "No section specified to resolve indirect address" );
@@ -155,7 +155,7 @@ DirectReference UATLinker::Resolve( Reference& reference )
 		}
 
 		msg( E_INFO, E_DEBUG, "[Component %u]: resolved to %s",
-			i, ( ProcDebug::PrintReference( tmp_reference ), ProcDebug::debug_buffer ) );
+			i, ProcDebug::PrintReference( tmp_reference ).c_str() );
 
 		/* assign to result reference */
 		if( tmp_reference.section != S_NONE ) {
@@ -167,7 +167,7 @@ DirectReference UATLinker::Resolve( Reference& reference )
 	}
 
 	cassert( result.section < S_MAX, "Wrong section in resolved reference" );
-	msg( E_INFO, E_DEBUG, "Resolution result: %s", ( ProcDebug::PrintReference( result ), ProcDebug::debug_buffer ) );
+	msg( E_INFO, E_DEBUG, "Resolution result: %s", ProcDebug::PrintReference( result ).c_str() );
 	return result;
 }
 
@@ -237,10 +237,10 @@ void UATLinker::RelocateReference( Reference& ref, size_t offsets[SEC_MAX] )
 	MemorySectionType section_to_reloc = AT_to_MST[ref.global_section];
 	if( section_to_reloc >= SEC_MAX ) {
 		msg( E_INFO, E_DEBUG, "Relocating: section %s - not relocating",
-		     ProcDebug::AddrType_ids[ref.global_section] );
+		     ProcDebug::Print( ref.global_section ).c_str() );
 	} else {
 		msg( E_INFO, E_DEBUG, "Relocating: section %s offset %zu",
-		     ProcDebug::AddrType_ids[ref.global_section], offsets[section_to_reloc] );
+		     ProcDebug::Print( ref.global_section ).c_str(), offsets[section_to_reloc] );
 		sref.target.memory_address += offsets[section_to_reloc];
 	}
 }
@@ -257,7 +257,7 @@ void UATLinker::Relocate( size_t offsets[SEC_MAX] )
 
 		msg( E_INFO, E_DEBUG, "Relocating symbol \"%s\": reference to %s",
 			 symbol_pair.second.first.c_str(),
-			 ( ProcDebug::PrintReference( symbol.ref, proc_->MMU() ), ProcDebug::debug_buffer ) );
+			 ProcDebug::PrintReference( symbol.ref, proc_->MMU() ).c_str() );
 
 		// Relocate only defined symbol records.
 		// Reason: for relocation of an image A (i. e., shifting all data in the image A)

@@ -238,7 +238,7 @@ typedef struct Value
 namespace ProcDebug
 {
 
-INTERPRETER_API extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
+INTERPRETER_API std::string Print( Value::Type arg );
 
 } // namespace ProcDebug
 
@@ -255,7 +255,7 @@ void Value::Expect( Processor::Value::Type required_type, bool allow_uninitialis
 
 		s_cverify( type == required_type,
 		           "Cannot operate on non-matching types (expected \"%s\" instead of \"%s\")",
-		           ProcDebug::ValueType_ids[required_type], ProcDebug::ValueType_ids[type] );
+		           ProcDebug::Print( required_type ).c_str(), ProcDebug::Print( type ).c_str() );
 	}
 }
 

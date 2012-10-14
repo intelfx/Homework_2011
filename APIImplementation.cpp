@@ -83,7 +83,7 @@ void ProcessorAPI::Load( FILE* file )
 
 			else {
 				msg( E_INFO, E_DEBUG, "Reading section type \"%s\": %zu records (%zu bytes)",
-				     ProcDebug::FileSectionType_ids[sec_type], elements_count, buffer_size );
+				     ProcDebug::Print( sec_type ).c_str(), elements_count, buffer_size );
 
 				if( buffer_size > image_section_buffer_size ) {
 					image_section_buffer = realloc( image_section_buffer, buffer_size );
@@ -186,7 +186,8 @@ void ProcessorAPI::MergeWithContext( size_t source_ctx )
 
 	msg( E_INFO, E_DEBUG, "Source context buffer limits:" );
 	for( unsigned i = 0; i < SEC_MAX; ++i ) {
-		msg( E_INFO, E_DEBUG, "Section %s: %zu", ProcDebug::FileSectionType_ids[i], source_limits[i] );
+		msg( E_INFO, E_DEBUG, "Section %s: %zu",
+			 ProcDebug::Print( static_cast<MemorySectionType>( i ) ).c_str(), source_limits[i] );
 	}
 
 	msg( E_INFO, E_DEBUG, "Reading source context symbol map" );
