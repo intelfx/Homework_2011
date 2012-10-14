@@ -52,7 +52,7 @@ void ProcessorAPI::Load( FILE* file )
 	IMMU* mmu = MMU();
 
 	mmu->AllocContextBuffer();
-	msg( E_INFO, E_VERBOSE, "Loading from stream-> context %zu", mmu->GetContext().buffer );
+	msg( E_INFO, E_VERBOSE, "Loading from stream -> context %zu", mmu->GetContext().buffer );
 
 	IReader* reader = Reader();
 	cassert( reader, "Loader module is not attached" );

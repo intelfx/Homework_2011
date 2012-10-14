@@ -192,7 +192,7 @@ void IMMU::SetTemporaryContext( size_t ctx_id )
 {
 	verify_method;
 
-	msg( E_INFO, E_DEBUG, "Setting up temporary context [buffer %zu depth %zu]-> %zu",
+	msg( E_INFO, E_DEBUG, "Setting up temporary context [buffer %zu depth %zu] -> %zu",
 	     GetContext().buffer, GetContext().depth, ctx_id );
 
 	SaveContext();
@@ -205,7 +205,7 @@ void IMMU::SetContext( size_t ctx_id )
 {
 	verify_method;
 
-	msg( E_INFO, E_DEBUG, "Setting up context [buffer %zu depth %zu]-> %zu",
+	msg( E_INFO, E_DEBUG, "Setting up context [buffer %zu depth %zu] -> %zu",
 	     GetContext().buffer, GetContext().depth, ctx_id );
 
 	SaveContext();

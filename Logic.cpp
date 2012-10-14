@@ -205,7 +205,7 @@ void Logic::Jump( const DirectReference& ref )
 	cverify( ref.section == S_CODE, "Cannot jump to non-CODE reference to %s",
 	         ProcDebug::PrintReference( ref ).c_str() );
 
-	msg( E_INFO, E_DEBUG, "Jumping-> %zu", ref.address );
+	msg( E_INFO, E_DEBUG, "Jumping -> %zu", ref.address );
 
 	Context& ctx = proc_->MMU()->GetContext();
 	ctx.ip = ref.address;

@@ -208,7 +208,7 @@ typedef struct Value
 
 		classification = fpclassify( result );
 		s_cverify( classification == FP_NORMAL || classification == FP_ZERO,
-		           "Invalid floating-point value: \"%s\"-> %lg", string, result );
+		           "Invalid floating-point value: \"%s\" -> %lg", string, result );
 
 		return result;
 	}

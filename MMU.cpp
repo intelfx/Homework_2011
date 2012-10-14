@@ -66,12 +66,12 @@ void MMU::AllocBytes( size_t destination_size )
 	InternalContextBuffer& icb = CurrentBuffer();
 
 	if( destination_size > icb.bytepool_length ) {
-		msg( E_INFO, E_DEBUG, "Reallocating bytepool memory [ctx %zu] %p:%zu-> %zu",
+		msg( E_INFO, E_DEBUG, "Reallocating bytepool memory [ctx %zu] %p:%zu -> %zu",
 		     context.buffer, icb.bytepool_data, icb.bytepool_length, destination_size );
 
 		char* new_bytepool = reinterpret_cast<char*>( realloc( icb.bytepool_data, destination_size ) );
 		cassert( new_bytepool,
-		         "Failed to reallocate bytepool [ctx %zd] %p:%zu-> %zu",
+		         "Failed to reallocate bytepool [ctx %zd] %p:%zu -> %zu",
 		         context.buffer, icb.bytepool_data, icb.bytepool_length, destination_size );
 
 		icb.bytepool_data = new_bytepool;
@@ -225,7 +225,7 @@ void MMU::ReadSection( MemorySectionType section, void* image, size_t count )
 
 	switch( section ) {
 	case SEC_CODE_IMAGE: {
-		msg( E_INFO, E_DEBUG, "Adding text (%p : %zu)-> ctx %zu",
+		msg( E_INFO, E_DEBUG, "Adding text (%p : %zu) -> ctx %zu",
 		     image, count, context.buffer );
 
 		std::vector<Command>& text_dest = CurrentBuffer().commands;
@@ -236,7 +236,7 @@ void MMU::ReadSection( MemorySectionType section, void* image, size_t count )
 	}
 
 	case SEC_DATA_IMAGE: {
-		msg( E_INFO, E_DEBUG, "Adding data (%p : %zu)-> ctx %zu",
+		msg( E_INFO, E_DEBUG, "Adding data (%p : %zu) -> ctx %zu",
 		     image, count, context.buffer );
 
 		std::vector<calc_t>& data_dest = CurrentBuffer().data;
@@ -247,7 +247,7 @@ void MMU::ReadSection( MemorySectionType section, void* image, size_t count )
 	}
 
 	case SEC_BYTEPOOL_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Adding raw data (%p : %zu)-> ctx %zu",
+		msg( E_INFO, E_VERBOSE, "Adding raw data (%p : %zu) -> ctx %zu",
 		     image, count, context.buffer );
 
 		InternalContextBuffer& icb = CurrentBuffer();
@@ -258,7 +258,7 @@ void MMU::ReadSection( MemorySectionType section, void* image, size_t count )
 	}
 
 	case SEC_STACK_IMAGE: {
-		msg( E_INFO, E_DEBUG, "Reading stack images (%p : %zu)-> global", image, count );
+		msg( E_INFO, E_DEBUG, "Reading stack images (%p : %zu) -> global", image, count );
 		ClearStacks();
 
 		calc_t* src = reinterpret_cast<calc_t*>( image );
@@ -303,7 +303,7 @@ void MMU::ReadSymbolImage( symbol_map && symbols )
 {
 	verify_method;
 
-	msg( E_INFO, E_DEBUG, "Attaching symbol map (%zu records)-> ctx %zu", symbols.size(), context.buffer );
+	msg( E_INFO, E_DEBUG, "Attaching symbol map (%zu records) -> ctx %zu", symbols.size(), context.buffer );
 	CurrentBuffer().sym_table = std::move( symbols );
 }
 
@@ -324,7 +324,7 @@ void MMU::WriteSection( MemorySectionType section, void* image ) const
 
 	switch( section ) {
 	case SEC_CODE_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Writing text image [ctx %zu]-> %p",
+		msg( E_INFO, E_VERBOSE, "Writing text image [ctx %zu] -> %p",
 		     context.buffer, image );
 
 		const std::vector<Command>& commands = CurrentBuffer().commands;
@@ -339,7 +339,7 @@ void MMU::WriteSection( MemorySectionType section, void* image ) const
 	}
 
 	case SEC_DATA_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Writing data image [ctx %zu]-> %p",
+		msg( E_INFO, E_VERBOSE, "Writing data image [ctx %zu] -> %p",
 		     context.buffer, image );
 
 		const std::vector<calc_t>& data = CurrentBuffer().data;
@@ -354,7 +354,7 @@ void MMU::WriteSection( MemorySectionType section, void* image ) const
 	}
 
 	case SEC_BYTEPOOL_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Writing byte data image [ctx %zu]-> %p",
+		msg( E_INFO, E_VERBOSE, "Writing byte data image [ctx %zu] -> %p",
 		     context.buffer, image );
 
 		memcpy( image, CurrentBuffer().bytepool_data, CurrentBuffer().bytepool_length );
@@ -364,7 +364,7 @@ void MMU::WriteSection( MemorySectionType section, void* image ) const
 	case SEC_STACK_IMAGE: {
 		CheckStackOperation();
 
-		msg( E_INFO, E_DEBUG, "Writing stack image (%s)-> %p",
+		msg( E_INFO, E_DEBUG, "Writing stack image (%s) -> %p",
 		     ProcDebug::Print( current_stack_type ).c_str(), image );
 
 		calc_t* dest = reinterpret_cast<calc_t*>( image );

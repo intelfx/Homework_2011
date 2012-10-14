@@ -66,8 +66,8 @@ static_assert( sizeof( fp_t ) == sizeof( int_t ),
  * ABI conversion scheme:
  *  first conversion is a valid C cast (with precision loss)
  *  second conversion is type punning to integer type (same size, but exact copying)
- *  fp_t-> fp_abi_t-> abiret_t
- *  int_t-> int_abi_t-> abiret_t
+ *  fp_t -> fp_abi_t -> abiret_t
+ *  int_t -> int_abi_t -> abiret_t
  */
 
 typedef float fp_abi_t; // ABI intermediate floating-point type

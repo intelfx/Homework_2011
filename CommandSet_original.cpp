@@ -33,7 +33,7 @@ void CommandSet_mkI::ResetCommandSet()
 		                       dsc->is_service_command );
 		traits.id = get_id( dsc->name );
 
-		msg( E_INFO, E_DEBUG, "mkI command: \"%s\"-> %u", dsc->name, traits.id );
+		msg( E_INFO, E_DEBUG, "mkI command: \"%s\" -> %u", dsc->name, traits.id );
 		auto byid_ins_res = by_id.insert( std::make_pair( traits.id, std::move( traits ) ) );
 		cassert( byid_ins_res.second, "Internal inconsistency on \"%s\"", dsc->name );
 	}
@@ -47,7 +47,7 @@ void CommandSet_mkI::AddCommand( Processor::CommandTraits && command )
 
 	command.id = get_id( command.mnemonic );
 
-	msg( E_INFO, E_DEBUG, "Adding custom command: \"%s\" (\"%s\")-> 0x%04hx",
+	msg( E_INFO, E_DEBUG, "Adding custom command: \"%s\" (\"%s\") -> 0x%04hx",
 	     command.mnemonic, command.description, command.id );
 
 	auto command_iresult = by_id.insert( std::make_pair( command.id, std::move( command ) ) );
@@ -58,7 +58,7 @@ void CommandSet_mkI::AddCommandImplementation( const char* mnemonic, size_t modu
 {
 	verify_method;
 
-	msg( E_INFO, E_DEBUG, "Registering implementation driver for command \"%s\"-> module %zx",
+	msg( E_INFO, E_DEBUG, "Registering implementation driver for command \"%s\" -> module %zx",
 	     mnemonic, module );
 
 	cassert( mnemonic, "NULL mnemonic" );
@@ -70,7 +70,7 @@ void CommandSet_mkI::AddCommandImplementation( const char* mnemonic, size_t modu
 	}
 
 	auto handle_iresult = cmd_iterator->second.execution_handles.insert( std::make_pair( module, handle ) );
-	cassert( handle_iresult.second, "Implementation of \"%s\"-> module %zx has already been registered",
+	cassert( handle_iresult.second, "Implementation of \"%s\" -> module %zx has already been registered",
 	         mnemonic, module );
 }
 
