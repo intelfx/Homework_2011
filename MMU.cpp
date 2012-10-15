@@ -94,7 +94,7 @@ size_t MMU::QueryStackTop( Value::Type type ) const
 	return stacks_[type].size();
 }
 
-void MMU::SetStackTop( Processor::Value::Type type, ssize_t adjust )
+void MMU::SetStackTop( Value::Type type, ssize_t adjust )
 {
 	cassert( type < Value::V_MAX, "Invalid stack type required: \"%s\"", ProcDebug::Print( type ).c_str() );
 

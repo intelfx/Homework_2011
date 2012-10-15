@@ -117,7 +117,7 @@ size_t Logic::ChecksumState()
 	return checksum;
 }
 
-void Logic::Analyze( Processor::calc_t value )
+void Logic::Analyze( calc_t value )
 {
 	verify_method;
 
@@ -173,7 +173,7 @@ void Logic::Analyze( Processor::calc_t value )
 	}
 }
 
-Processor::Register Logic::DecodeRegister( const char* reg )
+Register Logic::DecodeRegister( const char* reg )
 {
 	verify_method;
 	cassert( reg && reg[0], "Invalid or NULL register string to decode" );
@@ -247,7 +247,7 @@ void Logic::UpdateType( const DirectReference& ref, Value::Type requested_type )
 	}
 }
 
-void Logic::Write( const Processor::DirectReference& ref, Processor::calc_t value )
+void Logic::Write( const DirectReference& ref, calc_t value )
 {
 	verify_method;
 
@@ -292,7 +292,7 @@ void Logic::Write( const Processor::DirectReference& ref, Processor::calc_t valu
 	}
 }
 
-Processor::calc_t Logic::Read( const DirectReference& ref )
+calc_t Logic::Read( const DirectReference& ref )
 {
 	verify_method;
 
@@ -333,7 +333,7 @@ size_t Logic::StackSize()
 	return proc_->MMU()->QueryStackTop( current_stack_type_ );
 }
 
-Processor::calc_t Logic::StackPop()
+calc_t Logic::StackPop()
 {
 	verify_method;
 

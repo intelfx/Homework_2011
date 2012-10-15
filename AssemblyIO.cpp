@@ -85,7 +85,7 @@ void AsmHandler::WrSetup( FILE* file )
 	msg( E_INFO, E_DEBUG, "Writer set up" );
 }
 
-void AsmHandler::Write( Processor::ctx_t id )
+void AsmHandler::Write( ctx_t id )
 {
 	verify_method;
 	cassert( writing_file_, "Writer has not been set up" );

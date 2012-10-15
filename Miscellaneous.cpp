@@ -116,7 +116,7 @@ std::string PrintReference( const Reference& ref, IMMU* mmu )
 }
 
 
-std::string PrintValue( const Processor::Value& val )
+std::string PrintValue( const Value& val )
 {
 	switch( val.type ) {
 	case Value::V_INTEGER:

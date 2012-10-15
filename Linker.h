@@ -22,7 +22,7 @@ class INTERPRETER_API UATLinker: public ILinker
 {
 	symbol_tmap temporary_map;
 
-	void RelocateReference( Processor::Reference& ref, const Processor::Offsets& offsets );
+	void RelocateReference( Reference& ref, const Offsets& offsets );
 
 public:
 	virtual void DirectLink_Init();

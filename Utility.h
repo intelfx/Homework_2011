@@ -23,7 +23,7 @@ namespace ProcDebug
 {
 
 INTERPRETER_API std::string PrintReference( const Reference& ref, IMMU* mmu = 0 );
-INTERPRETER_API std::string PrintReference( const Processor::DirectReference& ref );
+INTERPRETER_API std::string PrintReference( const DirectReference& ref );
 INTERPRETER_API std::string PrintValue( const Value& val );
 
 INTERPRETER_API std::string Print( MemorySectionType arg );

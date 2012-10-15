@@ -41,7 +41,7 @@ void CommandSet_mkI::ResetCommandSet()
 	msg( E_INFO, E_DEBUG, "Successfully added %zu commands", by_id.size() );
 }
 
-void CommandSet_mkI::AddCommand( Processor::CommandTraits && command )
+void CommandSet_mkI::AddCommand( CommandTraits && command )
 {
 	verify_method;
 
@@ -95,7 +95,7 @@ const CommandTraits* CommandSet_mkI::DecodeCommand( const char* mnemonic ) const
 	return 0;
 }
 
-const CommandTraits* CommandSet_mkI::DecodeCommand( Processor::cid_t id ) const
+const CommandTraits* CommandSet_mkI::DecodeCommand( cid_t id ) const
 {
 	auto cmd_iterator = by_id.find( id );
 

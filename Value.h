@@ -45,7 +45,7 @@ typedef struct Value
 		integer = src;
 	}
 
-	inline void Expect( Processor::Value::Type required_type, bool allow_uninitialised = 0 ) const;
+	inline void Expect( Value::Type required_type, bool allow_uninitialised = 0 ) const;
 	inline Type GenType( Type required_type ) const
 	{
 		return ( required_type == V_MAX ) ? type : required_type;
@@ -242,7 +242,7 @@ INTERPRETER_API std::string Print( Value::Type arg );
 
 } // namespace ProcDebug
 
-void Value::Expect( Processor::Value::Type required_type, bool allow_uninitialised ) const
+void Value::Expect( Value::Type required_type, bool allow_uninitialised ) const
 {
 	if( !allow_uninitialised )
 		s_cverify( type != V_MAX, "Cannot access uninitialised value" );

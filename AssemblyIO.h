@@ -19,7 +19,7 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
-class INTERPRETER_API AsmHandler : virtual LogBase( AsmHandler ), public Processor::IReader, public Processor::IWriter
+class INTERPRETER_API AsmHandler : virtual LogBase( AsmHandler ), public IReader, public IWriter
 {
 	FILE* reading_file_;
 	FILE* writing_file_;

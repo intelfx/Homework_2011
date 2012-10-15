@@ -34,7 +34,7 @@ public:
 	virtual void Jump( const DirectReference& ref );
 	virtual calc_t Read( const DirectReference& ref );
 	virtual void Write( const DirectReference& ref, calc_t value );
-	virtual void UpdateType( const DirectReference& ref, Processor::Value::Type requested_type );
+	virtual void UpdateType( const DirectReference& ref, Value::Type requested_type );
 
 	virtual size_t StackSize();
 	virtual calc_t StackTop();
