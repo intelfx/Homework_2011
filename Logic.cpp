@@ -15,32 +15,31 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
-char* Logic::DumpCommand( Command& command ) const
+std::string Logic::DumpCommand( Command& command ) const
 {
+	char temporary_buffer[STATIC_LENGTH];
 	const CommandTraits* cmd_traits = proc_->CommandSet()->DecodeCommand( command.id );
 
 	if( cmd_traits )
-		sprintf( command_dump_buffer, "[PC=%zu] \"%s\" (%s type) argument %s",
-		         proc_->MMU()->GetContext().ip, cmd_traits->mnemonic, ProcDebug::Print( command.type ).c_str(),
+		snprintf( temporary_buffer, STATIC_LENGTH, "[PC=%zu] \"%s\" (%s type) argument %s",
+		         proc_->CurrentContext().ip, cmd_traits->mnemonic, ProcDebug::Print( command.type ).c_str(),
 		         ProcDebug::PrintArgument( cmd_traits->arg_type, command.arg, proc_->MMU() ).c_str() );
 
 	else
-		sprintf( command_dump_buffer, "[PC=%zu] id=0x%04hd (%s type) command unknown",
-		         proc_->MMU()->GetContext().ip, command.id, ProcDebug::Print( command.type ).c_str() );
+		snprintf( temporary_buffer, STATIC_LENGTH, "[PC=%zu] id=0x%04hd (%s type) command unknown",
+		         proc_->CurrentContext().ip, command.id, ProcDebug::Print( command.type ).c_str() );
 
-	return command_dump_buffer;
+	return temporary_buffer;
 }
-
 
 void Logic::ExecuteSingleCommand( Command& command )
 {
 	verify_method;
 
 	ICommandSet* command_set = proc_->CommandSet();
-	IMMU* mmu = proc_->MMU();
-	Context& command_context = mmu->GetContext();
+	Context& command_context = proc_->CurrentContext();
 
-	msg( E_INFO, E_DEBUG, "Executing %s", DumpCommand( command ) );
+	msg( E_INFO, E_DEBUG, "Executing %s", DumpCommand( command ).c_str() );
 
 	// Perform caching of executor/handle since execution must be O(1)
 	if( !command.cached_handle ) {
@@ -72,8 +71,8 @@ void Logic::ExecuteSingleCommand( Command& command )
 	if( !command.cached_handle )
 		return;
 
-	// V_MAX means no stack operations, MMU should support it
-	mmu->SelectStack( command.type );
+	// Select the stack for subsequent logic operations
+	current_stack_type_ = command.type;
 
 	// Execute the command
 	if( command.cached_executor )
@@ -104,14 +103,13 @@ size_t Logic::ChecksumState()
 
 	IMMU* mmu = proc_->MMU();
 
-	Context& ctx = mmu->GetContext();
+	Context& ctx = proc_->CurrentContext();
 	checksum = hasher_xroll( &ctx, sizeof( ctx ), checksum );
 
-	size_t sections_limits[SEC_MAX];
-	mmu->QueryLimits( sections_limits );
-	checksum = hasher_xroll( sections_limits, SEC_MAX, checksum );
+	Offsets limits = mmu->QuerySectionLimits();
+	checksum = hasher_xroll( limits.Raw(), SEC_COUNT, checksum );
 
-	for( size_t i = 0; i < sections_limits[SEC_CODE_IMAGE]; ++i ) {
+	for( size_t i = 0; i < limits.Code(); ++i ) {
 		checksum = hasher_xroll( &mmu->ACommand( i ), sizeof( Command ), checksum );
 	}
 
@@ -123,7 +121,7 @@ void Logic::Analyze( Processor::calc_t value )
 {
 	verify_method;
 
-	Context& ctx = proc_->MMU()->GetContext();
+	Context& ctx = proc_->CurrentContext();
 	ctx.flags &= ~( MASK( F_ZERO ) | MASK( F_NEGATIVE ) | MASK( F_INVALIDFP ) );
 
 	switch( value.type ) {
@@ -207,7 +205,7 @@ void Logic::Jump( const DirectReference& ref )
 
 	msg( E_INFO, E_DEBUG, "Jumping -> %zu", ref.address );
 
-	Context& ctx = proc_->MMU()->GetContext();
+	Context& ctx = proc_->CurrentContext();
 	ctx.ip = ref.address;
 	ctx.flags |= MASK( F_WAS_JUMP );
 }
@@ -266,14 +264,14 @@ void Logic::Write( const Processor::DirectReference& ref, Processor::calc_t valu
 
 	case S_FRAME:
 		// do type checking here - stack must be homogeneous
-		proc_->MMU()->AStackFrame( ref.address ).Assign( value );
+		proc_->MMU()->AStackFrame( current_stack_type_, ref.address ).Assign( value );
 
 	case S_FRAME_BACK:
 		msg( E_WARNING, E_VERBOSE, "Attempt to write to function parameter: reference to %s",
 		     ProcDebug::PrintReference( ref ).c_str() );
 
 		// do type checking here - stack must be homogeneous
-		proc_->MMU()->AStackFrame( -ref.address ).Assign( value );
+		proc_->MMU()->AStackFrame( current_stack_type_, -ref.address ).Assign( value );
 		break;
 
 	case S_REGISTER:
@@ -307,10 +305,10 @@ Processor::calc_t Logic::Read( const DirectReference& ref )
 		return proc_->MMU()->AData( ref.address );
 
 	case S_FRAME:
-		return proc_->MMU()->AStackFrame( ref.address );
+		return proc_->MMU()->AStackFrame( current_stack_type_, ref.address );
 
 	case S_FRAME_BACK:
-		return proc_->MMU()->AStackFrame( -ref.address );
+		return proc_->MMU()->AStackFrame( current_stack_type_, -ref.address );
 
 	case S_REGISTER:
 		return proc_->MMU()->ARegister( static_cast<Register>( ref.address ) );
@@ -328,15 +326,21 @@ Processor::calc_t Logic::Read( const DirectReference& ref )
 	return static_cast<fp_t>( strtof( "NAN", 0 ) ); /* for GCC not to complain */
 }
 
+size_t Logic::StackSize()
+{
+	verify_method;
+
+	return proc_->MMU()->QueryStackTop( current_stack_type_ );
+}
+
 Processor::calc_t Logic::StackPop()
 {
 	verify_method;
 
 	IMMU* mmu = proc_->MMU();
-	calc_t data = mmu->AStackTop( 0 );
-	mmu->AlterStackTop( -1 );
+	calc_t data = mmu->AStackTop( current_stack_type_, 0 );
+	mmu->SetStackTop( current_stack_type_, -1 );
 
-	verify_method;
 	return data;
 }
 
@@ -345,16 +349,63 @@ void Logic::StackPush( calc_t value )
 	verify_method;
 
 	IMMU* mmu = proc_->MMU();
-	mmu->AlterStackTop( 1 );
-	mmu->AStackTop( 0 ) = value;
-
-	verify_method;
+	mmu->SetStackTop( current_stack_type_, 1 );
+	mmu->AStackTop( current_stack_type_, 0 ) = value;
 }
 
 calc_t Logic::StackTop()
 {
 	verify_method;
-	return proc_->MMU()->AStackTop( 0 );
+
+	return proc_->MMU()->AStackTop( current_stack_type_, 0 );
+}
+
+void Logic::ResetCurrentContextState()
+{
+	verify_method;
+
+	Context& ctx = proc_->CurrentContext();
+	ctx.flags = 0;
+	ctx.frame = 0;
+	ctx.ip = 0;
+}
+
+void Logic::SetCurrentContextBuffer( ctx_t id )
+{
+	verify_method;
+
+	Context& ctx = proc_->CurrentContext();
+	proc_->MMU()->SelectContextBuffer( id );
+	ctx.__buffer_rw = id;
+	ctx.depth = 0;
+}
+
+void Logic::SaveCurrentContext()
+{
+	verify_method;
+
+	Context& ctx = proc_->CurrentContext();
+	call_stack_.push( ctx );
+	++ctx.depth;
+}
+
+void Logic::RestoreCurrentContext()
+{
+	verify_method;
+
+	Context ctx = call_stack_.top();
+	// The context buffer may get updated.
+	proc_->MMU()->SelectContextBuffer( ctx.buffer );
+	proc_->CurrentContext() = ctx;
+	call_stack_.pop();
+}
+
+void Logic::ClearContextStack()
+{
+	verify_method;
+
+	std::stack<Context> empty;
+	call_stack_.swap( empty );
 }
 
 void Logic::Syscall( size_t index )

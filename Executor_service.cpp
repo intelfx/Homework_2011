@@ -108,7 +108,7 @@ void ServiceExecutor::Execute( void* handle, Command& command )
 		bool invalid_fp;
 	} temp_flags;
 
-	size_t flags = proc_->MMU()->GetContext().flags;
+	size_t flags = proc_->CurrentContext().flags;
 	temp_flags.negative = flags & MASK( F_NEGATIVE );
 	temp_flags.zero = flags & MASK( F_ZERO );
 	temp_flags.analyze_always = !( flags & MASK( F_NFC ) );
@@ -117,10 +117,16 @@ void ServiceExecutor::Execute( void* handle, Command& command )
 	COMMANDS cmd = static_cast<COMMANDS>( reinterpret_cast<ptrdiff_t>( handle ) );
 
 	switch( cmd ) {
-	case C_INIT:
+	case C_INIT: {
+		proc_->LogicProvider()->ClearContextStack();
+		proc_->LogicProvider()->ResetCurrentContextState();
+		proc_->LogicProvider()->SetCurrentContextBuffer( 0 );
 		proc_->MMU()->ResetEverything();
-		proc_->MMU()->AllocContextBuffer();
+
+		ctx_t new_ctx = proc_->MMU()->AllocateContextBuffer();
+		proc_->LogicProvider()->SwitchToContextBuffer( new_ctx );
 		break;
+	}
 
 	case C_SLEEP:
 		timeops::sleep( 0 );
@@ -193,35 +199,36 @@ void ServiceExecutor::Execute( void* handle, Command& command )
 		break;
 
 	case C_CALL:
-		proc_->MMU()->SaveContext();
+		proc_->LogicProvider()->SaveCurrentContext();
 		proc_->LogicProvider()->Jump( proc_->Linker()->Resolve( command.arg.ref ) );
 		break;
 
 	case C_RET:
-		proc_->MMU()->RestoreContext();
+		proc_->LogicProvider()->RestoreCurrentContext();
 		break;
 
 	case C_DCX: {
-		const char* ctx_dump, *reg_dump, *stack_dump;
-		proc_->MMU()->DumpContext( &ctx_dump, &reg_dump, &stack_dump );
+		std::string ctx_dump, reg_dump, stack_dump;
+		proc_->MMU()->DumpContext( &reg_dump, &stack_dump );
+		proc_->DumpExecutionContext( &ctx_dump );
 
 		msg( E_INFO, E_USER, "Context dump:" );
-		msg( E_INFO, E_USER, "%s", ctx_dump );
-		msg( E_INFO, E_USER, "%s", reg_dump );
-		msg( E_INFO, E_USER, "%s", stack_dump );
+		msg( E_INFO, E_USER, "%s", ctx_dump.c_str() );
+		msg( E_INFO, E_USER, "%s", reg_dump.c_str() );
+		msg( E_INFO, E_USER, "%s", stack_dump.c_str() );
 	}
 	break;
 
 	case C_SNFC:
-		proc_->MMU()->GetContext().flags |=  MASK( F_NFC );
+		proc_->CurrentContext().flags |=  MASK( F_NFC );
 		break;
 
 	case C_CNFC:
-		proc_->MMU()->GetContext().flags &= ~MASK( F_NFC );
+		proc_->CurrentContext().flags &= ~MASK( F_NFC );
 		break;
 
 	case C_QUIT:
-		proc_->MMU()->GetContext().flags |= MASK( F_EXIT );
+		proc_->CurrentContext().flags |= MASK( F_EXIT );
 		break;
 
 	case C_MAX:

@@ -85,17 +85,16 @@ void AsmHandler::WrSetup( FILE* file )
 	msg( E_INFO, E_DEBUG, "Writer set up" );
 }
 
-void AsmHandler::Write( size_t ctx_id )
+void AsmHandler::Write( Processor::ctx_t id )
 {
 	verify_method;
 	cassert( writing_file_, "Writer has not been set up" );
 
-	msg( E_INFO, E_VERBOSE, "Beginning ASM write of context %zu", ctx_id );
+	msg( E_INFO, E_VERBOSE, "Beginning ASM write of context %zu", id );
 
-	IMMU* mmu = proc_->MMU();
-	mmu->SetContext( ctx_id );
+	proc_->LogicProvider()->SwitchToContextBuffer( id );
 	InternalWriteFile();
-	mmu->RestoreContext();
+	proc_->LogicProvider()->RestoreCurrentContext();
 }
 
 void AsmHandler::InternalWriteFile()
@@ -103,20 +102,17 @@ void AsmHandler::InternalWriteFile()
 	casshole( "Not implemented" );
 }
 
-size_t AsmHandler::NextSection( MemorySectionType*,
-                                size_t*,
-                                size_t* )
-{
-	casshole( "Not implemented" );
-	return 0;
-}
-
-void AsmHandler::ReadSectionImage( void* )
+std::pair< MemorySectionIdentifier, size_t > AsmHandler::NextSection()
 {
 	casshole( "Not implemented" );
 }
 
-void AsmHandler::ReadSymbols( symbol_map& )
+llarray AsmHandler::ReadSectionImage()
+{
+	casshole( "Not implemented" );
+}
+
+symbol_map AsmHandler::ReadSymbols()
 {
 	casshole( "Not implemented" );
 }

@@ -151,6 +151,21 @@ enum MemorySectionType
 	SEC_MAX
 };
 
+inline MemorySectionType TranslateSection( AddrType type )
+{
+	static const MemorySectionType AT_to_MST[S_MAX] = {
+		SEC_MAX,            // S_NONE
+		SEC_CODE_IMAGE,     // S_CODE
+		SEC_DATA_IMAGE,     // S_DATA
+		SEC_MAX,            // S_REGISTER
+		SEC_BYTEPOOL_IMAGE, // S_BYTEPOOL
+		SEC_MAX,            // S_FRAME
+		SEC_MAX,            // S_FRAME_BACK
+	};
+
+	return type >= S_MAX ? SEC_MAX : AT_to_MST[type];
+}
+
 } // namespace Processor
 
 #endif // INTERPRETER_DEFS_H

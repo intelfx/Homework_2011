@@ -188,35 +188,15 @@ calc_t ExecuteGate( void* address )
 	}
 }
 
-void IMMU::SetTemporaryContext( size_t ctx_id )
+
+void ILogic::SwitchToContextBuffer( ctx_t id, bool clear_on_switch )
 {
-	verify_method;
-
-	msg( E_INFO, E_DEBUG, "Setting up temporary context [buffer %zu depth %zu] -> %zu",
-	     GetContext().buffer, GetContext().depth, ctx_id );
-
-	SaveContext();
-	ClearContext();
-	GetContext().buffer = ctx_id;
-	ResetBuffers( ctx_id );
-}
-
-void IMMU::SetContext( size_t ctx_id )
-{
-	verify_method;
-
-	msg( E_INFO, E_DEBUG, "Setting up context [buffer %zu depth %zu] -> %zu",
-	     GetContext().buffer, GetContext().depth, ctx_id );
-
-	SaveContext();
-	ClearContext();
-	GetContext().buffer = ctx_id;
-}
-
-void IMMU::SelectStack( Value::Type type )
-{
-	msg( E_WARNING, E_DEBUG, "Stack change request (req. \"%s\") is unsupported by MMU",
-	     ProcDebug::Print( type ).c_str() );
+	SaveCurrentContext();
+	ResetCurrentContextState();
+	SetCurrentContextBuffer( id );
+	if( clear_on_switch ) {
+		proc_->MMU()->ResetContextBuffer( id );
+	}
 }
 
 } // namespace Processor

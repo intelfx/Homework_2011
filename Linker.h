@@ -22,18 +22,18 @@ class INTERPRETER_API UATLinker: public ILinker
 {
 	symbol_tmap temporary_map;
 
-	void RelocateReference( Reference& ref, size_t offsets[SEC_MAX] );
+	void RelocateReference( Processor::Reference& ref, const Processor::Offsets& offsets );
 
 public:
 	virtual void DirectLink_Init();
-	virtual void DirectLink_Add( symbol_map& symbols, size_t offsets[SEC_MAX] );
+	virtual void DirectLink_Add( symbol_map&& symbols, const Offsets& limits );
 	virtual void DirectLink_Commit( bool UAT );
 
-	virtual void MergeLink_Add( const symbol_map& symbols );
+	virtual void MergeLink_Add( symbol_map&& symbols );
 
-	virtual void Relocate( size_t offsets[SEC_MAX] );
+	virtual void Relocate( const Offsets& offsets );
 
-	DirectReference Resolve( Reference& reference );
+	DirectReference Resolve( const Reference& reference );
 };
 
 } // namespace ProcessorImplementation

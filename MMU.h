@@ -16,64 +16,59 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
-class INTERPRETER_API MMU : public Processor::IMMU
+class INTERPRETER_API MMU : public IMMU
 {
 	struct InternalContextBuffer {
 		std::vector<calc_t> data;
 		std::vector<Command> commands;
-		char* bytepool_data;
-		size_t bytepool_length;
+		llarray bytepool;
 
 		symbol_map sym_table;
 
 		calc_t registers[R_MAX];
 	};
 
-	std::vector<calc_t> integer_stack, fp_stack, *current_stack, *frame_stack;
-	Value::Type current_stack_type, frame_stack_type;
+	std::vector<calc_t> stacks_[Value::V_MAX];
 
-	std::vector<Context> context_stack;
-	std::vector<InternalContextBuffer> buffers;
-	Context context;
+	std::map<ctx_t, InternalContextBuffer> buffers_;
+	std::map<ctx_t, InternalContextBuffer>::iterator current_buffer_;
 
-	mutable char dump_data_registers[STATIC_LENGTH];
-	mutable char dump_data_context[STATIC_LENGTH];
-	mutable char dump_data_stacks[STATIC_LENGTH];
+	InternalContextBuffer& CurrentBuffer()
+	{ cassert( current_buffer_ != buffers_.end(), "No context buffer is selected" ); return current_buffer_->second; }
 
-	InternalContextBuffer& CurrentBuffer();
-	const InternalContextBuffer& CurrentBuffer() const;
+	const InternalContextBuffer& CurrentBuffer() const
+	{ cassert( current_buffer_ != buffers_.end(), "No context buffer is selected" ); return current_buffer_->second; }
 
-	void InternalDumpCtx( const Context& w_context ) const;
-	void LogDumpCtx( const Context& w_context ) const;
+	void InternalDumpCtx( const InternalContextBuffer* icb, std::string& registers, std::string& stacks ) const;
 
 	void ClearStacks();
-	void InternalWrStackPointer( std::vector<calc_t>** ptr, Value::Type type );
 
-	void CheckStackOperation() const {
-		cassert( current_stack, "Stack operations disabled or stack not selected" );
+	void CheckFrameOperation( Value::Type frame_stack_type ) const
+	{
+		cassert( proc_->CurrentContext().frame <= stacks_[frame_stack_type].size(),
+		         "Invalid stack frame at %zu (T: %zu)",
+		         proc_->CurrentContext().frame, stacks_[frame_stack_type].size() );
 	}
 
-	void CheckFrameOperation() const {
-		cassert( frame_stack, "Frame operations disabled or frame stack not selected" );
-		cassert( context.frame <= frame_stack->size(), "Invalid stack frame at %zu (T: %zu)",
-		         context.frame, frame_stack->size() );
+	void CheckStackAddress( Value::Type main_stack_type, size_t offset ) const
+	{
+		cassert( offset < stacks_[main_stack_type].size(),
+		         "Invalid offset to stack top: %zu (T: %zu)",
+		         offset, stacks_[main_stack_type].size() );
 	}
 
-	void CheckStackAddress( size_t offset ) const {
-		CheckStackOperation();
-		cassert( offset < current_stack->size(), "Invalid offset to stack top: %zu (T: %zu)",
-		         offset, current_stack->size() );
-	}
+	void CheckFrameAddress( Value::Type frame_stack_type, ssize_t offset ) const
+	{
+		CheckFrameOperation( frame_stack_type );
 
-	void CheckFrameAddress( long offset ) const {
-		CheckFrameOperation();
-		cassert( -offset <= static_cast<long>( context.frame ), "Invalid offset to frame: %ld (F: %zu)",
-		         offset, context.frame );
-		cassert( context.frame + offset < frame_stack->size(), "Invalid offset to frame: %ld (F: %zu T: %zu)",
-		         offset, context.frame, frame_stack->size() );
+		ssize_t address = proc_->CurrentContext().frame + offset;
+		cassert( address >= 0,
+		         "Invalid parameter offset to frame: %zd (F: %zu)",
+		         offset, proc_->CurrentContext().frame );
+		cassert( static_cast<size_t>( address ) < stacks_[frame_stack_type].size(),
+		         "Invalid local offset to frame: %zd (F: %zu T: %zu)",
+		         offset, proc_->CurrentContext().frame, stacks_[frame_stack_type].size() );
 	}
-
-	void AllocBytes( size_t destination_size );
 
 protected:
 	virtual bool _Verify() const;
@@ -83,41 +78,44 @@ protected:
 public:
 	MMU();
 
-	virtual Context&		GetContext();
-	virtual void			DumpContext( const char** ctx, const char** regs, const char** stacks ) const;
+	virtual void			DumpContext( std::string* regs, std::string* stacks ) const;
 
-	virtual void			SelectStack( Value::Type type );
-	virtual void			QueryActiveStack( Value::Type* type, size_t* top );
-	virtual void			AlterStackTop( short int offset );
+	virtual ctx_t			CurrentContextBuffer() const;
+	virtual ctx_t			AllocateContextBuffer();
+	virtual void			SelectContextBuffer( ctx_t id );
+	virtual void			ReleaseContextBuffer( ctx_t id );
+	virtual void			ResetContextBuffer( ctx_t id );
 
-	virtual calc_t&			AStackFrame( int offset );
-	virtual calc_t&			AStackTop( size_t offset );
+	virtual size_t			QueryStackTop( Value::Type type ) const;
+	virtual void            SetStackTop( Value::Type type, ssize_t adjust );
+
+	virtual calc_t&			AStackFrame( Value::Type type, ssize_t offset );
+	virtual calc_t&			AStackTop( Value::Type type, size_t offset );
 	virtual calc_t&			ARegister( Register reg_id );
 	virtual Command&		ACommand( size_t ip );
 	virtual calc_t&			AData( size_t addr );
 	virtual symbol_type&	ASymbol( size_t hash );
 	virtual char*			ABytepool( size_t offset );
 
-	virtual void			QueryLimits( size_t limits[SEC_MAX] ) const; // Query current section limits to the array
-	virtual void			ReadSection( MemorySectionType section, void* image, size_t count ); // Read section image (maybe partial)
-	virtual void			WriteSection( MemorySectionType section, void* image ) const; // Write section to image
-	virtual void			ReadSymbolImage( symbol_map && symbols ); // Read symbol map image
-	virtual void			WriteSymbolImage( symbol_map& symbols ) const; // Write symbol map to image
+	virtual Offsets			QuerySectionLimits() const;
 
-	virtual void			ShiftImages( size_t offsets[SEC_MAX] ); // Shift forth all sections by specified offset, filling space with empty data.
-	virtual void			PasteFromContext( size_t ctx_id ); // Paste the specified context over the current one
+	virtual llarray			DumpSection( MemorySectionIdentifier section, size_t address,
+	                                     size_t count );
+	virtual void			ModifySection( MemorySectionIdentifier section, size_t address,
+	                                       const void* data, size_t count, bool insert = false );
+	virtual void			AppendSection( MemorySectionIdentifier section,
+	                                       const void* data, size_t count );
 
-	virtual void VerifyReference( const DirectReference& ref ) const;
+	virtual void			SetSymbolImage( symbol_map && symbols );
+	virtual symbol_map		DumpSymbolImage() const;
 
-	virtual void ResetBuffers( size_t ctx_id );
-	virtual void ResetEverything();
+	virtual void			VerifyReference( const DirectReference& ref,
+	                                         Value::Type frame_stack_type ) const;
 
-	virtual void SaveContext();
-	virtual void ClearContext();
-	virtual void RestoreContext();
+	virtual void			ShiftImages( const Offsets& offsets ); // Shift forth all sections by specified offset, filling space with empty data.
+	virtual void			PasteFromContext( ctx_t id ); // Paste the specified context over the current one
 
-	virtual void NextContextBuffer();
-	virtual void AllocContextBuffer();
+	virtual void			ResetEverything();
 };
 
 } // namespace ProcessorImplementation

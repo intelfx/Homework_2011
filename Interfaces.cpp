@@ -229,6 +229,9 @@ bool ProcessorAPI::_Verify() const
 	verify_submodule( linker_, "linker" );
 	verify_submodule( mmu_, "MMU" );
 
+	verify_statement( mmu_->CurrentContextBuffer() == CurrentContext().buffer,
+					  "Current MMU buffer does not match the one in context" );
+
 	for( unsigned i = 0; i <= Value::V_MAX; ++i ) {
 		verify_submodule_x( executors_[i], "%s executor",
 							ProcDebug::Print( static_cast<Value::Type>( i ) ).c_str() );

@@ -14,6 +14,7 @@
 #include <uXray/fxassert.h>
 #include <uXray/fxmisc.h>
 #include <uXray/fxhash_functions.h>
+#include <uXray/fxcontainers.h>
 #include <uXray/fxcrc32.h>
 #include <uXray/fxjitruntime.h>
 

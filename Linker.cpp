@@ -12,23 +12,13 @@ namespace
 {
 	using namespace Processor;
 
-	const MemorySectionType AT_to_MST[S_MAX] = {
-		SEC_MAX,            // S_NONE
-		SEC_CODE_IMAGE,     // S_CODE
-		SEC_DATA_IMAGE,     // S_DATA
-		SEC_MAX,            // S_REGISTER
-		SEC_BYTEPOOL_IMAGE, // S_BYTEPOOL
-		SEC_MAX,            // S_FRAME
-		SEC_MAX,            // S_FRAME_BACK
-	};
-
 } // unnamed namespace
 
 namespace ProcessorImplementation
 {
 using namespace Processor;
 
-void UATLinker::DirectLink_Add( Processor::symbol_map& symbols, size_t offsets[SEC_MAX] )
+void UATLinker::DirectLink_Add( symbol_map&& symbols, const Offsets& limits )
 {
 	verify_method;
 	msg( E_INFO, E_DEBUG, "(Direct link) adding symbols: %zu", symbols.size() );
@@ -56,14 +46,14 @@ void UATLinker::DirectLink_Add( Processor::symbol_map& symbols, size_t offsets[S
 				switch( symbol.ref.global_section ) {
 				case S_CODE:
 					msg( E_INFO, E_DEBUG, "Definition of TEXT label %s: assigning address %zu",
-					     sym_nm_buf, offsets[SEC_CODE_IMAGE] );
-					symbol.ref.components[0].target.memory_address = offsets[SEC_CODE_IMAGE];
+					     sym_nm_buf, limits.Code() );
+					symbol.ref.components[0].target.memory_address = limits.Code();
 					break;
 
 				case S_DATA:
 					msg( E_INFO, E_DEBUG, "Definition of DATA label %s: assigning address %zu",
-					     sym_nm_buf, offsets[SEC_DATA_IMAGE] );
-					symbol.ref.components[0].target.memory_address = offsets[SEC_DATA_IMAGE];
+						 sym_nm_buf, limits.Data() );
+					symbol.ref.components[0].target.memory_address = limits.Data();
 					break;
 
 				case S_REGISTER:
@@ -99,7 +89,7 @@ void UATLinker::DirectLink_Add( Processor::symbol_map& symbols, size_t offsets[S
 	msg( E_INFO, E_DEBUG, "(Direct link) add completed" );
 }
 
-DirectReference UATLinker::Resolve( Reference& reference )
+DirectReference UATLinker::Resolve( const Reference& reference )
 {
 	verify_method;
 
@@ -222,33 +212,33 @@ void UATLinker::DirectLink_Commit( bool UAT )
 		casshole( "Not implemented" );
 	}
 
-	proc_->MMU()->ReadSymbolImage( std::move( target_map ) );
+	proc_->MMU()->SetSymbolImage( std::move( target_map ) );
 	temporary_map.clear(); // Well, MMU should move-assign our map, but who knows...
 
 	msg( E_INFO, E_VERBOSE, "Link session completed" );
 }
 
-void UATLinker::RelocateReference( Reference& ref, size_t offsets[SEC_MAX] )
+void UATLinker::RelocateReference( Reference& ref, const Offsets& offsets )
 {
 	Reference::SingleRef& sref = ref.components[0];
 	cassert( !sref.is_indirect, "Shall not relocate indirect references" );
 	cassert( !sref.target.is_symbol, "Shall not relocate symbol references" );
 
-	MemorySectionType section_to_reloc = AT_to_MST[ref.global_section];
-	if( section_to_reloc >= SEC_MAX ) {
+	MemorySectionIdentifier section( ref.global_section );
+	if( !section.isValid() ) {
 		msg( E_INFO, E_DEBUG, "Relocating: section %s - not relocating",
 		     ProcDebug::Print( ref.global_section ).c_str() );
 	} else {
+		size_t offset = offsets[section];
 		msg( E_INFO, E_DEBUG, "Relocating: section %s offset %zu",
-		     ProcDebug::Print( ref.global_section ).c_str(), offsets[section_to_reloc] );
-		sref.target.memory_address += offsets[section_to_reloc];
+		     ProcDebug::Print( ref.global_section ).c_str(), offset );
+		sref.target.memory_address += offset;
 	}
 }
 
-void UATLinker::Relocate( size_t offsets[SEC_MAX] )
+void UATLinker::Relocate( const Offsets& offsets )
 {
-	symbol_map source;
-	proc_->MMU()->WriteSymbolImage( source );
+	symbol_map source = proc_->MMU()->DumpSymbolImage();
 
 	msg( E_INFO, E_DEBUG, "Relocating %zu symbols", source.size() );
 
@@ -292,10 +282,10 @@ void UATLinker::Relocate( size_t offsets[SEC_MAX] )
 	}
 
 	// Save modified symbol image.
-	proc_->MMU()->ReadSymbolImage( std::move( source ) );
+	proc_->MMU()->SetSymbolImage( std::move( source ) );
 }
 
-void UATLinker::MergeLink_Add( const symbol_map& symbols )
+void UATLinker::MergeLink_Add( symbol_map&& symbols )
 {
 	/*
 	 * The semantics of merge-linking.
@@ -307,8 +297,7 @@ void UATLinker::MergeLink_Add( const symbol_map& symbols )
 
 	msg( E_INFO, E_DEBUG, "Merge-linking %zu symbols", symbols.size() );
 
-	symbol_map source;
-	proc_->MMU()->WriteSymbolImage( source );
+	symbol_map source = proc_->MMU()->DumpSymbolImage();
 
 	msg( E_INFO, E_DEBUG, "Inserting source symbols (count: %zu)", source.size() );
 	for( symbol_map::value_type& source_sym: source ) {

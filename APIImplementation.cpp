@@ -15,8 +15,10 @@ void ProcessorAPI::Flush()
 {
 	verify_method;
 
-	MMU()->ResetEverything();
+	LogicProvider()->ClearContextStack();
+	LogicProvider()->ResetCurrentContextState();
 	CommandSet()->ResetCommandSet();
+	MMU()->ResetEverything();
 
 	for( unsigned i = 0; i <= Value::V_MAX; ++i ) {
 		Executor( static_cast<Value::Type>( i ) )->ResetImplementations();
@@ -27,22 +29,37 @@ void ProcessorAPI::Reset()
 {
 	verify_method;
 
-	MMU()->ClearContext();
+	LogicProvider()->ResetCurrentContextState();
 }
 
 void ProcessorAPI::Clear()
 {
 	verify_method;
 
-	IMMU* mmu = MMU();
-	mmu->ResetBuffers( mmu->GetContext().buffer );
+	Reset();
+	MMU()->ResetContextBuffer( CurrentContext().buffer );
 }
 
 void ProcessorAPI::Delete()
 {
 	verify_method;
 
-	MMU()->RestoreContext();
+	ctx_t current_context_buffer = CurrentContext().buffer,
+	      new_context_buffer = current_context_buffer;
+	size_t frames_erased = 0;
+	cassert( current_context_buffer, "Trying to delete current context buffer when nothing is allocated" );
+
+	msg( E_INFO, E_VERBOSE, "Deleting context buffer %zu", current_context_buffer );
+
+	do {
+		LogicProvider()->RestoreCurrentContext();
+		new_context_buffer = CurrentContext().buffer;
+		++frames_erased;
+	} while( new_context_buffer == current_context_buffer );
+
+	MMU()->ReleaseContextBuffer( current_context_buffer );
+	msg( E_INFO, E_DEBUG, "Context buffer %zu deleted (new is %zu). %zu frames removed.",
+		 current_context_buffer, new_context_buffer, frames_erased );
 }
 
 void ProcessorAPI::Load( FILE* file )
@@ -50,9 +67,11 @@ void ProcessorAPI::Load( FILE* file )
 	verify_method;
 
 	IMMU* mmu = MMU();
+	ILogic* logic = LogicProvider();
 
-	mmu->AllocContextBuffer();
-	msg( E_INFO, E_VERBOSE, "Loading from stream -> context %zu", mmu->GetContext().buffer );
+	ctx_t allocated_ctx = mmu->AllocateContextBuffer();
+	logic->SwitchToContextBuffer( allocated_ctx );
+	msg( E_INFO, E_VERBOSE, "Loading from stream -> context %zu", allocated_ctx );
 
 	IReader* reader = Reader();
 	cassert( reader, "Loader module is not attached" );
@@ -60,47 +79,32 @@ void ProcessorAPI::Load( FILE* file )
 	FileType file_type = reader->RdSetup( file );
 	switch( file_type ) {
 	case FT_BINARY: {
-		MemorySectionType sec_type;
-		size_t elements_count, buffer_size;
 
-		void* image_section_buffer = 0;
-		size_t image_section_buffer_size = 0;
+		std::pair<MemorySectionIdentifier, size_t> section_info;
 
 		msg( E_INFO, E_DEBUG, "Loading binary file absolute image" );
 
-		while( reader->NextSection( &sec_type, &elements_count, &buffer_size ) ) {
-			if( sec_type == SEC_SYMBOL_MAP ) {
-				msg( E_INFO, E_DEBUG, "Reading symbols section: %zu records", elements_count );
-				symbol_map external_symbols;
+		while( ( section_info = reader->NextSection() ).first ) {
+			if( section_info.first.SectionType() == SEC_SYMBOL_MAP ) {
+				msg( E_INFO, E_DEBUG, "Reading symbols section: %zu records", section_info.second );
 
-				reader->ReadSymbols( external_symbols );
-
-				cassert( external_symbols.size() == elements_count, "Invalid symbol map size: %zu",
+				symbol_map external_symbols = reader->ReadSymbols();
+				cassert( external_symbols.size() == section_info.second, "Invalid symbol map size: %zu",
 				         external_symbols.size() );
-
-				mmu->ReadSymbolImage( std::move( external_symbols ) );
+				mmu->SetSymbolImage( std::move( external_symbols ) );
 			}
 
 			else {
-				msg( E_INFO, E_DEBUG, "Reading section type \"%s\": %zu records (%zu bytes)",
-				     ProcDebug::Print( sec_type ).c_str(), elements_count, buffer_size );
+				msg( E_INFO, E_DEBUG, "Reading section type \"%s\": %zu records",
+				     ProcDebug::Print( section_info.first.SectionType() ).c_str(),
+					 section_info.second );
 
-				if( buffer_size > image_section_buffer_size ) {
-					image_section_buffer = realloc( image_section_buffer, buffer_size );
-					cassert( image_section_buffer, "Could not allocate section image buffer: \"%s\"",
-					         strerror( errno ) );
-
-					image_section_buffer_size = buffer_size;
-				}
-
-				reader->ReadSectionImage( image_section_buffer );
-				mmu->ReadSection( sec_type, image_section_buffer, elements_count );
+				llarray image_section_buffer = reader->ReadSectionImage();
+				mmu->AppendSection( section_info.first, image_section_buffer, section_info.second );
 			}
 		} // while (next section)
 
 		msg( E_INFO, E_DEBUG, "Binary file read completed" );
-		free( image_section_buffer );
-
 		break;
 	} // binary file
 
@@ -111,28 +115,24 @@ void ProcessorAPI::Load( FILE* file )
 		linker->DirectLink_Init();
 
 		while( DecodeResult* result = reader->ReadStream() ) {
-
 			if( !result->mentioned_symbols.empty() ) {
-				size_t mmu_limits[SEC_MAX];
-				mmu->QueryLimits( mmu_limits );
-
 				msg( E_INFO, E_DEBUG, "Adding symbols" );
-				linker->DirectLink_Add( result->mentioned_symbols, mmu_limits );
+				linker->DirectLink_Add( std::move( result->mentioned_symbols ), mmu->QuerySectionLimits() );
 			}
 
 			if( !result->commands.empty() ) {
 				msg( E_INFO, E_DEBUG, "Adding commands: %zu", result->commands.size() );
-				mmu->ReadSection( SEC_CODE_IMAGE, result->commands.data(), result->commands.size() );
+				mmu->AppendSection( SEC_CODE_IMAGE, result->commands.data(), result->commands.size() );
 			}
 
 			if( !result->data.empty() ) {
 				msg( E_INFO, E_DEBUG, "Adding data: %zu", result->data.size() );
-				mmu->ReadSection( SEC_DATA_IMAGE, result->data.data(), result->data.size() );
+				mmu->AppendSection( SEC_DATA_IMAGE, result->data.data(), result->data.size() );
 			}
 
 			if( !result->bytepool.empty() ) {
 				msg( E_INFO, E_DEBUG, "Adding bytepool data: %zu bytes", result->bytepool.size() );
-				mmu->ReadSection( SEC_BYTEPOOL_IMAGE, result->bytepool.data(), result->bytepool.size() );
+				mmu->AppendSection( SEC_BYTEPOOL_IMAGE, result->bytepool.data(), result->bytepool.size() );
 			}
 
 		}
@@ -161,13 +161,12 @@ void ProcessorAPI::Dump( FILE* file )
 {
 	verify_method;
 
-	IMMU* mmu = MMU();
-	msg( E_INFO, E_VERBOSE, "Writing context to stream (ctx %zu)", mmu->GetContext().buffer );
+	msg( E_INFO, E_VERBOSE, "Writing context to stream (ctx %zu)", CurrentContext().buffer );
 
 	IWriter* writer = Writer();
 	cassert( writer, "Writer module is not attached" );
 	writer->WrSetup( file );
-	writer->Write( mmu->GetContext().buffer );
+	writer->Write( CurrentContext().buffer );
 	writer->WrReset();
 }
 
@@ -177,24 +176,17 @@ void ProcessorAPI::MergeWithContext( size_t source_ctx )
 
 	IMMU* mmu = MMU();
 	ILinker* linker = Linker();
-	msg( E_INFO, E_VERBOSE, "Merging context buffers: %zu -> %zu", mmu->GetContext().buffer, source_ctx );
+	ILogic* logic = LogicProvider();
+	msg( E_INFO, E_VERBOSE, "Merging context buffers: %zu -> %zu", CurrentContext().buffer, source_ctx );
 
-	mmu->SetContext( source_ctx );
+	logic->SwitchToContextBuffer( source_ctx );
 
-	size_t source_limits[SEC_MAX];
-	mmu->QueryLimits( source_limits );
-
-	msg( E_INFO, E_DEBUG, "Source context buffer limits:" );
-	for( unsigned i = 0; i < SEC_MAX; ++i ) {
-		msg( E_INFO, E_DEBUG, "Section %s: %zu",
-			 ProcDebug::Print( static_cast<MemorySectionType>( i ) ).c_str(), source_limits[i] );
-	}
+	Offsets source_limits = mmu->QuerySectionLimits();
 
 	msg( E_INFO, E_DEBUG, "Reading source context symbol map" );
-	symbol_map src_symbols;
-	mmu->WriteSymbolImage( src_symbols );
+	symbol_map src_symbols = mmu->DumpSymbolImage();
 
-	mmu->RestoreContext();
+	logic->RestoreCurrentContext();
 
 	// Relocate dest section to free space for pasting
 	mmu->ShiftImages( source_limits );
@@ -203,7 +195,7 @@ void ProcessorAPI::MergeWithContext( size_t source_ctx )
 	mmu->PasteFromContext( source_ctx );
 
 	linker->DirectLink_Init();
-	linker->MergeLink_Add( src_symbols );
+	linker->MergeLink_Add( std::move( src_symbols ) );
 	linker->DirectLink_Commit();
 }
 
@@ -212,11 +204,10 @@ void ProcessorAPI::Compile()
 	verify_method;
 
 	try {
-		IMMU* mmu = MMU();
 		IBackend* backend = Backend();
 		ILogic* logic = LogicProvider();
 
-		msg( E_INFO, E_VERBOSE, "Attempting to compile context %zu", mmu->GetContext().buffer );
+		msg( E_INFO, E_VERBOSE, "Attempting to compile context %zu", CurrentContext().buffer );
 		cassert( backend, "Backend is not attached" );
 
 		size_t chk = logic->ChecksumState();
@@ -240,11 +231,11 @@ calc_t ProcessorAPI::Exec()
 	ILogic* logic = LogicProvider();
 	IBackend* backend = Backend();
 
-	Context& interpreter_context = mmu->GetContext();
+	msg( E_INFO, E_VERBOSE, "Starting execution of context %zu", CurrentContext().buffer );
+
 	size_t chk = logic->ChecksumState();
 
-	msg( E_INFO, E_VERBOSE, "Starting execution of context %zu (system checksum %zx)",
-	     interpreter_context.buffer, chk );
+	msg( E_INFO, E_VERBOSE, "System checksum %zx", chk );
 
 	// Try to use backend if image was compiled
 	if( backend && backend->ImageIsOK( chk ) ) {
@@ -270,23 +261,27 @@ calc_t ProcessorAPI::Exec()
 	// Else fall back to the interpreter.
 	msg( E_INFO, E_VERBOSE, "Using interpreter" );
 
-	while( !( interpreter_context.flags & MASK( F_EXIT ) ) ) {
-		Command& command = mmu->ACommand( interpreter_context.ip );
+	Command* last_command = 0;
+
+	while( !( CurrentContext().flags & MASK( F_EXIT ) ) ) {
+
+		last_command = &mmu->ACommand( CurrentContext().ip );
 
 		try {
-			logic->ExecuteSingleCommand( command );
+			logic->ExecuteSingleCommand( *last_command );
 		}
 
 		catch( std::exception& e ) {
-			msg( E_WARNING, E_USER, "Last executed command: %s", logic->DumpCommand( command ) );
+			msg( E_WARNING, E_USER, "Last executed command: %s", logic->DumpCommand( *last_command ).c_str() );
 
-			const char* ctx_dump, *reg_dump, *stack_dump;
-			mmu->DumpContext( &ctx_dump, &reg_dump, &stack_dump );
+			std::string reg_dump, stack_dump, ctx_dump;
+			mmu->DumpContext( &reg_dump, &stack_dump );
+			DumpExecutionContext( &ctx_dump );
 
 			msg( E_WARNING, E_USER, "MMU context dump:" );
-			msg( E_WARNING, E_USER, "%s", ctx_dump );
-			msg( E_WARNING, E_USER, "%s", reg_dump );
-			msg( E_WARNING, E_USER, "%s", stack_dump );
+			msg( E_WARNING, E_USER, "%s", ctx_dump.c_str() );
+			msg( E_WARNING, E_USER, "%s", reg_dump.c_str() );
+			msg( E_WARNING, E_USER, "%s", stack_dump.c_str() );
 
 			throw;
 		}
@@ -295,11 +290,8 @@ calc_t ProcessorAPI::Exec()
 	calc_t result;
 
 	// Interpreter return value is in stack of last command.
-	size_t last_command_stack_top = 0;
-	mmu->QueryActiveStack( 0, &last_command_stack_top );
-
-	if( last_command_stack_top )
-		result = mmu->AStackTop( 0 );
+	if( logic->StackSize() )
+		result = logic->StackTop();
 
 	msg( E_INFO, E_VERBOSE, "Interpreter COMPLETED." );
 	return result;
@@ -322,6 +314,15 @@ abiret_t ProcessorAPI::InterpreterCallbackFunction( Command* cmd )
 	// stack is still set to the last type
 	calc_t temporary_result = logic->StackPop();
 	return temporary_result.GetABI();
+}
+
+void ProcessorAPI::DumpExecutionContext( std::string* ctx_dump )
+{
+	char temporary_buffer[STATIC_LENGTH];
+	snprintf( temporary_buffer, STATIC_LENGTH,
+	          "Ctx [%zd]: IP [%zu] FL [%08zx] DEPTH [%zu]",
+	          CurrentContext().buffer, CurrentContext().ip, CurrentContext().flags, CurrentContext().depth );
+	ctx_dump->assign( temporary_buffer );
 }
 
 } // namespace Processor

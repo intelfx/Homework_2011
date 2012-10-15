@@ -125,7 +125,7 @@ inline void IntegerExecutor::WriteResult( Reference& ref )
 
 void IntegerExecutor::Execute( void* handle, Command& command )
 {
-	need_to_analyze = !( proc_->MMU()->GetContext().flags & MASK( F_NFC ) );
+	need_to_analyze = !( proc_->CurrentContext().flags & MASK( F_NFC ) );
 
 	COMMANDS cmd = static_cast<COMMANDS>( reinterpret_cast<ptrdiff_t>( handle ) );
 
