@@ -22,16 +22,106 @@ static const size_t SEC_COUNT = SEC_STACK_IMAGE + Value::V_MAX;
 namespace ProcDebug
 {
 
-INTERPRETER_API extern const char* FileSectionType_ids[SEC_MAX]; // debug section IDs
-INTERPRETER_API extern const char* AddrType_ids[S_MAX]; // debug address type IDs
+INTERPRETER_API std::string PrintReference( const Reference& ref, IMMU* mmu = 0 );
+INTERPRETER_API std::string PrintReference( const DirectReference& ref );
+INTERPRETER_API std::string PrintValue( const Value& val );
 
-INTERPRETER_API extern char debug_buffer[STATIC_LENGTH];
-
-INTERPRETER_API void PrintReference( const Reference& ref, IMMU* mmu = 0 );
-INTERPRETER_API void PrintReference( const Processor::DirectReference& ref );
-INTERPRETER_API void PrintValue( const Value& val );
+INTERPRETER_API std::string Print( MemorySectionType arg );
+INTERPRETER_API std::string Print( AddrType arg );
 
 } // namespace ProcDebug
+
+class MemorySectionIdentifier
+{
+	MemorySectionType section_type_;
+	Value::Type data_type_;
+
+public:
+	MemorySectionIdentifier( MemorySectionType section_type, Value::Type data_type = Value::V_MAX ) :
+	section_type_( section_type ),
+	data_type_( data_type )
+	{
+		s_cassert( section_type_ != SEC_MAX, "Invalid section type given" );
+		if( section_type_ == SEC_STACK_IMAGE ) {
+			s_cassert( data_type_ != Value::V_MAX, "Data type not specified with stack section" );
+		} else {
+			s_cassert( data_type_ == Value::V_MAX, "Data type specified (\"%s\") with non-stack section",
+				       ProcDebug::Print( data_type_ ).c_str() );
+		}
+	}
+
+	MemorySectionIdentifier( AddrType addr_type, Value::Type data_type = Value::V_MAX ) :
+	MemorySectionIdentifier( TranslateSection( addr_type ), data_type )
+	{
+	}
+
+	MemorySectionIdentifier() :
+	section_type_( SEC_MAX ),
+	data_type_( Value::V_MAX )
+	{
+	}
+
+	size_t Index() const
+	{
+		s_cassert( isValid(), "Dereferencing an invalid identifier" );
+		if( section_type_ == SEC_STACK_IMAGE ) {
+			s_cassert( data_type_ != Value::V_MAX, "Data type not specified with stack section" );
+		} else {
+			s_cassert( data_type_ == Value::V_MAX, "Data type specified (\"%s\") with non-stack section",
+				       ProcDebug::Print( data_type_ ).c_str() );
+		}
+		size_t idx = ( section_type_ == SEC_STACK_IMAGE ) ? ( section_type_ + data_type_ ) : section_type_;
+		s_cassert( idx < SEC_COUNT, "Invalid section index generated (section \"%s\" data type \"%s\") == %zu",
+				   ProcDebug::Print( section_type_ ).c_str(), ProcDebug::Print( data_type_ ).c_str(), idx );
+		return idx;
+	}
+
+	bool isValid() const
+	{
+		return section_type_ != SEC_MAX;
+	}
+
+	operator bool() const { return isValid(); }
+
+	MemorySectionType SectionType() const { return section_type_; }
+	Value::Type DataType() const { return data_type_; }
+};
+
+class Offsets
+{
+	size_t offsets_[SEC_COUNT];
+
+public:
+	Offsets()
+	{ memset( offsets_, 0, sizeof( *offsets_ ) * SEC_COUNT ); }
+
+	Offsets( const size_t offsets[SEC_COUNT] )
+	{ memcpy( offsets_, offsets, sizeof( *offsets_ ) * SEC_COUNT ); }
+
+	Offsets( const Offsets& rhs ) : Offsets( rhs.offsets_ )
+	{}
+
+	size_t& at( const MemorySectionIdentifier& index )
+	{ return offsets_[index.Index()]; }
+	size_t  at( const MemorySectionIdentifier& index ) const
+	{ return offsets_[index.Index()]; }
+
+	size_t& operator[]( const MemorySectionIdentifier& index )
+	{ return at( index ); }
+	size_t operator[]( const MemorySectionIdentifier& index ) const
+	{ return at( index ); }
+
+	size_t& Code()                          { return at( SEC_CODE_IMAGE ); }
+	size_t  Code() const                    { return at( SEC_CODE_IMAGE ); }
+	size_t& Data()                          { return at( SEC_DATA_IMAGE ); }
+	size_t  Data() const                    { return at( SEC_DATA_IMAGE ); }
+	size_t& Bytepool()                      { return at( SEC_BYTEPOOL_IMAGE ); }
+	size_t  Bytepool() const                { return at( SEC_BYTEPOOL_IMAGE ); }
+	size_t& Stack( Value::Type type )       { return at( MemorySectionIdentifier( SEC_STACK_IMAGE, type ) ); }
+	size_t  Stack( Value::Type type ) const { return at( MemorySectionIdentifier( SEC_STACK_IMAGE, type ) ); }
+
+	const size_t* Raw() { return offsets_; }
+};
 
 /*
  * Possible reference types:
@@ -165,18 +255,35 @@ struct Command
 namespace ProcDebug
 {
 
-INTERPRETER_API void PrintArgument( ArgumentType arg_type,
-                                    const Command::Argument& argument,
-                                    IMMU* mmu = 0 );
+INTERPRETER_API std::string PrintArgument( ArgumentType arg_type,
+                                           const Command::Argument& argument,
+                                           IMMU* mmu = 0 );
 } // namespace ProcDebug
 
 struct Context
 {
 	mask_t flags;
 	size_t ip;
-	size_t buffer;
+	union
+	{
+		// the r/w is positioned before r/o to make the union (hence the struct) have the
+		// default assignment operator/ctor.
+		// TODO: make this really work and eliminate the assignment op below.
+		ctx_t __buffer_rw;
+		const ctx_t buffer;
+	};
 	size_t depth;
 	size_t frame;
+
+	Context& operator=( const Context& rhs )
+	{
+		flags = rhs.flags;
+		ip = rhs.ip;
+		__buffer_rw = rhs.buffer;
+		depth = rhs.depth;
+		frame = rhs.frame;
+		return *this;
+	}
 };
 
 struct CommandTraits

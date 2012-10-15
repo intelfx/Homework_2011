@@ -229,8 +229,12 @@ bool ProcessorAPI::_Verify() const
 	verify_submodule( linker_, "linker" );
 	verify_submodule( mmu_, "MMU" );
 
+	verify_statement( mmu_->CurrentContextBuffer() == CurrentContext().buffer,
+					  "Current MMU buffer does not match the one in context" );
+
 	for( unsigned i = 0; i <= Value::V_MAX; ++i ) {
-		verify_submodule_x( executors_[i], "%s executor", ProcDebug::AddrType_ids[i] );
+		verify_submodule_x( executors_[i], "%s executor",
+							ProcDebug::Print( static_cast<Value::Type>( i ) ).c_str() );
 	}
 
 	if( backend_ )
@@ -249,7 +253,8 @@ bool ProcessorAPI::_Verify() const
 	verify_statement( mmu_ == shadow_mmu_, "MMU pointers inconsistence" );
 
 	for( unsigned i = 0; i <= Value::V_MAX; ++i ) {
-		verify_statement( executors_[i] == shadow_executors_[i], "Executor \"%s\" pointer inconsistence", ProcDebug::AddrType_ids[i] );
+		verify_statement( executors_[i] == shadow_executors_[i], "Executor \"%s\" pointer inconsistence",
+						  ProcDebug::Print( static_cast<Value::Type>( i ) ).c_str() );
 	}
 
 	verify_statement( backend_ == shadow_backend_, "Backend pointers inconsistence" );

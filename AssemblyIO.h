@@ -19,7 +19,7 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
-class INTERPRETER_API AsmHandler : virtual LogBase( AsmHandler ), public Processor::IReader, public Processor::IWriter
+class INTERPRETER_API AsmHandler : virtual LogBase( AsmHandler ), public IReader, public IWriter
 {
 	FILE* reading_file_;
 	FILE* writing_file_;
@@ -55,16 +55,16 @@ public:
 	virtual void RdReset();
 	virtual FileType RdSetup( FILE* file );
 
-	virtual size_t NextSection( Processor::MemorySectionType*, size_t*, size_t* );
+	virtual std::pair<MemorySectionIdentifier, size_t> NextSection();
 
-	virtual void ReadSectionImage( void* destination );
+	virtual llarray ReadSectionImage();
 	virtual DecodeResult* ReadStream();
-	virtual void ReadSymbols( Processor::symbol_map& );
+	virtual symbol_map ReadSymbols();
 
 	virtual void WrSetup( FILE* file );
 	virtual void WrReset();
 
-	virtual void Write( size_t ctx_id );
+	virtual void Write( ctx_t id );
 };
 
 } // namespace ProcessorImplementation

@@ -85,19 +85,16 @@ void AsmHandler::WrSetup( FILE* file )
 	msg( E_INFO, E_DEBUG, "Writer set up" );
 }
 
-void AsmHandler::Write( size_t ctx_id )
+void AsmHandler::Write( ctx_t id )
 {
 	verify_method;
 	cassert( writing_file_, "Writer has not been set up" );
 
-	msg( E_INFO, E_VERBOSE, "Beginning ASM write of context %zu", ctx_id );
+	msg( E_INFO, E_VERBOSE, "Beginning ASM write of context %zu", id );
 
-	IMMU* mmu = proc_->MMU();
-	mmu->SaveContext();
-	mmu->ClearContext();
-	mmu->GetContext().buffer = ctx_id;
+	proc_->LogicProvider()->SwitchToContextBuffer( id );
 	InternalWriteFile();
-	proc_->MMU()->RestoreContext();
+	proc_->LogicProvider()->RestoreCurrentContext();
 }
 
 void AsmHandler::InternalWriteFile()
@@ -105,20 +102,17 @@ void AsmHandler::InternalWriteFile()
 	casshole( "Not implemented" );
 }
 
-size_t AsmHandler::NextSection( MemorySectionType*,
-                                size_t*,
-                                size_t* )
-{
-	casshole( "Not implemented" );
-	return 0;
-}
-
-void AsmHandler::ReadSectionImage( void* )
+std::pair< MemorySectionIdentifier, size_t > AsmHandler::NextSection()
 {
 	casshole( "Not implemented" );
 }
 
-void AsmHandler::ReadSymbols( symbol_map& )
+llarray AsmHandler::ReadSectionImage()
+{
+	casshole( "Not implemented" );
+}
+
+symbol_map AsmHandler::ReadSymbols()
 {
 	casshole( "Not implemented" );
 }
@@ -413,7 +407,7 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 		declaration_data.Parse( decl_data );
 
 		msg( E_INFO, E_DEBUG, "Declaration: unnamed DATA entry = %s",
-		     ( ProcDebug::PrintValue( declaration_data ), ProcDebug::debug_buffer ) );
+		     ProcDebug::PrintValue( declaration_data ).c_str() );
 
 		decode_output.data.push_back( declaration_data );
 		return;
@@ -439,7 +433,7 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 			declaration_data.Parse( initialiser );
 
 			msg( E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" = %s",
-			     name, ( ProcDebug::PrintValue( declaration_data ), ProcDebug::debug_buffer ) );
+			     name, ProcDebug::PrintValue( declaration_data ).c_str() );
 
 			decode_output.data.push_back( declaration_data );
 			break;
@@ -450,7 +444,7 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 			declaration_reference = ParseFullReference( initialiser );
 
 			msg( E_INFO, E_DEBUG, "Declaration: alias \"%s\" to %s",
-			     name, ( ProcDebug::PrintReference( declaration_reference ), ProcDebug::debug_buffer ) );
+			     name, ProcDebug::PrintReference( declaration_reference ).c_str() );
 
 			// No data is decoded
 			break;
@@ -477,7 +471,7 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 			uninitialised_data.Set( Value::V_MAX, 0 );
 
 			msg( E_INFO, E_DEBUG, "Declaration: DATA entry \"%s\" uninitialised (%s)",
-			     name, ( ProcDebug::PrintValue( uninitialised_data ), ProcDebug::debug_buffer ) );
+			     name, ProcDebug::PrintValue( uninitialised_data ).c_str() );
 		}
 
 		// otherwise, leave value uninitialised
@@ -556,7 +550,7 @@ void AsmHandler::ReadSingleCommand( const char* command,
 
 	msg( E_INFO, E_DEBUG, "Command: \"%s\" (0x%04hx) argument %s",
 	     desc->mnemonic, desc->id,
-	     ( ProcDebug::PrintArgument( desc->arg_type, output_command.arg ), ProcDebug::debug_buffer ) );
+	     ProcDebug::PrintArgument( desc->arg_type, output_command.arg ).c_str() );
 
 	// Write decode result
 	decode_output.commands.push_back( output_command );

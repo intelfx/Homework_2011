@@ -45,7 +45,7 @@ typedef struct Value
 		integer = src;
 	}
 
-	inline void Expect( Processor::Value::Type required_type, bool allow_uninitialised = 0 ) const;
+	inline void Expect( Value::Type required_type, bool allow_uninitialised = 0 ) const;
 	inline Type GenType( Type required_type ) const
 	{
 		return ( required_type == V_MAX ) ? type : required_type;
@@ -208,7 +208,7 @@ typedef struct Value
 
 		classification = fpclassify( result );
 		s_cverify( classification == FP_NORMAL || classification == FP_ZERO,
-		           "Invalid floating-point value: \"%s\"-> %lg", string, result );
+		           "Invalid floating-point value: \"%s\" -> %lg", string, result );
 
 		return result;
 	}
@@ -238,11 +238,11 @@ typedef struct Value
 namespace ProcDebug
 {
 
-INTERPRETER_API extern const char* ValueType_ids[Value::V_MAX + 1]; // debug value type IDs
+INTERPRETER_API std::string Print( Value::Type arg );
 
 } // namespace ProcDebug
 
-void Value::Expect( Processor::Value::Type required_type, bool allow_uninitialised ) const
+void Value::Expect( Value::Type required_type, bool allow_uninitialised ) const
 {
 	if( !allow_uninitialised )
 		s_cverify( type != V_MAX, "Cannot access uninitialised value" );
@@ -255,7 +255,7 @@ void Value::Expect( Processor::Value::Type required_type, bool allow_uninitialis
 
 		s_cverify( type == required_type,
 		           "Cannot operate on non-matching types (expected \"%s\" instead of \"%s\")",
-		           ProcDebug::ValueType_ids[required_type], ProcDebug::ValueType_ids[type] );
+		           ProcDebug::Print( required_type ).c_str(), ProcDebug::Print( type ).c_str() );
 	}
 }
 

@@ -15,12 +15,11 @@ namespace ProcDebug
 {
 
 const char* FileSectionType_ids[SEC_MAX] = {
-	"non-uniform",
-	"symbol map",
-	"text image"
+	"text image",
 	"data image",
-	"stack image",
-	"invalid type"
+	"byte-granular pool image",
+	"symbol map",
+	"stack image"
 };
 
 const char* AddrType_ids[S_MAX] = {
@@ -40,6 +39,24 @@ const char* ValueType_ids[Value::V_MAX + 1] = {
 };
 
 char debug_buffer[STATIC_LENGTH];
+
+std::string Print( MemorySectionType arg )
+{
+	return arg >= SEC_MAX ? ( snprintf( debug_buffer, STATIC_LENGTH, "<wrong section type: %u>", arg ), debug_buffer )
+	                      : FileSectionType_ids[arg];
+}
+
+std::string Print( AddrType arg )
+{
+	return arg >= S_MAX ? ( snprintf( debug_buffer, STATIC_LENGTH, "<wrong address type: %u>", arg ), debug_buffer )
+	                    : AddrType_ids[arg];
+}
+
+std::string Print( Value::Type arg )
+{
+	return arg >= Value::V_MAX + 1 ? ( snprintf( debug_buffer, STATIC_LENGTH, "<wrong value type: %u>", arg ), debug_buffer )
+	                               : ValueType_ids[arg];
+}
 
 void PrintSingleReference( char*& output, const Reference::SingleRef& ref, IMMU* mmu )
 {
@@ -66,13 +83,14 @@ void PrintSingleReference( char*& output, const Reference::SingleRef& ref, IMMU*
 		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "address %zu", bref.memory_address );
 }
 
-void PrintReference( const DirectReference& ref )
+std::string PrintReference( const DirectReference& ref )
 {
 	snprintf( debug_buffer, STATIC_LENGTH, "section %s address %zu",
 	          AddrType_ids[ref.section], ref.address );
+	return debug_buffer;
 }
 
-void PrintReference( const Reference& ref, IMMU* mmu )
+std::string PrintReference( const Reference& ref, IMMU* mmu )
 {
 	char* output = debug_buffer;
 
@@ -94,10 +112,11 @@ void PrintReference( const Reference& ref, IMMU* mmu )
 			PrintSingleReference( output, ref.components[1], mmu );
 		}
 	}
+	return debug_buffer;
 }
 
 
-void PrintValue( const Value& val )
+std::string PrintValue( const Value& val )
 {
 	switch( val.type ) {
 	case Value::V_INTEGER:
@@ -116,22 +135,20 @@ void PrintValue( const Value& val )
 		s_casshole( "Switch error" );
 		break;
 	}
+	return debug_buffer;
 }
 
-void PrintArgument( ArgumentType arg_type, const Command::Argument& argument, IMMU* mmu )
+std::string PrintArgument( ArgumentType arg_type, const Command::Argument& argument, IMMU* mmu )
 {
 	switch( arg_type ) {
 	case A_NONE:
-		strncpy( debug_buffer, "absent", STATIC_LENGTH );
-		break;
+		return "absent";
 
 	case A_REFERENCE:
-		PrintReference( argument.ref, mmu );
-		break;
+		return PrintReference( argument.ref, mmu );
 
 	case A_VALUE:
-		PrintValue( argument.value );
-		break;
+		return PrintValue( argument.value );
 
 	default:
 		s_casshole( "Switch error" );
@@ -156,6 +173,7 @@ calc_t ExecuteGate( abi_native_fn_t jit_compiled_function )
 	 * Pay all your penance
 	 * JIT-compiler death sentence
 	 */
+	smsg( E_WARNING, E_DEBUG, "Going hot now..." );
 	return_value = jit_compiled_function( jit_compiled_function_argument );
 
 	if( return_type == Value::V_MAX )
@@ -169,23 +187,15 @@ calc_t ExecuteGate( abi_native_fn_t jit_compiled_function )
 	}
 }
 
-void IMMU::SetTemporaryContext( size_t ctx_id )
+
+void ILogic::SwitchToContextBuffer( ctx_t id, bool clear_on_switch )
 {
-	verify_method;
-
-	msg( E_INFO, E_DEBUG, "Setting up temporary context [buffer %zu depth %zu]-> %zu",
-	     GetContext().buffer, GetContext().depth, ctx_id );
-
-	SaveContext();
-	ClearContext();
-	GetContext().buffer = ctx_id;
-	ResetBuffers( ctx_id );
-}
-
-void IMMU::SelectStack( Value::Type type )
-{
-	msg( E_WARNING, E_DEBUG, "Stack change request (req. \"%s\") is unsupported by MMU",
-	     ProcDebug::ValueType_ids[type] );
+	SaveCurrentContext();
+	ResetCurrentContextState();
+	SetCurrentContextBuffer( id );
+	if( clear_on_switch ) {
+		proc_->MMU()->ResetContextBuffer( id );
+	}
 }
 
 } // namespace Processor

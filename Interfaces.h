@@ -72,6 +72,8 @@ class INTERPRETER_API ProcessorAPI : LogBase( ProcessorAPI )
 	void Attach_( IBackend* backend );
 	void Attach_( ILogic* logic );
 
+	Context current_execution_context_;
+
 protected:
 	virtual bool _Verify() const;
 
@@ -83,9 +85,7 @@ protected:
 		if( initialise_completed ) {
 			verify_method;
 			return module;
-		}
-
-		else {
+		} else {
 			cassert( module, "Module \"%s\" is not available on pre-init state. Reorder module initialisation.", modname );
 
 			// TODO in case of assertion fail, we will have (initialise_completed == false) and verification error.
@@ -104,22 +104,27 @@ public:
 	IWriter*	Writer()					{ return CheckReturnModule( writer_, "writer" ); }
 	IMMU*		MMU()						{ return CheckReturnModule( mmu_, "MMU" ); }
 	IBackend*	Backend()					{ return CheckReturnModule( backend_, "backend" ); }
-	IExecutor*	Executor( Value::Type type )	{ return CheckReturnModule( executors_[type], "executor" ); }
+	IExecutor*	Executor( Value::Type type ){ return CheckReturnModule( executors_[type], "executor" ); }
 	ILinker*	Linker()					{ return CheckReturnModule( linker_, "linker" ); }
 	ICommandSet* CommandSet()				{ return CheckReturnModule( cset_, "command set" ); }
 	ILogic*		LogicProvider()				{ return CheckReturnModule( internal_logic_, "logic provider" ); }
 
-	NativeExecutionManager& ExecutionManager() { return nem_; }
+	      Context& CurrentContext()       { return current_execution_context_; }
+	const Context& CurrentContext() const { return current_execution_context_; }
 
+	NativeExecutionManager& ExecutionManager() { return nem_; }
 
 	void	Flush(); // Completely reset and reinitialise the system
 	void	Reset(); // Reset current execution context
-	void	Clear(); // Clear current execution buffers
+	void	Clear(); // Clear current execution buffers (implies Reset())
 	void	Load( FILE* file ); // Load into a new context/buffer
 	void	Dump( FILE* file ); // Dump current context/buffer
-	void	Delete(); // Return to previous context/buffer
+	void	MergeWithContext( ctx_t ctx_id ); // Merge the last context with the specified one
+	void	Delete(); // Return to previous context buffer, exiting from all frames in the current one
 	void	Compile(); // Invoke backend to compile the bytecode
 	calc_t	Exec(); // Execute current system state whatever it is now
+
+	void DumpExecutionContext( std::string* ctx_dump );
 };
 
 class INTERPRETER_API IModuleBase : LogBase( IModuleBase )
@@ -170,12 +175,24 @@ public:
 	virtual void	Write( const DirectReference& ref, calc_t value ) = 0; // Use DATA reference to write
 	virtual void	UpdateType( const DirectReference& ref, Value::Type type ) = 0; // Use DATA reference to rewrite its type
 
+	// Stack management commands operate on the stack corresponding to the last command executed
+	// and are designed for usage by the execution unit modules (or external inspection code).
+	virtual size_t	StackSize() = 0; // Calculation stack "count of elements" operation
 	virtual calc_t	StackTop() = 0; // Calculation stack "top" operation
 	virtual calc_t	StackPop() = 0; // Calculation stack "pop" operation
 	virtual void	StackPush( calc_t value ) = 0; // Calculation stack "push" operation
 
+	virtual void    ResetCurrentContextState() = 0; // Resets the current execution context state
+	virtual void    SetCurrentContextBuffer( ctx_t ctx ) = 0; // Changes the current context buffer.
+	virtual void    SaveCurrentContext() = 0; // Saves the current context (state and buffer) onto the call stack
+	virtual void    RestoreCurrentContext() = 0; // Restores the current context from the call stack
+	virtual void    ClearContextStack() = 0; // Clears the call stack
+
 	virtual void	ExecuteSingleCommand( Command& command ) = 0; // Execute a single command
-	virtual char* 	DumpCommand( Command& command ) const = 0; // Decode and log a single command
+	virtual std::string	DumpCommand( Command& command ) const = 0; // Decode and log a single command
+
+	void SwitchToContextBuffer( ctx_t id, bool clear_on_switch = false ); // Switch to a different context buffer, remembering last context.
+	                                                                      // You shall probably use _this_ function to change contexts.
 };
 
 class INTERPRETER_API ICommandSet : LogBase( ICommandSet ), public IModuleBase
@@ -209,14 +226,14 @@ public:
 
 	// Advance file to the next section and return information about the new section.
 	// Successive calls to read functions should then read from this section.
-	// Returns 1 if call succeeded (0 if there is no sections).
-	virtual size_t NextSection( MemorySectionType* type, size_t* count, size_t* bytes ) = 0;
+	// Returns: pair<section type, section size>
+	virtual std::pair<MemorySectionIdentifier, size_t> NextSection() = 0;
 
 	// Reads current section image into "destination".
-	virtual void ReadSectionImage( void* destination ) = 0;
+	virtual llarray ReadSectionImage() = 0;
 
 	// Reads current section symbol map into "destination".
-	virtual void ReadSymbols( symbol_map& destination ) = 0;
+	virtual symbol_map ReadSymbols() = 0;
 
 	// Reads and decodes next element of uniform stream section.
 	// Returns pointer to decoded unit (if any).
@@ -230,49 +247,51 @@ public:
 	virtual void WrSetup( FILE* file ) = 0;
 	virtual void WrReset() = 0;
 
-	virtual void Write( size_t ctx_id ) = 0;
+	virtual void Write( ctx_t ctx_id ) = 0;
 };
 
 class INTERPRETER_API IMMU : LogBase( IMMU ), public IModuleBase
 {
 public:
-	virtual Context&		GetContext() = 0;  // Get current context data (persistent)
-	virtual void			DumpContext( const char** ctx,
-	                                     const char** regs,
-	                                     const char** stacks ) const = 0; // Print context data to the string
+	virtual void			DumpContext( std::string* regs,
+	                                     std::string* stacks ) const = 0; // Print context data to the string
 
+	virtual ctx_t			CurrentContextBuffer() const = 0; // Get the current context buffer
+	virtual ctx_t			AllocateContextBuffer() = 0; // Allocate a new context buffer
+	virtual void			SelectContextBuffer( ctx_t id ) = 0; // Select a different context buffer. NOTE: Do not use this function, see ILogic.
+	virtual void			ReleaseContextBuffer( ctx_t id ) = 0; // Release a context buffer; deselect if selected
+	virtual void			ResetContextBuffer( ctx_t id ) = 0; // Clear a context buffer (was ResetBuffers())
 
-	virtual void			SelectStack( Value::Type type ); // Selects stack for consequent operations
-	virtual void			QueryActiveStack( Value::Type* type, size_t* top ) = 0; // Request information about selected stack
-	virtual void			AlterStackTop( short offset ) = 0; // Change stack top relatively (-1 is pop).
+	virtual size_t			QueryStackTop( Value::Type type ) const = 0; // Get absolute value of a stack's top (0 means stack is empty)
+	virtual void            SetStackTop( Value::Type type, ssize_t adjust ) = 0; // Set a stack top relative to its current value
 
-	virtual calc_t&			AStackFrame( int offset ) = 0; // Access calculation stack relative to context's stack frame pointer
-	virtual calc_t&			AStackTop( size_t offset ) = 0; // Access calculation stack relative to its top
+	virtual calc_t&			AStackFrame( Value::Type type, ssize_t offset ) = 0; // Access calculation stack relative to context's stack frame pointer
+	virtual calc_t&			AStackTop( Value::Type type, size_t offset ) = 0; // Access calculation stack relative to its top
 	virtual calc_t&			ARegister( Register reg_id ) = 0; // Access register
 	virtual Command&		ACommand( size_t ip ) = 0; // Access CODE section
 	virtual calc_t&			AData( size_t addr ) = 0; // Access DATA section
 	virtual symbol_type&	ASymbol( size_t hash ) = 0; // Access symbol buffer
 	virtual char*			ABytepool( size_t offset ) = 0; // Access byte pool
 
-	virtual void			QueryLimits( size_t limits[SEC_MAX] ) const = 0; // Query current section limits (to array)
-	virtual void			ReadSection( MemorySectionType section, void* image, size_t count ) = 0; // Read and append section image
-	virtual void			WriteSection( MemorySectionType section, void* image ) const = 0; // Write section to image
-	virtual void			ReadSymbolImage( symbol_map && symbols ) = 0; // Read symbol map
-	virtual void			WriteSymbolImage( symbol_map& symbols ) const = 0; // Write symbol map to image
+	virtual Offsets			QuerySectionLimits() const = 0; // Query current section sizes (limits)
 
-	virtual void VerifyReference( const DirectReference& ref ) const = 0; // Check if given reference is valid to access
+	virtual llarray			DumpSection( MemorySectionIdentifier section, size_t address,
+	                                     size_t count ) = 0;
+	virtual void			ModifySection( MemorySectionIdentifier section, size_t address,
+	                                       const void* data, size_t count, bool insert = false ) = 0;
+	virtual void			AppendSection( MemorySectionIdentifier section,
+	                                       const void* data, size_t count ) = 0;
 
-	virtual void ResetBuffers( size_t ctx_id ) = 0; // Reset specified context buffer
-	virtual void ResetEverything() = 0; // Reset MMU to its initial state, clearing all stacks.
+	virtual void			ShiftImages( const Offsets& offsets ) = 0; // Shift forth all sections by specified offset, filling space with empty data.
+	virtual void			PasteFromContext( ctx_t id ) = 0; // Paste the specified context over the current one
 
-	virtual void SaveContext() = 0; // Push context on call stack (PC must point to call instruction)
-	virtual void ClearContext() = 0; // Clear all context data but context ID
-	virtual void RestoreContext() = 0; // Load context from call stack
+	virtual void			SetSymbolImage( symbol_map&& symbols ) = 0; //
+	virtual symbol_map		DumpSymbolImage() const = 0; // Write symbol map to image
 
-	virtual void NextContextBuffer() = 0; // Push context on call stack; clear all and increment context ID
-	virtual void AllocContextBuffer() = 0; // Switch to next context buffer; reset the buffer
+	virtual void			VerifyReference( const DirectReference& ref,
+											 Value::Type frame_stack_type ) const = 0; // Check if given reference is valid to access
 
-	void SetTemporaryContext( size_t ctx_id );
+	virtual void			ResetEverything() = 0; // Reset MMU to its initial state: deallocate all context buffers
 };
 
 class INTERPRETER_API IExecutor : LogBase( IExecutor ), public IModuleBase
@@ -306,14 +325,23 @@ public:
 	virtual void DirectLink_Init() = 0;
 
 	// Commit collected buffers to the MMU.
-	virtual void DirectLink_Commit() = 0;
+	virtual void DirectLink_Commit( bool UAT = false ) = 0;
 
 	// Collect symbols in decode stage.
 	// Use provided offsets for auto-placement.
-	virtual void DirectLink_Add( symbol_map& symbols, size_t offsets[SEC_MAX] ) = 0;
+	virtual void DirectLink_Add( symbol_map&& symbols, const Offsets& limits ) = 0;
+
+	// Relocate the image:
+	// - adjust symbols and (possibly) references
+	// - rebase section images on the new offsets
+	virtual void Relocate( const Offsets& offsets ) = 0;
+
+	// Collect symbols from another linked source.
+	// Do not auto-place.
+	virtual void MergeLink_Add( symbol_map&& symbols ) = 0;
 
 	// Retrieve a direct reference for given arbitrary reference.
-	virtual DirectReference Resolve( Reference& reference ) = 0; // or get an unresolved symbol error
+	virtual DirectReference Resolve( const Reference& reference ) = 0; // or get an unresolved symbol error
 };
 
 } // namespace Processor

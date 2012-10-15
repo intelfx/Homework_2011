@@ -66,8 +66,8 @@ static_assert( sizeof( fp_t ) == sizeof( int_t ),
  * ABI conversion scheme:
  *  first conversion is a valid C cast (with precision loss)
  *  second conversion is type punning to integer type (same size, but exact copying)
- *  fp_t-> fp_abi_t-> abiret_t
- *  int_t-> int_abi_t-> abiret_t
+ *  fp_t -> fp_abi_t -> abiret_t
+ *  int_t -> int_abi_t -> abiret_t
  */
 
 typedef float fp_abi_t; // ABI intermediate floating-point type
@@ -164,13 +164,28 @@ enum FileType
 
 enum MemorySectionType
 {
-	SEC_CODE_IMAGE = 1,
+	SEC_CODE_IMAGE = 0,
 	SEC_DATA_IMAGE,
 	SEC_BYTEPOOL_IMAGE,
 	SEC_SYMBOL_MAP,
 	SEC_STACK_IMAGE,
 	SEC_MAX
 };
+
+inline MemorySectionType TranslateSection( AddrType type )
+{
+	static const MemorySectionType AT_to_MST[S_MAX] = {
+		SEC_MAX,            // S_NONE
+		SEC_CODE_IMAGE,     // S_CODE
+		SEC_DATA_IMAGE,     // S_DATA
+		SEC_MAX,            // S_REGISTER
+		SEC_BYTEPOOL_IMAGE, // S_BYTEPOOL
+		SEC_MAX,            // S_FRAME
+		SEC_MAX,            // S_FRAME_BACK
+	};
+
+	return type >= S_MAX ? SEC_MAX : AT_to_MST[type];
+}
 
 } // namespace Processor
 

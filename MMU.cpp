@@ -1,20 +1,37 @@
 #include "stdafx.h"
 #include "MMU.h"
 
+namespace {
+
+template <typename T, typename Iter>
+void PasteVector( std::vector<T>& dest, size_t address, Iter first, Iter last )
+{
+	if( last == first ) {
+		return;
+	}
+
+	ptrdiff_t count = last - first;
+	s_cassert( count > 0, "Negative or zero elements count to insert: %td", count );
+
+	if( dest.size() < address + count ) {
+		dest.resize( address + count );
+	}
+
+	for( Iter i = first; i != last; ++i ) {
+		dest[address++] = *i;
+	}
+}
+
+} // unnamed namespace
+
 namespace ProcessorImplementation
 {
 using namespace Processor;
 
 MMU::MMU() :
-	integer_stack(),
-	fp_stack(),
-	current_stack( 0 ),
-	frame_stack( 0 ),
-	current_stack_type( Value::V_MAX ),
-	frame_stack_type( Value::V_MAX ),
-	context_stack(),
-	buffers(),
-	context()
+	stacks_(),
+	buffers_(),
+	current_buffer_( buffers_.end() )
 {
 }
 
@@ -30,110 +47,84 @@ void MMU::OnDetach()
 
 void MMU::ClearStacks()
 {
-	integer_stack.clear();
-	fp_stack.clear();
-}
-
-void MMU::AllocBytes( size_t destination_size )
-{
-	InternalContextBuffer& icb = CurrentBuffer();
-
-	if( destination_size > icb.bytepool_length ) {
-		msg( E_INFO, E_DEBUG, "Reallocating bytepool memory [ctx %zu] %p:%zu-> %zu",
-		     context.buffer, icb.bytepool_data, icb.bytepool_length, destination_size );
-
-		char* new_bytepool = reinterpret_cast<char*>( realloc( icb.bytepool_data, destination_size ) );
-		cassert( new_bytepool,
-		         "Failed to reallocate bytepool [ctx %zd] %p:%zu-> %zu",
-		         context.buffer, icb.bytepool_data, icb.bytepool_length, destination_size );
-
-		icb.bytepool_data = new_bytepool;
-		icb.bytepool_length = destination_size;
+	for( unsigned i = 0; i < Value::V_MAX; ++i ) {
+		stacks_[i].clear();
 	}
 }
 
-void MMU::InternalWrStackPointer( std::vector<calc_t>** ptr, Value::Type type )
+ctx_t MMU::CurrentContextBuffer() const
 {
-	switch( type ) {
-	case Value::V_FLOAT:
-		*ptr = &fp_stack;
-		break;
+	return (current_buffer_ == buffers_.end()) ? 0 : current_buffer_->first;
+}
 
-	case Value::V_INTEGER:
-		*ptr = &integer_stack;
-		break;
+ctx_t MMU::AllocateContextBuffer()
+{
+	ctx_t allocated_index = buffers_.empty() ? 1 : buffers_.rbegin()->first + 1;
+	msg( E_INFO, E_DEBUG, "Allocating a new context buffer ID %lu", allocated_index );
 
-	case Value::V_MAX:
-	default:
-		casshole( "Switch error" );
-		break;
+	auto insert_result = buffers_.insert( std::make_pair( allocated_index, InternalContextBuffer() ) );
+	cassert( insert_result.second, "Context buffer ID %lu was already allocated", allocated_index );
+
+	return allocated_index;
+}
+
+void MMU::SelectContextBuffer( ctx_t id )
+{
+	if( id ) {
+		msg( E_INFO, E_DEBUG, "Selecting the context buffer ID %lu", id );
+		auto new_buffer = buffers_.find( id );
+		cassert( new_buffer != buffers_.end(), "Attempt to select an inexistent context buffer ID %lu", id );
+		current_buffer_ = new_buffer;
+	} else {
+		msg( E_WARNING, E_DEBUG, "Deselecting the context buffer" );
+		current_buffer_ = buffers_.end();
 	}
 }
 
-void MMU::SelectStack( Value::Type type )
+void MMU::ReleaseContextBuffer( ctx_t id )
 {
-	verify_method;
-
-	// If everything is already selected, do nothing.
-	if( current_stack_type == type )
-		return;
-
-	msg( E_INFO, E_DEBUG, "Selecting stack type: \"%s\"", ProcDebug::ValueType_ids[type] );
-
-	current_stack = 0;
-	frame_stack = 0;
-
-	current_stack_type = type;
-	frame_stack_type = Value::V_INTEGER;
-
-	if( current_stack_type != Value::V_MAX )
-		InternalWrStackPointer( &current_stack, current_stack_type );
-
-	if( frame_stack_type != Value::V_MAX )
-		InternalWrStackPointer( &frame_stack, frame_stack_type );
+	msg( E_INFO, E_DEBUG, "Freeing the context buffer ID %lu", id );
+	size_t count_erased = buffers_.erase( id );
+	cassert( count_erased > 0, "Attempt to remove an inexistent context buffer ID %lu", id );
 }
 
-void MMU::QueryActiveStack( Value::Type* type, size_t* top )
+size_t MMU::QueryStackTop( Value::Type type ) const
 {
-	verify_method;
-
-	if( type )
-		*type = current_stack_type;
-
-	if( top )
-		*top = current_stack ? current_stack->size() : 0;
+	cassert( type < Value::V_MAX, "Invalid stack type required: \"%s\"", ProcDebug::Print( type ).c_str() );
+	return stacks_[type].size();
 }
 
-void MMU::AlterStackTop( short int offset )
+void MMU::SetStackTop( Value::Type type, ssize_t adjust )
 {
-	verify_method;
-	CheckStackOperation();
+	cassert( type < Value::V_MAX, "Invalid stack type required: \"%s\"", ProcDebug::Print( type ).c_str() );
 
-	long new_size = current_stack->size() + offset;
-	cassert( new_size >= 0, "Unable to alter stack top by %hd: current top is %zu, new top is negative",
-	         offset, current_stack->size() );
+	ssize_t new_size = stacks_[type].size() + adjust;
+	cassert( new_size >= 0, "Invalid adjustment requested: %zd (T: %zu)", adjust, stacks_[type].size() );
 
-	current_stack->resize( new_size );
+	calc_t pattern;
+	pattern.type = type;
+	pattern.Set( type, 0, true );
+	stacks_[type].resize( stacks_[type].size() + adjust, pattern );
 }
 
-calc_t& MMU::AStackTop( size_t offset )
+calc_t& MMU::AStackTop( Value::Type type, size_t offset )
 {
 	verify_method;
-	CheckStackAddress( offset );
-	return * ( current_stack->rbegin() + offset );
+	CheckStackAddress( type, offset );
+	return *( stacks_[type].rbegin() + offset );
 }
 
-calc_t& MMU::AStackFrame( int offset )
+calc_t& MMU::AStackFrame( Value::Type type, ssize_t offset )
 {
 	verify_method;
-	CheckFrameAddress( offset );
+	CheckFrameAddress( type, offset );
 
 	// Offset to stack frame may be either positive or negative.
 	// It is added to stack frame verbatim.
-	return frame_stack->at( context.frame + offset );
+	return stacks_[type].at( proc_->CurrentContext().frame + offset );
 }
 
-Processor::symbol_type& MMU::ASymbol( size_t hash )
+symbol_type& MMU::ASymbol( size_t hash )
 {
 	verify_method;
 
@@ -173,91 +164,81 @@ char* MMU::ABytepool( size_t offset )
 	verify_method;
 	InternalContextBuffer& icb = CurrentBuffer();
 
-	cassert( offset < icb.bytepool_length,
+	cassert( offset < icb.bytepool.size(),
 	         "Cannot reference bytepool address %zu [allocated size %zu]",
-	         offset, icb.bytepool_length );
+	         offset, icb.bytepool.size() );
 
-	return icb.bytepool_data + offset;
+	return icb.bytepool + offset;
 }
 
-void MMU::QueryLimits( size_t limits[SEC_MAX] ) const
+Offsets MMU::QuerySectionLimits() const
 {
-	memset( limits, 0, sizeof( size_t ) * SEC_MAX );
+	Offsets ret;
+	const InternalContextBuffer& icb = CurrentBuffer();
 
-	const InternalContextBuffer& ctx = CurrentBuffer();
-
-	limits[SEC_CODE_IMAGE] = ctx.commands.size();
-	limits[SEC_DATA_IMAGE] = ctx.data.size();
-	limits[SEC_BYTEPOOL_IMAGE] = ctx.bytepool_length;
+	ret.Code() = icb.commands.size();
+	ret.Data() = icb.data.size();
+	ret.Bytepool() = icb.bytepool.size();
+	for( unsigned i = 0; i < Value::V_MAX; ++i ) {
+		ret.Stack( static_cast<Value::Type>( i ) ) = stacks_[i].size();
+	}
+	return ret;
 }
 
-void MMU::ReadSection( MemorySectionType section, void* image, size_t count )
+void MMU::AppendSection( MemorySectionIdentifier section, const void* image, size_t count )
 {
 	verify_method;
 	cassert( image, "NULL section image pointer" );
 
-	switch( section ) {
+	switch( section.SectionType() ) {
 	case SEC_CODE_IMAGE: {
-		msg( E_INFO, E_DEBUG, "Adding text (%p : %zu)-> ctx %zu",
-		     image, count, context.buffer );
+		msg( E_INFO, E_DEBUG, "Adding text (count: %zu) -> buffer %zu",
+		     count, CurrentContextBuffer() );
 
 		std::vector<Command>& text_dest = CurrentBuffer().commands;
-		Command* tmp_image = reinterpret_cast<Command*>( image );
+		const Command* tmp_image = reinterpret_cast<const Command*>( image );
 
 		text_dest.insert( text_dest.end(), tmp_image, tmp_image + count );
 		break;
 	}
 
 	case SEC_DATA_IMAGE: {
-		msg( E_INFO, E_DEBUG, "Adding data (%p : %zu)-> ctx %zu",
-		     image, count, context.buffer );
+		msg( E_INFO, E_DEBUG, "Adding data (count: %zu) -> buffer %zu",
+		     count, CurrentContextBuffer() );
 
 		std::vector<calc_t>& data_dest = CurrentBuffer().data;
-		calc_t* tmp_image = reinterpret_cast<calc_t*>( image );
+		const calc_t* tmp_image = reinterpret_cast<const calc_t*>( image );
 
 		data_dest.insert( data_dest.end(), tmp_image, tmp_image + count );
 		break;
 	}
 
 	case SEC_BYTEPOOL_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Adding raw data (%p : %zu)-> ctx %zu",
-		     image, count, context.buffer );
+		msg( E_INFO, E_VERBOSE, "Adding raw data (bytes: %zu) -> buffer %zu",
+		     count, CurrentContextBuffer() );
 
-		InternalContextBuffer& icb = CurrentBuffer();
-		AllocBytes( icb.bytepool_length + count );
-
-		memcpy( icb.bytepool_data + icb.bytepool_length, image, count );
+		CurrentBuffer().bytepool.append( count, image );
 		break;
 	}
 
 	case SEC_STACK_IMAGE: {
-		msg( E_INFO, E_DEBUG, "Reading stack images (%p : %zu)-> global", image, count );
+		msg( E_INFO, E_DEBUG, "Reading stacks (overall size : %zu)", count );
 		ClearStacks();
 
-		calc_t* src = reinterpret_cast<calc_t*>( image );
+		size_t stats[Value::V_MAX] = {};
+		const calc_t* src = reinterpret_cast<const calc_t*>( image );
 
 		while( count-- ) {
-			switch( src->type ) {
-			case Value::V_FLOAT:
-				fp_stack.push_back( *src );
-				break;
-
-			case Value::V_INTEGER:
-				integer_stack.push_back( *src );
-				break;
-
-			case Value::V_MAX:
-				casshole( "Invalid input element type" );
-				break;
-
-			default:
-				casshole( "Switch error" );
-				break;
-			}
-
+			cassert( src->type < Value::V_MAX, "Invalid stack image element type" );
+			stacks_[src->type].push_back( *src );
+			++stats[src->type];
 			++src;
 		}
 
+		for( unsigned i = 0; i < Value::V_MAX; ++i ) {
+			msg( E_INFO, E_DEBUG, "Done: read %zu elements of type \"%s\"",
+				 stats[i], ProcDebug::Print( static_cast<Value::Type>( i ) ).c_str() );
+		}
 		break;
 	}
 
@@ -272,82 +253,144 @@ void MMU::ReadSection( MemorySectionType section, void* image, size_t count )
 	}
 }
 
-void MMU::ReadSymbolImage( symbol_map && symbols )
+void MMU::ModifySection( MemorySectionIdentifier section, size_t address,
+						 const void* image, size_t count, bool insert )
+{
+	verify_method;
+	cassert( image, "NULL section image pointer" );
+
+	const char* dbg_op = insert ? "Inserting" : "Pasting";
+
+	switch( section.SectionType() ) {
+	case SEC_CODE_IMAGE: {
+		msg( E_INFO, E_DEBUG, "%s text (count: %zu) -> buffer %zu at %zu",
+			 dbg_op, count, CurrentContextBuffer(), address );
+
+		std::vector<Command>& text_dest = CurrentBuffer().commands;
+		const Command* tmp_image = reinterpret_cast<const Command*>( image );
+
+		if( insert ) {
+			text_dest.insert( text_dest.begin() + address, tmp_image, tmp_image + count );
+		} else {
+			PasteVector( text_dest, address, tmp_image, tmp_image + count );
+		}
+		break;
+	}
+
+	case SEC_DATA_IMAGE: {
+		msg( E_INFO, E_DEBUG, "%s data (count: %zu) -> buffer %zu at %zu",
+		     dbg_op, count, CurrentContextBuffer(), address );
+
+		std::vector<calc_t>& data_dest = CurrentBuffer().data;
+		const calc_t* tmp_image = reinterpret_cast<const calc_t*>( image );
+
+		if( insert ) {
+			data_dest.insert( data_dest.begin() + address, tmp_image, tmp_image + count );
+		} else {
+			PasteVector( data_dest, address, tmp_image, tmp_image + count );
+		}
+		break;
+	}
+
+	case SEC_BYTEPOOL_IMAGE: {
+		msg( E_INFO, E_VERBOSE, "%s raw data (bytes: %zu) -> buffer %zu at %zu",
+		     dbg_op, count, CurrentContextBuffer(), address );
+
+		if( insert ) {
+			CurrentBuffer().bytepool.insert( address, count, image );
+		} else {
+			CurrentBuffer().bytepool.paste( address, count, image );
+		}
+		break;
+	}
+
+	case SEC_STACK_IMAGE: {
+		casshole( "Modifying stacks is not supported/needed" );
+		/*
+		 * Reason: too much work for nearly no uses.
+		 * Such insertion is meaningful only if all data elements have the same type.
+		 */
+	}
+
+	case SEC_SYMBOL_MAP:
+		casshole( "Cannot do binary operations on symbol map section" );
+		break;
+
+	case SEC_MAX:
+	default:
+		casshole( "Switch error" );
+		break;
+	}
+}
+
+void MMU::SetSymbolImage( symbol_map&& symbols )
 {
 	verify_method;
 
-	msg( E_INFO, E_DEBUG, "Attaching symbol map (%zu records)-> ctx %zu", symbols.size(), context.buffer );
+	msg( E_INFO, E_DEBUG, "Setting symbol map (records: %zu) -> buffer %zu",
+		 symbols.size(), CurrentContextBuffer() );
 	CurrentBuffer().sym_table = std::move( symbols );
 }
 
-void MMU::WriteSymbolImage( symbol_map& symbols ) const
+symbol_map MMU::DumpSymbolImage() const
 {
 	verify_method;
 
 	const InternalContextBuffer& ctx = CurrentBuffer();
 
-	msg( E_INFO, E_DEBUG, "Saving symbol map [ctx %zu] - %zu records", context.buffer, ctx.sym_table.size() );
-	symbols = ctx.sym_table;
+	msg( E_INFO, E_DEBUG, "Dumping symbol map (buffer %zu) -> %zu records",
+		 CurrentContextBuffer(), ctx.sym_table.size() );
+	return CurrentBuffer().sym_table;
 }
 
-void MMU::WriteSection( MemorySectionType section, void* image ) const
+llarray MMU::DumpSection( MemorySectionIdentifier section, size_t address, size_t count )
 {
 	verify_method;
-	cassert( image, "NULL section image pointer" );
 
-	switch( section ) {
+	InternalContextBuffer& icb = CurrentBuffer();
+
+	switch( section.SectionType() ) {
 	case SEC_CODE_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Writing text image [ctx %zu]-> %p",
-		     context.buffer, image );
+		msg( E_INFO, E_VERBOSE, "Dumping text (buffer %zu) -> range %zu:%zu",
+		     CurrentContextBuffer(), address, count );
 
-		const std::vector<Command>& commands = CurrentBuffer().commands;
-		Command* dest = reinterpret_cast<Command*>( image );
+		cassert( address + count <= icb.commands.size(),
+				 "Invalid range requested (section limit: %zu)", icb.commands.size() );
 
-		std::vector<Command>::const_iterator src = commands.begin();
-
-		while( src != commands.end() )
-			*dest++ = *src++;
-
-		break;
+		return llarray( icb.commands.data() + address, sizeof( Command ) * count );
 	}
 
 	case SEC_DATA_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Writing data image [ctx %zu]-> %p",
-		     context.buffer, image );
+		msg( E_INFO, E_VERBOSE, "Dumping data (buffer %zu) -> range %zu:%zu",
+		     CurrentContextBuffer(), address, count );
 
-		const std::vector<calc_t>& data = CurrentBuffer().data;
-		calc_t* dest = reinterpret_cast<calc_t*>( image );
+		cassert( address + count <= icb.data.size(),
+				 "Invalid range requested (section limit: %zu)", icb.data.size() );
 
-		std::vector<calc_t>::const_iterator src = data.begin();
-
-		while( src != data.end() )
-			*dest++ = *src++;
-
-		break;
+		return llarray( icb.data.data() + address, sizeof( calc_t ) * count );
 	}
 
 	case SEC_BYTEPOOL_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Writing byte data image [ctx %zu]-> %p",
-		     context.buffer, image );
+		msg( E_INFO, E_VERBOSE, "Dumping bytepool (buffer %zu) -> range %zu:%zu",
+		     CurrentContextBuffer(), address, count );
 
-		memcpy( image, CurrentBuffer().bytepool_data, CurrentBuffer().bytepool_length );
-		break;
+		cassert( address + count <= icb.bytepool.size(),
+				 "Invalid range requested (section limit: %zu)", icb.data.size() );
+
+		return llarray( icb.bytepool + address, count );
 	}
 
 	case SEC_STACK_IMAGE: {
-		CheckStackOperation();
+		Value::Type stack_type = section.DataType();
+		cassert( stack_type < Value::V_MAX, "Invalid stack type requested" );
 
-		msg( E_INFO, E_DEBUG, "Writing stack image (%s)-> %p",
-		     ProcDebug::ValueType_ids[current_stack_type], image );
+		msg( E_INFO, E_DEBUG, "Dumping %s stack image -> range %zu:%zu",
+		     ProcDebug::Print( stack_type ).c_str(), address, count );
 
-		calc_t* dest = reinterpret_cast<calc_t*>( image );
+		cassert( address + count <= stacks_[stack_type].size(),
+				 "Invalid range requested (stack top: %zu)", stacks_[stack_type].size() );
 
-		std::vector<calc_t>::const_iterator src = current_stack->begin();
-
-		while( src != current_stack->end() )
-			*dest++ = *src++;
-
-		break;
+		return llarray( stacks_[stack_type].data() + address, sizeof( calc_t ) * count );
 	}
 
 	case SEC_SYMBOL_MAP:
@@ -361,244 +404,125 @@ void MMU::WriteSection( MemorySectionType section, void* image ) const
 	}
 }
 
-void MMU::ResetBuffers( size_t ctx_id )
+void MMU::ShiftImages( const Offsets& offsets )
 {
 	verify_method;
 
-	msg( E_INFO, E_DEBUG, "Resetting images in context %zu", ctx_id );
-	cassert( ctx_id < buffers.size(), "Invalid given buffer ID [%zu]: max %zu", ctx_id, buffers.size() );
+	msg( E_INFO, E_DEBUG, "Shifting sections in context %zu", CurrentContextBuffer() );
 
-	InternalContextBuffer& buffer_dest = buffers[ctx_id];
-	free( buffer_dest.bytepool_data );
-	buffer_dest = InternalContextBuffer();
+	InternalContextBuffer& icb = CurrentBuffer();
+
+	icb.commands.insert( icb.commands.begin(), offsets.Code(), Command() );
+	icb.data.insert( icb.data.begin(), offsets.Data(), calc_t() );
+	icb.bytepool.insert( 0, offsets.Bytepool(), nullptr );
+}
+
+void MMU::PasteFromContext( ctx_t id )
+{
+	verify_method;
+	ctx_t main_ctx = CurrentContextBuffer();
+	msg( E_INFO, E_DEBUG, "Pasting context %zu -> %zu", id, main_ctx );
+
+	Debug::API::ClrObjectFlag( this, Debug::OF_USEVERIFY );
+	InternalContextBuffer& dest = CurrentBuffer();
+	SelectContextBuffer( id );
+	InternalContextBuffer& src = CurrentBuffer();
+	SelectContextBuffer( main_ctx );
+	Debug::API::SetObjectFlag( this, Debug::OF_USEVERIFY );
+
+	PasteVector( dest.commands, 0, src.commands.begin(), src.commands.end() );
+	PasteVector( dest.data, 0, src.data.begin(), src.data.end() );
+	dest.bytepool.paste( 0, src.bytepool.size(), src.bytepool );
+}
+
+void MMU::ResetContextBuffer( ctx_t id )
+{
+	verify_method;
+	ctx_t main_ctx = CurrentContextBuffer();
+	msg( E_INFO, E_DEBUG, "Clearing the context buffer ID %lu", id );
+
+	SelectContextBuffer( id );
+	InternalContextBuffer& dest = CurrentBuffer();
+	SelectContextBuffer( main_ctx );
+
+	dest = InternalContextBuffer();
 }
 
 void MMU::ResetEverything()
 {
 	// Firstly reset context to put MMU into uninitialised state
-	ClearContext();
-	context.buffer = -1;
-
-	// Then clear stack contents
+	SelectContextBuffer( 0 );
 	ClearStacks();
-	SelectStack( Value::V_MAX );
-	context_stack.clear();
-
-	// Finally, clear context buffers
-	for( InternalContextBuffer& buffer: buffers ) {
-		free( buffer.bytepool_data );
-	}
-	buffers.clear();
+	buffers_.clear();
 }
 
-void MMU::SaveContext()
+void MMU::InternalDumpCtx( const InternalContextBuffer* icb, std::string& registers, std::string& stacks ) const
 {
-	verify_method;
+	char temporary_buffer[STATIC_LENGTH];
+	char* out = 0;
 
-	bool log_save = !context_stack.empty();
-
-	if( log_save ) {
-		msg( E_INFO, E_DEBUG, "Saving execution context" );
-		LogDumpCtx( context );
-	}
-
-	context_stack.push_back( context );
-
-	// Update current context
-	++context.depth;
-	context.frame = frame_stack ? frame_stack->size() : 0;
-
-	if( log_save ) {
-		msg( E_INFO, E_DEBUG, "New execution context:" );
-		LogDumpCtx( context );
-	}
-}
-
-void MMU::ClearContext()
-{
-	context.depth = 0;
-	context.flags = 0;
-	context.frame = 0;
-	context.ip = 0;
-}
-
-void MMU::NextContextBuffer()
-{
-	SaveContext();
-	ClearContext();
-	++context.buffer;
-	if( buffers.size() <= context.buffer ) {
-		buffers.resize( context.buffer + 1 );
-	}
-
-	if( context.buffer )
-		msg( E_INFO, E_DEBUG, "Switched to next context buffer [%zu]", context.buffer );
-
-	else
-		msg( E_INFO, E_DEBUG, "MMU reset (switch to context buffer 0)" );
-
-	verify_method;
-}
-
-void MMU::AllocContextBuffer()
-{
-	NextContextBuffer();
-
-	ResetBuffers( context.buffer );
-}
-
-void MMU::RestoreContext()
-{
-	verify_method;
-
-	msg( E_INFO, E_DEBUG, "Restoring execution context %zu", context.buffer );
-	LogDumpCtx( context );
-
-	context = context_stack.back();
-	context_stack.pop_back();
-
-	msg( E_INFO, E_DEBUG, "Restored context:" );
-	LogDumpCtx( context );
-
-	if( context_stack.empty() )
-		msg( E_INFO, E_DEBUG, "MMU back to uninitialized state" );
-}
-
-void MMU::InternalDumpCtx( const Context& w_context ) const
-{
 	// Dump registers
-
-	char* reg_out = dump_data_registers;
-	reg_out += sprintf( reg_out, "Reg:" );
-
-	if( w_context.buffer < buffers.size() ) {
-		const InternalContextBuffer& cb = buffers[w_context.buffer];
-
+	out = temporary_buffer;
+	out += sprintf( out, "Reg:" );
+	if( icb ) {
 		for( unsigned reg_id = 0; reg_id < R_MAX; ++reg_id ) {
-			reg_out += sprintf( reg_out, " %s [%s]",
-			                    proc_->LogicProvider()->EncodeRegister( static_cast<Register>( reg_id ) ),
-			                    ( ProcDebug::PrintValue( cb.registers[reg_id] ), ProcDebug::debug_buffer ) );
+			out += sprintf( out, " %s [%s]",
+			                proc_->LogicProvider()->EncodeRegister( static_cast<Register>( reg_id ) ),
+			                ProcDebug::PrintValue( icb->registers[reg_id] ).c_str() );
 		}
+	} else {
+		out += sprintf( out, " N/A" );
 	}
-
-	else {
-		reg_out += sprintf( reg_out, " N/A" );
-	}
-
-	// Dump main context
-
-	sprintf( dump_data_context,
-	         "Ctx [%zd]: IP [%zu] FL [%08zx] DEPTH [%zu]",
-	         w_context.buffer, w_context.ip, w_context.flags, w_context.depth );
+	registers.assign( temporary_buffer );
 
 	// Dump stacks
+	out = temporary_buffer;
+	out += sprintf( out, "Stacks:" );
+	for( unsigned i = 0; i < Value::V_MAX; ++i ) {
+		const std::vector<calc_t>& stack = stacks_[i];
 
-	char* stacks_out = dump_data_stacks;
-	stacks_out += sprintf( stacks_out, "Stacks:" );
+		out += sprintf( out, " [\"%s\"] = ",
+						ProcDebug::Print( static_cast<Value::Type>( i ) ).c_str() );
 
-	// Main stack
-
-	if( current_stack ) {
-		if( current_stack->size() ) {
-			ProcDebug::PrintValue( current_stack->back() );
-			stacks_out += sprintf( stacks_out, " MAIN [\"%s\"] = (top (%zu) value (%s))",
-			                       ProcDebug::ValueType_ids[current_stack_type],
-			                       current_stack->size(),
-			                       ProcDebug::debug_buffer );
-		}
-
-		else {
-			stacks_out += sprintf( stacks_out, " MAIN [\"%s\"] = (empty)",
-			                       ProcDebug::ValueType_ids[current_stack_type] );
+		if( stack.size() ) {
+			out += sprintf( out, "(top (%zu) value (%s))",
+			                stack.size(),
+			                ProcDebug::PrintValue( stack.back() ).c_str() );
+		} else {
+			out += sprintf( out, "(empty)" );
 		}
 	}
+	stacks.assign( temporary_buffer );
 
-	else {
-		stacks_out += sprintf( stacks_out, " MAIN = (disabled)" );
-	}
-
-	// Frame stack
-
-	if( frame_stack ) {
-		stacks_out += sprintf( stacks_out, " FRAME [\"%s\"] = (top (%zu) + %s frame (%zu))",
-		                       ProcDebug::ValueType_ids[frame_stack_type],
-		                       frame_stack->size(),
-		                       ( w_context.frame <= frame_stack->size() ) ? "valid" : "invalid",
-		                       w_context.frame );
-	}
-
-	else {
-		stacks_out += sprintf( stacks_out, " FRAME = (disabled)" );
-	}
 }
 
-void MMU::LogDumpCtx( const Context& w_context ) const
+void MMU::DumpContext( std::string* regs, std::string* stacks ) const
 {
 	verify_method;
 
-	InternalDumpCtx( w_context );
-
-	msg( E_INFO, E_DEBUG, "%s", dump_data_context );
-	msg( E_INFO, E_DEBUG, "%s", dump_data_registers );
-	msg( E_INFO, E_DEBUG, "%s", dump_data_stacks );
-}
-
-void MMU::DumpContext( const char** ctx, const char** regs, const char** stacks ) const
-{
-	verify_method;
-
-	InternalDumpCtx( context );
-
-	if( ctx )
-		*ctx = dump_data_context;
-
-	if( regs )
-		*regs = dump_data_registers;
-
-	if( stacks )
-		*stacks = dump_data_stacks;
-}
-
-Context& MMU::GetContext()
-{
-	verify_method;
-
-	return context;
-}
-
-MMU::InternalContextBuffer& MMU::CurrentBuffer()
-{
-	verify_method;
-
-	return buffers[context.buffer];
-}
-
-const MMU::InternalContextBuffer& MMU::CurrentBuffer() const
-{
-	verify_method;
-
-	return buffers[context.buffer];
+	InternalDumpCtx( current_buffer_ == buffers_.end() ? 0 : &current_buffer_->second,
+	                 *regs, *stacks );
 }
 
 bool MMU::_Verify() const
 {
-	if( context.buffer != static_cast<size_t>( -1 ) ) {
-		verify_statement( !context_stack.empty(), "Call/context stack underflow" );
+	verify_statement( buffers_.find( 0 ) == buffers_.end(), "Reserved context buffer id is allocated" );
+	const Context& current_ctx = proc_->CurrentContext();
+	if( current_ctx.buffer != 0 )
+	{
+		auto it = buffers_.find( current_ctx.buffer );
+		verify_statement( it != buffers_.end(), "Inexistent context buffer ID %lu is selected in the core", current_ctx.buffer );
 
-		verify_statement( context.buffer < buffers.size(), "Invalid context buffer ID [%zd]: max %zu",
-		                  context.buffer, buffers.size() );
-
-		if( !buffers[context.buffer].commands.empty() )
-			verify_statement( context.ip < buffers[context.buffer].commands.size(),
-			                  "Invalid instruction pointer [%zu]: max %zu",
-			                  context.ip, buffers[context.buffer].commands.size() );
-
+		verify_statement( !it->second.commands.size() ||
+		                  current_ctx.ip < it->second.commands.size(),
+		                  "Invalid instruction pointer [%zu]: max %zu",
+		                  current_ctx.ip, it->second.commands.size() );
 	}
 
 	return 1;
 }
 
-void MMU::VerifyReference( const Processor::DirectReference& ref ) const
+void MMU::VerifyReference( const DirectReference& ref, Value::Type frame_stack_type ) const
 {
 	switch( ref.section ) {
 	case S_CODE:
@@ -616,27 +540,36 @@ void MMU::VerifyReference( const Processor::DirectReference& ref ) const
 		         "Invalid reference [REG:%zu] : max register ID %d", ref.address, R_MAX - 1 );
 		break;
 
-	case S_FRAME:
-		CheckFrameOperation();
+	case S_FRAME: {
+		CheckFrameOperation( frame_stack_type );
+		ssize_t address = proc_->CurrentContext().frame + ref.address;
 
-		cverify( context.frame + ref.address < frame_stack->size(),
-		         "Invalid reference [FRAME:%zu] : frame at %zu | top at %zu",
-		         ref.address, context.frame, frame_stack->size() );
+		cassert( address >= 0,
+		         "Invalid reference [FRAME:%zu]: (F: %zu)",
+		         ref.address, proc_->CurrentContext().frame );
+		cassert( static_cast<size_t>( address ) < stacks_[frame_stack_type].size(),
+		         "Invalid reference [FRAME:%zu]: (F: %zu T: %zu)",
+		         ref.address, proc_->CurrentContext().frame, stacks_[frame_stack_type].size() );
 		break;
+	}
 
+	case S_FRAME_BACK: {
+		CheckFrameOperation( frame_stack_type );
+		ssize_t address = proc_->CurrentContext().frame - ref.address;
 
-	case S_FRAME_BACK:
-		CheckFrameOperation();
-
-		cverify( context.frame >= ref.address,
-		         "Invalid reference [BACKFRAME:%zu] : frame at %zu | top at %zu",
-		         ref.address, context.frame, frame_stack->size() );
+		cassert( address >= 0,
+		         "Invalid reference [BACKFRAME:%zu]: (F: %zu)",
+		         ref.address, proc_->CurrentContext().frame );
+		cassert( static_cast<size_t>( address ) < stacks_[frame_stack_type].size(),
+		         "Invalid reference [BACKFRAME:%zu]: (F: %zu T: %zu)",
+		         ref.address, proc_->CurrentContext().frame, stacks_[frame_stack_type].size() );
 		break;
+	}
 
 	case S_BYTEPOOL:
-		cverify( ref.address < CurrentBuffer().bytepool_length,
-		         "Invalid reference [BYTEPOOL:%zx] : allocated %zx bytes",
-		         ref.address, CurrentBuffer().bytepool_length );
+		cverify( ref.address < CurrentBuffer().bytepool.size(),
+		         "Invalid reference [BYTEPOOL:%zu] : allocated %zu bytes",
+		         ref.address, CurrentBuffer().bytepool.size() );
 		break;
 
 	case S_NONE:

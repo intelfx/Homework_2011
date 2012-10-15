@@ -16,16 +16,24 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
+typedef std::multimap<size_t, std::pair<std::string, Symbol> > symbol_tmap;
+
 class INTERPRETER_API UATLinker: public ILinker
 {
-	symbol_map temporary_map;
+	symbol_tmap temporary_map;
+
+	void RelocateReference( Reference& ref, const Offsets& offsets );
 
 public:
 	virtual void DirectLink_Init();
-	virtual void DirectLink_Add( symbol_map& symbols, size_t offsets[SEC_MAX] );
-	virtual void DirectLink_Commit();
+	virtual void DirectLink_Add( symbol_map&& symbols, const Offsets& limits );
+	virtual void DirectLink_Commit( bool UAT );
 
-	DirectReference Resolve( Reference& reference );
+	virtual void MergeLink_Add( symbol_map&& symbols );
+
+	virtual void Relocate( const Offsets& offsets );
+
+	DirectReference Resolve( const Reference& reference );
 };
 
 } // namespace ProcessorImplementation
