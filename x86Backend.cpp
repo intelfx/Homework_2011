@@ -108,16 +108,15 @@ void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 	IMMU* mmu = proc_->MMU();
 	ILogic* logic = proc_->LogicProvider();
 
-	size_t section_limits[SEC_MAX];
-	mmu->QueryLimits( section_limits );
+	Offsets limits = mmu->QuerySectionLimits();
 
 	msg( E_INFO, E_DEBUG, "Emitting prologue" );
 	CompilePrologue();
 
-	for( size_t pc = 0; pc < section_limits[SEC_CODE_IMAGE]; ++pc ) {
+	for( size_t pc = 0; pc < limits.Code(); ++pc ) {
 		Command& cmd = mmu->ACommand( pc );
 		msg( E_INFO, E_DEBUG, "Emitting native code for command [PC=%zu] \"%s\"",
-			 pc, logic->DumpCommand( cmd ) );
+			 pc, logic->DumpCommand( cmd ).c_str() );
 		CompileCommand( cmd );
 	}
 
