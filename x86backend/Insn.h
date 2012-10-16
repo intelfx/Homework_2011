@@ -50,7 +50,10 @@ class Insn
 		bool need_modrm_rm_extension : 1;
 		bool need_sib_base_extension : 1;
 		bool need_sib_index_extension : 1;
-	} flags_;
+		bool used_modrm_reg : 1;
+		bool used_modrm_rm : 1;
+		bool used_opcode_reg : 1;
+	} PACKED flags_;
 
 	// Set prefixes according to flags.
 	// Prefixes modified: REX, operand size override.
@@ -140,22 +143,29 @@ public:
 
 	void SetOpcodeExtension( unsigned char opcode_ext )
 	{
-		s_cassert( !modrm_.reg, "Cannot set opcode extension: reg field already taken" );
+		s_cassert( !flags_.used_modrm_reg, "Cannot set opcode extension: reg field already taken" );
 		modrm_.reg = 0x7 & opcode_ext;
+
+		flags_.used_modrm_reg = true;
 	}
 
 	void AddRegister( RegisterWrapper reg )
 	{
-		s_cassert( !modrm_.reg, "Cannot set register: reg field already taken" );
+		s_cassert( !flags_.used_modrm_reg, "Cannot set register: reg field already taken" );
 		modrm_.reg = 0x7 & reg.raw;
+
+		flags_.used_modrm_reg = true;
 		flags_.need_modrm_reg_extension = reg.need_extension;
 		AddOperand( reg.operand_size, OperandType::Register );
 	}
 
 	void AddOpcodeRegister( RegisterWrapper reg )
 	{
+		s_cassert( !flags_.used_opcode_reg, "Cannot set register in opcode: lower bits of opcode already taken" );
 		s_cassert( !( 0x7 & opcode_ ), "Cannot set register in opcode: lower bits of opcode are non-zero" );
 		opcode_ &= ( 0x7 & reg.raw );
+
+		flags_.used_opcode_reg = true;
 		flags_.need_opcode_reg_extension = reg.need_extension;
 		AddOperand( reg.operand_size, OperandType::OpcodeRegister );
 	}
@@ -166,6 +176,8 @@ public:
 		s_cassert( !modrm_.mod, "Cannot set r/m: mod field already taken" );
 		modrm_.rm = 0x7 & rm.raw;
 		modrm_.mod = rm.mod;
+
+		flags_.used_modrm_rm = true;
 		flags_.need_modrm_rm_extension = rm.need_extension;
 		AddOperand( AddressSize::QWORD, OperandType::RegMem );
 	}
@@ -203,22 +215,6 @@ public:
 	{
 		llarray ret;
 
-		bool using_modrm = false;
-		// Iterate operands
-		for( OperandType type: operands_ ) {
-			switch( type ) {
-			case OperandType::Register:
-			case OperandType::RegMem:
-				using_modrm = true;
-				break;
-
-			case OperandType::Immediate:
-			case OperandType::OpcodeRegister:
-			case OperandType::None:
-				break;
-			}
-		}
-
 		// Prefixes
 		GeneratePrefixes();
 		for( size_t i = 0; i < PREFIXES_COUNT; ++i ) {
@@ -234,7 +230,7 @@ public:
 		ret.append( 1, &opcode_ );
 
 		// ModR/M and displacement
-		if( using_modrm ) {
+		if( flags_.used_modrm_reg || flags_.used_modrm_rm ) {
 			ret.append( 1, &modrm_ );
 
 			if( modrm_.UsingSIB() ) {
