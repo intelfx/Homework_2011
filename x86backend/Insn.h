@@ -107,24 +107,6 @@ public:
 		prefix_[1] = static_cast<unsigned char>( p );
 	}
 
-	/*
-	void SetAddressSize( AddressSize s )
-	{
-		switch( s ) {
-		case AddressSize::WORD:
-			prefix_[3] = static_cast<unsigned char>( OverridePrefixes::Address );
-			break;
-
-		case AddressSize::DWORD:
-			casshole( "32-bit addresses unsupported; the backend is x86_64" );
-
-		case AddressSize::QWORD:
-			// no-op
-			break;
-		}
-	}
-	*/
-
 	void SetOperandSize( AddressSize s )
 	{
 		flags_.operand_size = s;
