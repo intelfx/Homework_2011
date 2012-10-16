@@ -178,7 +178,7 @@ public:
 	{
 		s_cassert( !flags_.used_opcode_reg, "Cannot set register in opcode: lower bits of opcode already taken" );
 		s_cassert( !( 0x7 & opcode_ ), "Cannot set register in opcode: lower bits of opcode are non-zero" );
-		opcode_ &= ( 0x7 & reg.raw );
+		opcode_ |= ( 0x7 & reg.raw );
 
 		flags_.used_opcode_reg = true;
 		flags_.need_opcode_reg_extension = reg.need_extension;
