@@ -53,7 +53,7 @@ class Insn
 		bool used_modrm_reg : 1;
 		bool used_modrm_rm : 1;
 		bool used_opcode_reg : 1;
-	} PACKED flags_;
+	} flags_;
 
 	// Set prefixes according to flags.
 	// Prefixes modified: REX, operand size override.
@@ -118,6 +118,7 @@ public:
 		opcode_ = 0;
 		reinterpret_cast<unsigned char&>( modrm_ ) = 0;
 // 		reinterpret_cast<unsigned char&>( sib_ ) = 0;
+		memset( &flags_, 0, sizeof( flags_ ) );
 	}
 
 	Insn& SetIsDefault64Bit( bool arg = true )
