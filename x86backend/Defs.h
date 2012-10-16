@@ -15,6 +15,7 @@ namespace x86backend
 
 enum class AddressSize
 {
+	NONE = 0,
     BYTE,
     WORD,
     DWORD,

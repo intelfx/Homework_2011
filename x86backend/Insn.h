@@ -73,6 +73,10 @@ class Insn
 				rex_.w = true;
 			}
 			break;
+
+		case AddressSize::NONE:
+			/* invariant no-op */
+			break;
 		}
 
 		if( flags_.need_opcode_reg_extension ) {
@@ -103,7 +107,7 @@ class Insn
 
 	void AddOperand( AddressSize size, OperandType type)
 	{
-		if( operands_.empty() ) {
+		if( flags_.operand_size == AddressSize::NONE ) {
 			flags_.operand_size = size;
 		}
 		operands_.push_back( type );
@@ -215,6 +219,10 @@ public:
 	Insn& AddImmediate( ImmediateUnsignedWrapper imm )
 	{
 		switch( imm.size ) {
+		case AddressSize::NONE:
+			s_casshole( "Immediate value has size unset" );
+			break;
+
 		case AddressSize::BYTE:
 			immediates_.append( 1, &imm.i8 );
 			break;

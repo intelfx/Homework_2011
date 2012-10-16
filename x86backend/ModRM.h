@@ -89,7 +89,7 @@ static_assert( sizeof( ModRM ) == 1, "ModR/M structure is not packed" );
 
 struct ModRMWrapper
 {
-	static const AddressSize _DefaultMemoryLocationSize = AddressSize::DWORD;
+	static const AddressSize _DefaultMemoryLocationSize = AddressSize::NONE;
 
 	union {
 		IndirectNoShift no_shift;

@@ -75,6 +75,18 @@ enum class Reg64E : unsigned char
 	R15 = 7
 };
 
+enum class RegX87 : unsigned char
+{
+	ST0 = 0,
+	ST1 = 1,
+	ST2 = 2,
+	ST3 = 3,
+	ST4 = 4,
+	ST5 = 5,
+	ST6 = 6,
+	ST7 = 7
+};
+
 struct RegisterWrapper
 {
 	union {
@@ -82,6 +94,7 @@ struct RegisterWrapper
 		Reg32 reg32;
 		Reg64 reg64;
 		Reg64E reg64e;
+		RegX87 regx87;
 		unsigned char raw;
 	};
 
@@ -113,6 +126,13 @@ struct RegisterWrapper
 		reg64e( reg ),
 		operand_size( AddressSize::QWORD ),
 		need_extension( true )
+	{
+	}
+
+	RegisterWrapper( RegX87 reg ) :
+		regx87( reg ),
+		operand_size( AddressSize::NONE ),
+		need_extension( false )
 	{
 	}
 };
