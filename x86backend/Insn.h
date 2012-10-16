@@ -39,17 +39,11 @@ class Insn
 		int32_t displacement_32_;
 	};
 
-	union {
-		uint8_t immediate_8_;
-		uint16_t immediate_16_;
-		uint32_t immediate_32_;
-		uint64_t immediate_64_;
-	};
+	llarray immediates_;
 
 	// Opcode generation parameters.
 	struct {
 		AddressSize operand_size;
-		AddressSize immediate_size;
 		bool is_default_64bit_opsize : 1;
 		bool unconditionally_need_rex : 1;
 		bool need_opcode_reg_extension : 1;
@@ -183,10 +177,25 @@ public:
 		flags_.need_modrm_rm_extension = rm.need_extension;
 	}
 
-	void SetImmediate( ImmediateUnsignedWrapper imm )
+	void AddImmediate( ImmediateUnsignedWrapper imm )
 	{
-		immediate_64_ = imm.i64; // maximal size
-		flags_.immediate_size = imm.size;
+		switch( imm.size ) {
+		case AddressSize::BYTE:
+			immediates_.append( 1, &imm.i8 );
+			break;
+
+		case AddressSize::WORD:
+			immediates_.append( 2, &imm.i16 );
+			break;
+
+		case AddressSize::DWORD:
+			immediates_.append( 4, &imm.i32 );
+			break;
+
+		case AddressSize::QWORD:
+			immediates_.append( 8, &imm.i64 );
+			break;
+		}
 	}
 
 	void SetDisplacement( ImmediateSignedWrapper disp )
@@ -200,19 +209,16 @@ public:
 	{
 		llarray ret;
 
-		bool using_modrm = false, using_immediate = false;
+		bool using_modrm = false;
 		// Iterate operands
 		for( size_t i = 0; i < OPERANDS_COUNT; ++i ) {
 			switch( operands_[i] ) {
-			case OperandType::Immediate:
-				using_immediate = true;
-				break;
-
 			case OperandType::Register:
 			case OperandType::RegMem:
 				using_modrm = true;
 				break;
 
+			case OperandType::Immediate:
 			case OperandType::OpcodeRegister:
 			case OperandType::None:
 				break;
@@ -257,25 +263,8 @@ public:
 			}
 		}
 
-		if( using_immediate ) {
-			switch( flags_.immediate_size ) {
-			case AddressSize::BYTE:
-				ret.append( sizeof( immediate_8_ ), &immediate_8_ );
-				break;
-
-			case AddressSize::WORD:
-				ret.append( sizeof( immediate_16_ ), &immediate_16_ );
-				break;
-
-			case AddressSize::DWORD:
-				ret.append( sizeof( immediate_32_ ), &immediate_32_ );
-				break;
-
-			case AddressSize::QWORD:
-				ret.append( sizeof( immediate_64_ ), &immediate_64_ );
-				break;
-			}
-		}
+		// Immediates
+		ret.append( immediates_ );
 
 		return ret;
 	}
