@@ -30,6 +30,15 @@ enum class OperandEncoding
     Acc_Imm,       // First operand: accumulator.        Second operand: imm.
 };
 
+enum class OperandType
+{
+	None = 0,
+	Register,       // modrm byte, reg field
+	OpcodeRegister, // opcode, inline register spec
+	RegMem,         // modrm byte, mod+r/m fields
+	Immediate
+};
+
 namespace Prefixes
 {
 
