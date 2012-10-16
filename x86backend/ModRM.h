@@ -89,6 +89,8 @@ static_assert( sizeof( ModRM ) == 1, "ModR/M structure is not packed" );
 
 struct ModRMWrapper
 {
+	static const AddressSize _DefaultMemoryLocationSize = AddressSize::DWORD;
+
 	union {
 		IndirectNoShift no_shift;
 		IndirectShiftDisplacement8 disp8;
@@ -98,12 +100,14 @@ struct ModRMWrapper
 
 	bool need_extension;
 	ModField mod;
+	AddressSize operand_size;
 
 	// Intended for mod == 00b, memory addressing like [RAX] or displacement32
 	ModRMWrapper( IndirectNoShift reg ) :
 		no_shift( reg ),
 		need_extension( false ),
-		mod( ModField::NoShift )
+		mod( ModField::NoShift ),
+		operand_size( _DefaultMemoryLocationSize )
 	{
 	}
 
@@ -111,7 +115,8 @@ struct ModRMWrapper
 	ModRMWrapper( IndirectShiftDisplacement8 reg ) :
 		disp8( reg ),
 		need_extension( false ),
-		mod( ModField::Disp8 )
+		mod( ModField::Disp8 ),
+		operand_size( _DefaultMemoryLocationSize )
 	{
 	}
 
@@ -119,7 +124,8 @@ struct ModRMWrapper
 	ModRMWrapper( IndirectShiftDisplacement32 reg ) :
 		disp32( reg ),
 		need_extension( false ),
-		mod( ModField::Disp32 )
+		mod( ModField::Disp32 ),
+		operand_size( _DefaultMemoryLocationSize )
 	{
 	}
 
@@ -127,7 +133,8 @@ struct ModRMWrapper
 	ModRMWrapper( RegisterWrapper reg ) :
 		raw( reg.raw ),
 		need_extension( reg.need_extension ),
-		mod( ModField::Direct )
+		mod( ModField::Direct ),
+		operand_size( reg.operand_size )
 	{
 		s_cassert( reg.operand_size == AddressSize::QWORD, "Cannot generate direct r/m field from non-QWORD register" );
 	}
@@ -136,7 +143,8 @@ struct ModRMWrapper
 	ModRMWrapper( Reg64E reg, ModField shift ) :
 		raw( reinterpret_cast<unsigned char&>( reg ) ),
 		need_extension( true ),
-		mod( shift )
+		mod( shift ),
+		operand_size( _DefaultMemoryLocationSize )
 	{
 		// TODO: transform [R13] (mod == 00b, r/m = 101b) into SIB+"zero disp8" form (see 2.2.1.6 of the Intel manual)
 	}

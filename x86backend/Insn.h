@@ -208,7 +208,7 @@ public:
 
 		flags_.used_modrm_rm = true;
 		flags_.need_modrm_rm_extension = rm.need_extension;
-		AddOperand( AddressSize::QWORD, OperandType::RegMem );
+		AddOperand( rm.operand_size, OperandType::RegMem );
 		return *this;
 	}
 
