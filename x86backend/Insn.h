@@ -111,7 +111,8 @@ class Insn
 
 public:
 
-	Insn() {
+	Insn()
+	{
 		reinterpret_cast<uint32_t&>( prefix_ ) = 0;
 		reinterpret_cast<unsigned char&>( rex_ ) = 0;
 		opcode_ = 0;
@@ -119,51 +120,61 @@ public:
 // 		reinterpret_cast<unsigned char&>( sib_ ) = 0;
 	}
 
-	void SetIsDefault64Bit( bool arg = true )
+	Insn& SetIsDefault64Bit( bool arg = true )
 	{
 		flags_.is_default_64bit_opsize = arg;
+		return *this;
 	}
 
-	void SetNeedREX( bool arg = true )
+	Insn& SetNeedREX( bool arg = true )
 	{
 		flags_.unconditionally_need_rex = arg;
+		return *this;
 	}
 
-	void SetPrefix( Prefixes::GeneralPurpose p ) {
+	Insn& SetPrefix( Prefixes::GeneralPurpose p )
+	{
 		prefix_[0] = static_cast<unsigned char>( p );
+		return *this;
 	}
 
-	void SetPrefix( Prefixes::SegmentOverride p ) {
+	Insn& SetPrefix( Prefixes::SegmentOverride p )
+	{
 		prefix_[1] = static_cast<unsigned char>( p );
+		return *this;
 	}
 
-	void SetPrefix( Prefixes::Special p ) {
+	Insn& SetPrefix( Prefixes::Special p )
+	{
 		prefix_[2] = static_cast<unsigned char>( p );
+		return *this;
 	}
 
-	void SetOperandSize( AddressSize s = AddressSize::DWORD /* the default one */ )
+	Insn& SetOperandSize( AddressSize s = AddressSize::DWORD /* the default one */ )
 	{
 		flags_.operand_size = s;
+		return *this;
 	}
 
-	void SetOpcode( unsigned char opcode )
+	Insn& SetOpcode( unsigned char opcode )
 	{
 		opcode_ = opcode;
+		return *this;
 	}
 
-	void SetOpcodeExtension( unsigned char opcode_ext )
+	Insn& SetOpcodeExtension( unsigned char opcode_ext )
 	{
 		s_cassert( !flags_.used_modrm_reg, "Cannot set opcode extension: reg field already taken" );
 		modrm_.reg = 0x7 & opcode_ext;
 
 		flags_.used_modrm_reg = true;
+		return *this;
 	}
 
-	void AddRegister( RegisterWrapper reg )
+	Insn& AddRegister( RegisterWrapper reg )
 	{
 		if( flags_.used_modrm_reg && !flags_.used_modrm_rm ) {
-			AddRM( reg );
-			return;
+			return AddRM( reg );
 		}
 
 		s_cassert( !flags_.used_modrm_reg, "Cannot set register: reg field already taken" );
@@ -172,9 +183,10 @@ public:
 		flags_.used_modrm_reg = true;
 		flags_.need_modrm_reg_extension = reg.need_extension;
 		AddOperand( reg.operand_size, OperandType::Register );
+		return *this;
 	}
 
-	void AddOpcodeRegister( RegisterWrapper reg )
+	Insn& AddOpcodeRegister( RegisterWrapper reg )
 	{
 		s_cassert( !flags_.used_opcode_reg, "Cannot set register in opcode: lower bits of opcode already taken" );
 		s_cassert( !( 0x7 & opcode_ ), "Cannot set register in opcode: lower bits of opcode are non-zero" );
@@ -183,9 +195,10 @@ public:
 		flags_.used_opcode_reg = true;
 		flags_.need_opcode_reg_extension = reg.need_extension;
 		AddOperand( reg.operand_size, OperandType::OpcodeRegister );
+		return *this;
 	}
 
-	void AddRM( ModRMWrapper rm )
+	Insn& AddRM( ModRMWrapper rm )
 	{
 		s_cassert( !modrm_.rm, "Cannot set r/m: r/m field already taken" );
 		s_cassert( !modrm_.mod, "Cannot set r/m: mod field already taken" );
@@ -195,9 +208,10 @@ public:
 		flags_.used_modrm_rm = true;
 		flags_.need_modrm_rm_extension = rm.need_extension;
 		AddOperand( AddressSize::QWORD, OperandType::RegMem );
+		return *this;
 	}
 
-	void AddImmediate( ImmediateUnsignedWrapper imm )
+	Insn& AddImmediate( ImmediateUnsignedWrapper imm )
 	{
 		switch( imm.size ) {
 		case AddressSize::BYTE:
@@ -217,13 +231,15 @@ public:
 			break;
 		}
 		AddOperand( imm.size, OperandType::Immediate );
+		return *this;
 	}
 
-	void SetDisplacement( ImmediateSignedWrapper disp )
+	Insn& SetDisplacement( ImmediateSignedWrapper disp )
 	{
 		s_cassert( disp.size != AddressSize::QWORD, "Displacement cannot be QWORD" );
 		s_cassert( disp.size != AddressSize::WORD, "Displacement cannot be WORD" );
 		displacement_32_ = disp.i32;
+		return *this;
 	}
 
 	llarray Emit()
