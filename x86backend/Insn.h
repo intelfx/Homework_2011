@@ -22,7 +22,6 @@ namespace x86backend
 class Insn
 {
 	static const size_t PREFIXES_COUNT = 4;
-	static const size_t OPERANDS_COUNT = 3;
 
 	unsigned char prefix_[PREFIXES_COUNT];
 
@@ -31,7 +30,7 @@ class Insn
 	ModRM modrm_;
 	SIB sib_;
 
-	OperandType operands_[OPERANDS_COUNT];
+	std::vector<OperandType> operands_;
 
 	union {
 		int8_t displacement_8_;
@@ -99,6 +98,14 @@ class Insn
 		}
 	}
 
+	void AddOperand( AddressSize size, OperandType type)
+	{
+		if( operands_.empty() ) {
+			flags_.operand_size = size;
+		}
+		operands_.push_back( type );
+	}
+
 public:
 
 	Insn() {
@@ -137,44 +144,30 @@ public:
 		modrm_.reg = 0x7 & opcode_ext;
 	}
 
-	void SetOperand( size_t index, OperandType type )
-	{
-		s_cassert( index < OPERANDS_COUNT, "Invalid operand index: %zu", index );
-		operands_[index] = type;
-	}
-
-	void SetRegister( RegisterWrapper reg )
+	void AddRegister( RegisterWrapper reg )
 	{
 		s_cassert( !modrm_.reg, "Cannot set register: reg field already taken" );
 		modrm_.reg = 0x7 & reg.raw;
-
-		if( operands_[0] == OperandType::Register ) {
-			SetOperandSize( reg.operand_size );
-		}
 		flags_.need_modrm_reg_extension = reg.need_extension;
+		AddOperand( reg.operand_size, OperandType::Register );
 	}
 
-	void SetOpcodeRegister( RegisterWrapper reg )
+	void AddOpcodeRegister( RegisterWrapper reg )
 	{
 		s_cassert( !( 0x7 & opcode_ ), "Cannot set register in opcode: lower bits of opcode are non-zero" );
 		opcode_ &= ( 0x7 & reg.raw );
-
-		if( operands_[0] == OperandType::OpcodeRegister ) {
-			SetOperandSize( reg.operand_size );
-		}
 		flags_.need_opcode_reg_extension = reg.need_extension;
+		AddOperand( reg.operand_size, OperandType::OpcodeRegister );
 	}
 
-	void SetRM( ModRMWrapper rm )
+	void AddRM( ModRMWrapper rm )
 	{
 		s_cassert( !modrm_.rm, "Cannot set r/m: r/m field already taken" );
+		s_cassert( !modrm_.mod, "Cannot set r/m: mod field already taken" );
 		modrm_.rm = 0x7 & rm.raw;
 		modrm_.mod = rm.mod;
-
-		if( operands_[0] == OperandType::RegMem ) {
-			SetOperandSize( AddressSize::QWORD );
-		}
 		flags_.need_modrm_rm_extension = rm.need_extension;
+		AddOperand( AddressSize::QWORD, OperandType::RegMem );
 	}
 
 	void AddImmediate( ImmediateUnsignedWrapper imm )
@@ -196,6 +189,7 @@ public:
 			immediates_.append( 8, &imm.i64 );
 			break;
 		}
+		AddOperand( imm.size, OperandType::Immediate );
 	}
 
 	void SetDisplacement( ImmediateSignedWrapper disp )
@@ -211,8 +205,8 @@ public:
 
 		bool using_modrm = false;
 		// Iterate operands
-		for( size_t i = 0; i < OPERANDS_COUNT; ++i ) {
-			switch( operands_[i] ) {
+		for( OperandType type: operands_ ) {
+			switch( type ) {
 			case OperandType::Register:
 			case OperandType::RegMem:
 				using_modrm = true;
