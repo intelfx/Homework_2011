@@ -7,6 +7,7 @@
 #include "Registers.h"
 #include "REX.h"
 #include "ModRM.h"
+#include "SIB.h"
 
 // -------------------------------------------------------------------------------------
 // Library:		Homework
@@ -28,12 +29,27 @@ class Insn
 	REX rex_;
 	unsigned char opcode_;
 	ModRM modrm_;
+	SIB sib_;
 
 	OperandType operands_[OPERANDS_COUNT];
+
+	union {
+		int8_t displacement_8_;
+		int16_t displacement_16_;
+		int32_t displacement_32_;
+	};
+
+	union {
+		uint8_t immediate_8_;
+		uint16_t immediate_16_;
+		uint32_t immediate_32_;
+		uint64_t immediate_64_;
+	};
 
 	// Opcode generation parameters.
 	struct {
 		AddressSize operand_size;
+		AddressSize immediate_size;
 		bool is_default_64bit_opsize : 1;
 		bool unconditionally_need_rex : 1;
 		bool need_opcode_reg_extension : 1;
@@ -165,6 +181,103 @@ public:
 			SetOperandSize( AddressSize::QWORD );
 		}
 		flags_.need_modrm_rm_extension = rm.need_extension;
+	}
+
+	void SetImmediate( ImmediateUnsignedWrapper imm )
+	{
+		immediate_64_ = imm.i64; // maximal size
+		flags_.immediate_size = imm.size;
+	}
+
+	void SetDisplacement( ImmediateSignedWrapper disp )
+	{
+		s_cassert( disp.size != AddressSize::QWORD, "Displacement cannot be QWORD" );
+		s_cassert( disp.size != AddressSize::WORD, "Displacement cannot be WORD" );
+		displacement_32_ = disp.i32;
+	}
+
+	llarray Emit()
+	{
+		llarray ret;
+
+		bool using_modrm = false, using_immediate = false;
+		// Iterate operands
+		for( size_t i = 0; i < OPERANDS_COUNT; ++i ) {
+			switch( operands_[i] ) {
+			case OperandType::Immediate:
+				using_immediate = true;
+				break;
+
+			case OperandType::Register:
+			case OperandType::RegMem:
+				using_modrm = true;
+				break;
+
+			case OperandType::OpcodeRegister:
+			case OperandType::None:
+				break;
+			}
+		}
+
+		// Prefixes
+		GeneratePrefixes();
+		for( size_t i = 0; i < PREFIXES_COUNT; ++i ) {
+			if( prefix_[i] ) {
+				ret.append( 1, &prefix_[i] );
+			}
+		}
+		if( rex_.Enabled() ) {
+			ret.append( 1, &rex_ );
+		}
+
+		// Opcode
+		ret.append( 1, &opcode_ );
+
+		// ModR/M and displacement
+		if( using_modrm ) {
+			ret.append( 1, &modrm_ );
+
+			if( modrm_.UsingSIB() ) {
+				ret.append( 1, &sib_ );
+			}
+
+			switch( modrm_.UsingDisplacement() ) {
+			case ModField::Direct:
+			case ModField::NoShift:
+				/* no-op */
+				break;
+
+			case ModField::Disp8:
+				ret.append( sizeof( displacement_8_ ), &displacement_8_ );
+				break;
+
+			case ModField::Disp32:
+				ret.append( sizeof( displacement_32_ ), &displacement_32_ );
+				break;
+			}
+		}
+
+		if( using_immediate ) {
+			switch( flags_.immediate_size ) {
+			case AddressSize::BYTE:
+				ret.append( sizeof( immediate_8_ ), &immediate_8_ );
+				break;
+
+			case AddressSize::WORD:
+				ret.append( sizeof( immediate_16_ ), &immediate_16_ );
+				break;
+
+			case AddressSize::DWORD:
+				ret.append( sizeof( immediate_32_ ), &immediate_32_ );
+				break;
+
+			case AddressSize::QWORD:
+				ret.append( sizeof( immediate_64_ ), &immediate_64_ );
+				break;
+			}
+		}
+
+		return ret;
 	}
 };
 

@@ -39,6 +39,76 @@ enum class OperandType
 	Immediate
 };
 
+struct ImmediateSignedWrapper
+{
+	union {
+		int8_t i8;
+		int16_t i16;
+		int32_t i32;
+		int64_t i64;
+	};
+	AddressSize size;
+
+	ImmediateSignedWrapper( int8_t i ) :
+	i8( i ),
+	size( AddressSize::BYTE )
+	{
+	}
+
+	ImmediateSignedWrapper( int16_t i ) :
+	i16( i ),
+	size( AddressSize::WORD )
+	{
+	}
+
+	ImmediateSignedWrapper( int32_t i ) :
+	i32( i ),
+	size( AddressSize::DWORD )
+	{
+	}
+
+	ImmediateSignedWrapper( int64_t i ) :
+	i64( i ),
+	size( AddressSize::QWORD )
+	{
+	}
+};
+
+struct ImmediateUnsignedWrapper
+{
+	union {
+		uint8_t i8;
+		uint16_t i16;
+		uint32_t i32;
+		uint64_t i64;
+	};
+	AddressSize size;
+
+	ImmediateUnsignedWrapper( uint8_t i ) :
+	i8( i ),
+	size( AddressSize::BYTE )
+	{
+	}
+
+	ImmediateUnsignedWrapper( uint16_t i ) :
+	i16( i ),
+	size( AddressSize::WORD )
+	{
+	}
+
+	ImmediateUnsignedWrapper( uint32_t i ) :
+	i32( i ),
+	size( AddressSize::DWORD )
+	{
+	}
+
+	ImmediateUnsignedWrapper( uint64_t i ) :
+	i64( i ),
+	size( AddressSize::QWORD )
+	{
+	}
+};
+
 namespace Prefixes
 {
 
