@@ -21,15 +21,6 @@ enum class AddressSize
     QWORD
 };
 
-enum class OperandEncoding
-{
-    Reg_Memory,    // First operand: reg.                Second operand: r/m.
-    Memory_Reg,    // First operand: r/m.                Second operand: reg.
-    Memory_Imm,    // First operand: r/m.                Second operand: imm.
-    OpcodeReg_Imm, // First operand: register in opcode. Second operand: imm.
-    Acc_Imm,       // First operand: accumulator.        Second operand: imm.
-};
-
 enum class OperandType
 {
 	None = 0,
