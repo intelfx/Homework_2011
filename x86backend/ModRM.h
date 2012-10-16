@@ -16,7 +16,7 @@
 namespace x86backend
 {
 
-enum class ModField
+enum class ModField : unsigned char
 {
 	NoShift = 0, // 00b
 	Disp8   = 1, // 01b
@@ -25,7 +25,7 @@ enum class ModField
 };
 
 // [xxx]
-enum class IndirectNoShift
+enum class IndirectNoShift : unsigned char
 {
 	RAX             = 0,
 	RCX             = 1,
@@ -38,7 +38,7 @@ enum class IndirectNoShift
 };
 
 // [xxx] + disp8
-enum class IndirectShiftDisplacement8
+enum class IndirectShiftDisplacement8 : unsigned char
 {
 	RAX    = 0,
 	RCX    = 1,
@@ -51,7 +51,7 @@ enum class IndirectShiftDisplacement8
 };
 
 // [xxx] + disp32
-enum class IndirectShiftDisplacement32
+enum class IndirectShiftDisplacement32 : unsigned char
 {
 	RAX    = 0,
 	RCX    = 1,

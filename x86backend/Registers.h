@@ -15,7 +15,7 @@
 namespace x86backend
 {
 
-enum class Reg8
+enum class Reg8 : unsigned char
 {
 	AL = 0,
 	CL = 1,
@@ -27,7 +27,7 @@ enum class Reg8
 	BH = 7
 };
 
-enum class Reg16
+enum class Reg16 : unsigned char
 {
 	AX = 0,
 	CX = 1,
@@ -39,7 +39,7 @@ enum class Reg16
 	DI = 7
 };
 
-enum class Reg32
+enum class Reg32 : unsigned char
 {
 	EAX = 0,
 	ECX = 1,
@@ -51,7 +51,7 @@ enum class Reg32
 	EDI = 7
 };
 
-enum class Reg64
+enum class Reg64 : unsigned char
 {
 	RAX = 0,
 	RCX = 1,
@@ -63,7 +63,7 @@ enum class Reg64
 	RDI = 7
 };
 
-enum class Reg64E
+enum class Reg64E : unsigned char
 {
 	R8  = 0,
 	R9  = 1,

@@ -112,20 +112,20 @@ struct ImmediateUnsignedWrapper
 namespace Prefixes
 {
 
-enum class SizeOverride
+enum class SizeOverride : unsigned char
 {
     Operand = 0x66,
     Address = 0x67
 };
 
-enum class GeneralPurpose
+enum class GeneralPurpose : unsigned char
 {
     LOCK = 0xF0,
     REPNE = 0xF2,
     REPE = 0xF3
 };
 
-enum class SegmentOverride
+enum class SegmentOverride : unsigned char
 {
     CS = 0x2E,
     SS = 0x36,
@@ -139,7 +139,7 @@ enum class SegmentOverride
     BranchTaken = 0x3E
 };
 
-enum class Special
+enum class Special : unsigned char
 {
 	ESC = 0x0F
 };
