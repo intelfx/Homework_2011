@@ -69,6 +69,11 @@ enum class SegmentOverride
     BranchTaken = 0x3E
 };
 
+enum class Special
+{
+	ESC = 0x0F
+};
+
 } // namespace Prefixes
 
 } // namespace x86backend

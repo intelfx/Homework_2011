@@ -99,12 +99,16 @@ public:
 // 		reinterpret_cast<unsigned char&>( sib_ ) = 0;
 	}
 
-	void Prefix( Prefixes::GeneralPurpose p ) {
+	void SetPrefix( Prefixes::GeneralPurpose p ) {
 		prefix_[0] = static_cast<unsigned char>( p );
 	}
 
-	void Prefix( Prefixes::SegmentOverride p ) {
+	void SetPrefix( Prefixes::SegmentOverride p ) {
 		prefix_[1] = static_cast<unsigned char>( p );
+	}
+
+	void SetPrefix( Prefixes::Special p ) {
+		prefix_[2] = static_cast<unsigned char>( p );
 	}
 
 	void SetOperandSize( AddressSize s )
