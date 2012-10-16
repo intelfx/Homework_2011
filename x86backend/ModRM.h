@@ -16,14 +16,6 @@
 namespace x86backend
 {
 
-struct ModRM
-{
-	unsigned char rm : 3;
-	unsigned char reg : 3;
-	unsigned char mod : 2;
-} PACKED;
-static_assert( sizeof( ModRM ) == 1, "ModR/M structure is not packed" );
-
 enum class ModField
 {
 	NoShift = 0, // 00b
@@ -70,6 +62,30 @@ enum class IndirectShiftDisplacement32
 	RSI    = 6,
 	RDI    = 7
 };
+
+struct ModRM
+{
+	static const unsigned char _UseSIB = 4;
+	static const unsigned char _UseDisplacement32 = 5;
+
+	unsigned char rm : 3;
+	unsigned char reg : 3;
+	ModField mod : 2;
+
+	// SIB is not used when mod+r/m directly addresses 4-th register
+	bool UsingSIB() {
+		return ( mod != ModField::Direct ) && ( rm == _UseSIB );
+	}
+
+	// Displacement32 is implicitly used when mod == no shift and r/m == 5
+	ModField UsingDisplacement() {
+		if( ( mod == ModField::NoShift ) && ( rm == _UseDisplacement32 ) )
+			return ModField::Disp32;
+		return mod;
+	}
+
+} PACKED;
+static_assert( sizeof( ModRM ) == 1, "ModR/M structure is not packed" );
 
 struct ModRMWrapper
 {
@@ -122,7 +138,7 @@ struct ModRMWrapper
 		need_extension( true ),
 		mod( shift )
 	{
-		// TODO: transform [R13] (mod == 00b, r/m = 101b) into SIB+disp8 form (see 2.2.1.6 of the Intel manual)
+		// TODO: transform [R13] (mod == 00b, r/m = 101b) into SIB+"zero disp8" form (see 2.2.1.6 of the Intel manual)
 	}
 };
 

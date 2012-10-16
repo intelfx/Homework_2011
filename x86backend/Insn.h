@@ -159,7 +159,7 @@ public:
 	{
 		s_cassert( !modrm_.rm, "Cannot set r/m: r/m field already taken" );
 		modrm_.rm = 0x7 & rm.raw;
-		modrm_.mod = static_cast<unsigned char>( rm.mod );
+		modrm_.mod = rm.mod;
 
 		if( operands_[0] == OperandType::RegMem ) {
 			SetOperandSize( AddressSize::QWORD );

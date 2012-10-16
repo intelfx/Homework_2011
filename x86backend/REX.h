@@ -34,6 +34,11 @@ struct REX
 				   "Build-time error: invalid REX structure memory layout" );
 	}
 
+	bool Enabled()
+	{
+		return ( base );
+	}
+
 	bool IsSet()
 	{
 		// Check lower halfword
