@@ -151,6 +151,11 @@ public:
 
 	void AddRegister( RegisterWrapper reg )
 	{
+		if( flags_.used_modrm_reg && !flags_.used_modrm_rm ) {
+			AddRM( reg );
+			return;
+		}
+
 		s_cassert( !flags_.used_modrm_reg, "Cannot set register: reg field already taken" );
 		modrm_.reg = 0x7 & reg.raw;
 
