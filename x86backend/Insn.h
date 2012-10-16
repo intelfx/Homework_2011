@@ -119,6 +119,16 @@ public:
 // 		reinterpret_cast<unsigned char&>( sib_ ) = 0;
 	}
 
+	void SetIsDefault64Bit( bool arg = true )
+	{
+		flags_.is_default_64bit_opsize = arg;
+	}
+
+	void SetNeedREX( bool arg = true )
+	{
+		flags_.unconditionally_need_rex = arg;
+	}
+
 	void SetPrefix( Prefixes::GeneralPurpose p ) {
 		prefix_[0] = static_cast<unsigned char>( p );
 	}
@@ -131,7 +141,7 @@ public:
 		prefix_[2] = static_cast<unsigned char>( p );
 	}
 
-	void SetOperandSize( AddressSize s )
+	void SetOperandSize( AddressSize s = AddressSize::DWORD /* the default one */ )
 	{
 		flags_.operand_size = s;
 	}
