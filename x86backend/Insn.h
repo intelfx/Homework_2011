@@ -45,7 +45,7 @@ class Insn
 
 	// Set prefixes according to flags.
 	// Prefixes modified: REX, operand size override.
-	void ProcessFlags() {
+	void GeneratePrefixes() {
 		switch( flags_.operand_size ) {
 		case AddressSize::BYTE:
 			/* shall be handled in the opcode itself; no-op */
