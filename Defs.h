@@ -51,10 +51,10 @@ class IModuleBase;
 
 #if defined (TARGET_X64)
 typedef double fp_t; // main floating-point type
-typedef long int_t; // main integer type
+typedef int64_t int_t; // main integer type
 #elif defined (TARGET_X86)
 typedef float fp_t;
-typedef long int_t;
+typedef int32_t int_t;
 #endif
 
 static_assert( sizeof( fp_t ) == sizeof( int_t ),
@@ -70,10 +70,21 @@ static_assert( sizeof( fp_t ) == sizeof( int_t ),
  *  int_t -> int_abi_t -> abiret_t
  */
 
-typedef float fp_abi_t; // ABI intermediate floating-point type
-typedef unsigned int_abi_t; // ABI intermediate integer type
+#if defined (TARGET_X64)
 
-typedef unsigned abiret_t; // final ABI interaction type
+typedef double fp_abi_t; // ABI intermediate floating-point type
+typedef uint64_t int_abi_t; // ABI intermediate integer type
+
+typedef uint64_t abiret_t; // final ABI interaction type
+
+#elif defined (TARGET_X86)
+
+typedef float fp_abi_t; // ABI intermediate floating-point type
+typedef uint32_t int_abi_t; // ABI intermediate integer type
+
+typedef uint32_t abiret_t; // final ABI interaction type
+
+#endif
 
 
 static_assert( sizeof( fp_abi_t ) == sizeof( abiret_t ),
