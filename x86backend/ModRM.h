@@ -5,6 +5,7 @@
 
 #include "Defs.h"
 #include "Registers.h"
+#include "SIB.h"
 
 // -------------------------------------------------------------------------------------
 // Library:		Homework
@@ -102,6 +103,8 @@ struct ModRMWrapper
 	ModField mod;
 	AddressSize operand_size;
 
+	SIBWrapper sib;
+
 	// Intended for mod == 00b, memory addressing like [RAX] or displacement32
 	ModRMWrapper( IndirectNoShift reg ) :
 		no_shift( reg ),
@@ -139,6 +142,16 @@ struct ModRMWrapper
 		s_cassert( reg.operand_size == AddressSize::QWORD, "Cannot generate direct r/m field from non-QWORD register" );
 	}
 
+	template <typename BaseRegT, typename IndexRegT>
+	ModRMWrapper( BaseRegT base_reg, IndexRegT index_reg, unsigned char scale_factor, ModField shift ) :
+		no_shift( IndirectNoShift::UseSIB ),
+		need_extension( false ),
+		mod( shift ),
+		operand_size( _DefaultMemoryLocationSize ),
+		sib( base_reg, index_reg, scale_factor )
+	{
+	}
+
 	// Intended for any mod-field, addressing of additional registers (R8, [R8], [R8]+displacement8, [R8]+displacement32)
 	ModRMWrapper( Reg64E reg, ModField shift ) :
 		raw( reinterpret_cast<unsigned char&>( reg ) ),
@@ -146,7 +159,12 @@ struct ModRMWrapper
 		mod( shift ),
 		operand_size( _DefaultMemoryLocationSize )
 	{
-		// TODO: transform [R13] (mod == 00b, r/m = 101b) into SIB+"zero disp8" form (see 2.2.1.6 of the Intel manual)
+		if( reg == Reg64E::R13 && shift == ModField::NoShift ) {
+			no_shift = IndirectNoShift::UseSIB;
+			need_extension = false;
+			mod = ModField::Disp8;
+			sib = SIBWrapper( reg, IndexRegs::None );
+		}
 	}
 };
 

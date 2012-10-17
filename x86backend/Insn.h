@@ -53,6 +53,7 @@ class Insn
 		bool used_modrm_reg : 1;
 		bool used_modrm_rm : 1;
 		bool used_opcode_reg : 1;
+		bool used_sib : 1;
 	} flags_;
 
 	// Set prefixes according to flags.
@@ -121,7 +122,7 @@ public:
 		reinterpret_cast<unsigned char&>( rex_ ) = 0;
 		opcode_ = 0;
 		reinterpret_cast<unsigned char&>( modrm_ ) = 0;
-// 		reinterpret_cast<unsigned char&>( sib_ ) = 0;
+ 		reinterpret_cast<unsigned char&>( sib_ ) = 0;
 		memset( &flags_, 0, sizeof( flags_ ) );
 	}
 
@@ -212,6 +213,17 @@ public:
 
 		flags_.used_modrm_rm = true;
 		flags_.need_modrm_rm_extension = rm.need_extension;
+
+		if( rm.sib.valid ) {
+			sib_.base = 0x7 & rm.sib.base_raw;
+			sib_.index = 0x7 & rm.sib.index_raw;
+			sib_.scale = 0x3 & rm.sib.scale;
+
+			flags_.used_sib = true;
+			flags_.need_sib_base_extension = rm.sib.need_base_extension;
+			flags_.need_sib_index_extension = rm.sib.need_index_extension;
+		}
+
 		AddOperand( rm.operand_size, OperandType::RegMem );
 		return *this;
 	}
@@ -274,6 +286,7 @@ public:
 			ret.append( 1, &modrm_ );
 
 			if( modrm_.UsingSIB() ) {
+				s_cassert( flags_.used_sib, "SIB unset when required by ModR/M" );
 				ret.append( 1, &sib_ );
 			}
 
