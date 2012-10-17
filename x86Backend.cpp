@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "x86Backend.h"
 
+#include "x86backend/Insn.h"
+
 // -------------------------------------------------------------------------------------
 // Library:		Homework
 // File:		x86Backend.h
@@ -11,6 +13,7 @@
 namespace ProcessorImplementation
 {
 using namespace Processor;
+using namespace x86backend;
 
 bool x86Backend::ImageIsOK( size_t chk )
 {
@@ -80,10 +83,28 @@ void x86Backend::Finalize()
 
 	Deallocate();
 
-	void* img = proc_->ExecutionManager().AllocateMemory( current_image_->data.size(), true, true, true );
+	char* img = reinterpret_cast<char*>( proc_->ExecutionManager().AllocateMemory( current_image_->data.size(), true, true, true ) );
 	cassert( img, "Failed to allocate memory through native execution manager (size: %zu, readable, writable, executable)",
 			 current_image_->data.size() );
 	memcpy( img, current_image_->data, current_image_->data.size() );
+
+	// Patch in the references
+	for( const ReferencePatch& ref: current_image_->references ) {
+		void* where = img + ref.where;
+		char* target_insn = img + current_image_->insn_offsets.at( ref.what );
+		switch( ref.type ) {
+		case ReferencePatch::RT_ABSOLUTE:
+			*reinterpret_cast<void**>( where ) = target_insn;
+			break;
+		case ReferencePatch::RT_TO_INSTRUCTIONPOINTER: {
+			char* next_insn = img + current_image_->insn_offsets.at( ref.where_insn + 1 );
+			ptrdiff_t offset_to_target_insn = target_insn - next_insn;
+			*reinterpret_cast<int32_t*>( where ) = offset_to_target_insn;
+			break;
+		}
+		}
+	}
+
 	current_image_->mm.image = img;
 	current_image_->mm.length = current_image_->data.size();
 
@@ -96,6 +117,13 @@ void x86Backend::Clear()
 
 	Deallocate();
 	current_image_->data.clear();
+}
+
+llarray& x86Backend::Target()
+{
+	verify_method;
+
+	return current_image_->data;
 }
 
 void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
@@ -113,15 +141,42 @@ void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 	msg( E_INFO, E_DEBUG, "Emitting prologue" );
 	CompilePrologue();
 
+	// Reserve one entry for the final record (will be needed for the finalization/ref. resolve code)
+	current_image_->insn_offsets.reserve( limits.Code() + 1 );
+
 	for( size_t pc = 0; pc < limits.Code(); ++pc ) {
+		RecordNextInsnOffset();
 		Command& cmd = mmu->ACommand( pc );
-		msg( E_INFO, E_DEBUG, "Emitting native code for command [PC=%zu] \"%s\"",
-			 pc, logic->DumpCommand( cmd ).c_str() );
+		msg( E_INFO, E_DEBUG, "Emitting native code for command [PC=%zu OFFSET=%zu] \"%s\"",
+			 pc, current_image_->insn_offsets.back(), logic->DumpCommand( cmd ).c_str() );
 		CompileCommand( cmd );
 	}
+	RecordNextInsnOffset();
 
 	msg( E_INFO, E_VERBOSE, "Native code emission completed" );
 	Finalize();
+}
+
+void x86Backend::AddCodeReference( size_t insn, bool relative )
+{
+	verify_method;
+
+	static const uint32_t disp32_stub = 0xbaadf00d;
+	static const uint64_t disp64_stub = 0xdeadc0de00bf00bf;
+
+	ReferencePatch ref;
+
+	if( relative ) {
+		ref.type = ReferencePatch::RT_TO_INSTRUCTIONPOINTER;
+		Target().append( sizeof( disp32_stub ), &disp32_stub );
+	} else {
+		ref.type = ReferencePatch::RT_ABSOLUTE;
+		Target().append( sizeof( disp64_stub ), &disp64_stub );
+	}
+	ref.what = insn;
+	ref.where_insn = current_image_->insn_offsets.size();
+	ref.where = current_image_->data.size();
+	current_image_->references.push_back( ref );
 }
 
 x86Backend::x86Backend()
