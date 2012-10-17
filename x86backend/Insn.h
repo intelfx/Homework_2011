@@ -26,7 +26,6 @@ class Insn
 	unsigned char prefix_[PREFIXES_COUNT];
 
 	REX rex_;
-	unsigned char opcode_;
 	ModRM modrm_;
 	SIB sib_;
 
@@ -39,6 +38,7 @@ class Insn
 	};
 
 	llarray immediates_;
+	llarray opcode_bytes_;
 
 	// Opcode generation parameters.
 	struct {
@@ -120,7 +120,6 @@ public:
 	{
 		reinterpret_cast<uint32_t&>( prefix_ ) = 0;
 		reinterpret_cast<unsigned char&>( rex_ ) = 0;
-		opcode_ = 0;
 		reinterpret_cast<unsigned char&>( modrm_ ) = 0;
  		reinterpret_cast<unsigned char&>( sib_ ) = 0;
 		memset( &flags_, 0, sizeof( flags_ ) );
@@ -162,9 +161,17 @@ public:
 		return *this;
 	}
 
-	Insn& SetOpcode( unsigned char opcode )
+	Insn& AddOpcode( unsigned char opcode )
 	{
-		opcode_ = opcode;
+		opcode_bytes_.append( 1, &opcode );
+		return *this;
+	}
+
+	template <typename... Args>
+	Insn& AddOpcode( unsigned char opcode, Args... args )
+	{
+		AddOpcode( opcode );
+		AddOpcode( args... );
 		return *this;
 	}
 
@@ -194,7 +201,10 @@ public:
 
 	Insn& AddOpcodeRegister( RegisterWrapper reg )
 	{
+		s_cassert( !opcode_bytes_.empty(), "Cannot set register in opcode: no opcode set" );
 		s_cassert( !flags_.used_opcode_reg, "Cannot set register in opcode: lower bits of opcode already taken" );
+		char& opcode_ = opcode_bytes_.back();
+
 		s_cassert( !( 0x7 & opcode_ ), "Cannot set register in opcode: lower bits of opcode are non-zero" );
 		opcode_ |= ( 0x7 & reg.raw );
 
@@ -279,7 +289,7 @@ public:
 		}
 
 		// Opcode
-		ret.append( 1, &opcode_ );
+		ret.append( opcode_bytes_ );
 
 		// ModR/M and displacement
 		if( flags_.used_modrm_reg || flags_.used_modrm_rm ) {
