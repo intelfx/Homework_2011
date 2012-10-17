@@ -40,27 +40,6 @@ class INTERPRETER_API x86Backend : public IBackend
 
 	void CompileCommand( Command& cmd );
 	void CompilePrologue();
-	void Emit( const char* data, size_t length );
-	void Emit( unsigned char data );
-
-	template <typename... Args>
-	void Emit( unsigned char data, Args... args )
-	{
-		Emit( data );
-		Emit( args... );
-	}
-
-	template <typename T>
-	void EmitRaw( T data )
-	{
-		Emit( reinterpret_cast<const char*>( &data ), sizeof( data ) );
-	}
-
-	// A big and dirty HACK
-	bool IsCmd( Command& cmd, const char* mnemonic )
-	{
-		return proc_->CommandSet()->DecodeCommand( mnemonic )->id == cmd.id;
-	}
 
 protected:
 	virtual bool _Verify() const;
