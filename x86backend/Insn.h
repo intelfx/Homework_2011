@@ -31,13 +31,8 @@ class Insn
 
 	std::vector<OperandType> operands_;
 
-	union {
-		int8_t displacement_8_;
-		int16_t displacement_16_;
-		int32_t displacement_32_;
-	};
-
 	llarray immediates_;
+	llarray displacement_;
 	llarray opcode_bytes_;
 
 	// Opcode generation parameters.
@@ -238,38 +233,21 @@ public:
 		return *this;
 	}
 
-	Insn& AddImmediate( ImmediateUnsignedWrapper imm )
+	template <typename T>
+	Insn& AddImmediate( const T& imm )
 	{
-		switch( imm.size ) {
-		case AddressSize::NONE:
-			s_casshole( "Immediate value has size unset" );
-			break;
-
-		case AddressSize::BYTE:
-			immediates_.append( 1, &imm.i8 );
-			break;
-
-		case AddressSize::WORD:
-			immediates_.append( 2, &imm.i16 );
-			break;
-
-		case AddressSize::DWORD:
-			immediates_.append( 4, &imm.i32 );
-			break;
-
-		case AddressSize::QWORD:
-			immediates_.append( 8, &imm.i64 );
-			break;
-		}
-		AddOperand( imm.size, OperandType::Immediate );
+		size_t imm_size = sizeof( T );
+		immediates_.append( imm_size, &imm );
+		AddOperand( EncodeSize( imm_size ), OperandType::Immediate );
 		return *this;
 	}
 
-	Insn& SetDisplacement( ImmediateSignedWrapper disp )
+	template <typename T>
+	Insn& SetDisplacement( const T& disp )
 	{
-		s_cassert( disp.size != AddressSize::QWORD, "Displacement cannot be QWORD" );
-		s_cassert( disp.size != AddressSize::WORD, "Displacement cannot be WORD" );
-		displacement_32_ = disp.i32;
+		size_t disp_size = sizeof( T );
+		s_cassert( disp_size == 1 || disp_size == 4, "Displacement can be only BYTE or QWORD (offending size: %zu)", disp_size );
+		displacement_.append( disp_size, &disp );
 		return *this;
 	}
 
@@ -303,17 +281,18 @@ public:
 			switch( modrm_.UsingDisplacement() ) {
 			case ModField::Direct:
 			case ModField::NoShift:
-				/* no-op */
+				s_cassert( displacement_.empty(), "ModR/M says no displacement, but displacement size is %zu", displacement_.size() );
 				break;
 
 			case ModField::Disp8:
-				ret.append( sizeof( displacement_8_ ), &displacement_8_ );
+				s_cassert( displacement_.size() == 1, "ModR/M says disp8, but displacement size is %zu", displacement_.size() );
 				break;
 
 			case ModField::Disp32:
-				ret.append( sizeof( displacement_32_ ), &displacement_32_ );
+				s_cassert( displacement_.size() == 4, "ModR/M says disp32, but displacement size is %zu", displacement_.size() );
 				break;
 			}
+			ret.append( displacement_ );
 		}
 
 		// Immediates
