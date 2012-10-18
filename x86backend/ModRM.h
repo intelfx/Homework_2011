@@ -93,10 +93,10 @@ struct ModRMWrapper
 	static const AddressSize _DefaultMemoryLocationSize = AddressSize::NONE;
 
 	union {
-		IndirectNoShift no_shift;
-		IndirectShiftDisplacement8 disp8;
-		IndirectShiftDisplacement32 disp32;
-		unsigned char raw;
+		IndirectNoShift rm_noshift;
+		IndirectShiftDisplacement8 rm_disp8;
+		IndirectShiftDisplacement32 rm_disp32;
+		unsigned char raw_rm;
 	};
 
 	bool need_extension;
@@ -107,7 +107,7 @@ struct ModRMWrapper
 
 	// Intended for mod == 00b, memory addressing like [RAX] or displacement32
 	ModRMWrapper( IndirectNoShift reg ) :
-		no_shift( reg ),
+		rm_noshift( reg ),
 		need_extension( false ),
 		mod( ModField::NoShift ),
 		operand_size( _DefaultMemoryLocationSize )
@@ -116,7 +116,7 @@ struct ModRMWrapper
 
 	// Intended for mod == 01b, memory addressing like [RAX]+displacement8
 	ModRMWrapper( IndirectShiftDisplacement8 reg ) :
-		disp8( reg ),
+		rm_disp8( reg ),
 		need_extension( false ),
 		mod( ModField::Disp8 ),
 		operand_size( _DefaultMemoryLocationSize )
@@ -125,7 +125,7 @@ struct ModRMWrapper
 
 	// Intended for mod == 10b, memory addressing like [RAX]+displacement32
 	ModRMWrapper( IndirectShiftDisplacement32 reg ) :
-		disp32( reg ),
+		rm_disp32( reg ),
 		need_extension( false ),
 		mod( ModField::Disp32 ),
 		operand_size( _DefaultMemoryLocationSize )
@@ -134,7 +134,7 @@ struct ModRMWrapper
 
 	// Intended for mod == 11b, register-register operations
 	ModRMWrapper( RegisterWrapper reg ) :
-		raw( reg.raw ),
+		raw_rm( reg.raw ),
 		need_extension( reg.need_extension ),
 		mod( ModField::Direct ),
 		operand_size( reg.operand_size )
@@ -144,7 +144,7 @@ struct ModRMWrapper
 
 	template <typename BaseRegT, typename IndexRegT>
 	ModRMWrapper( BaseRegT base_reg, IndexRegT index_reg, unsigned char scale_factor, ModField shift ) :
-		no_shift( IndirectNoShift::UseSIB ),
+		rm_noshift( IndirectNoShift::UseSIB ),
 		need_extension( false ),
 		mod( shift ),
 		operand_size( _DefaultMemoryLocationSize ),
@@ -154,13 +154,13 @@ struct ModRMWrapper
 
 	// Intended for any mod-field, addressing of additional registers (R8, [R8], [R8]+displacement8, [R8]+displacement32)
 	ModRMWrapper( Reg64E reg, ModField shift ) :
-		raw( reinterpret_cast<unsigned char&>( reg ) ),
+		raw_rm( reinterpret_cast<unsigned char&>( reg ) ),
 		need_extension( true ),
 		mod( shift ),
 		operand_size( _DefaultMemoryLocationSize )
 	{
 		if( reg == Reg64E::R13 && shift == ModField::NoShift ) {
-			no_shift = IndirectNoShift::UseSIB;
+			rm_noshift = IndirectNoShift::UseSIB;
 			need_extension = false;
 			mod = ModField::Disp8;
 			sib = SIBWrapper( reg, IndexRegs::None );

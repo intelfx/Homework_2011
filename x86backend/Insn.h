@@ -213,7 +213,7 @@ public:
 	{
 		s_cassert( !modrm_.rm, "Cannot set r/m: r/m field already taken" );
 		s_cassert( !modrm_.mod, "Cannot set r/m: mod field already taken" );
-		modrm_.rm = 0x7 & rm.raw;
+		modrm_.rm = 0x7 & rm.raw_rm;
 		modrm_.mod = rm.mod;
 
 		flags_.used_modrm_rm = true;
