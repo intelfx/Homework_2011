@@ -264,14 +264,14 @@ void Logic::Write( const DirectReference& ref, calc_t value )
 
 	case S_FRAME:
 		// do type checking here - stack must be homogeneous
-		proc_->MMU()->AStackFrame( current_stack_type_, ref.address ).Assign( value );
+		proc_->MMU()->AStackFrame( frame_stack_type_, ref.address ).Assign( value );
 
 	case S_FRAME_BACK:
 		msg( E_WARNING, E_VERBOSE, "Attempt to write to function parameter: reference to %s",
 		     ProcDebug::PrintReference( ref ).c_str() );
 
 		// do type checking here - stack must be homogeneous
-		proc_->MMU()->AStackFrame( current_stack_type_, -ref.address ).Assign( value );
+		proc_->MMU()->AStackFrame( frame_stack_type_, -ref.address ).Assign( value );
 		break;
 
 	case S_REGISTER:
@@ -305,10 +305,10 @@ calc_t Logic::Read( const DirectReference& ref )
 		return proc_->MMU()->AData( ref.address );
 
 	case S_FRAME:
-		return proc_->MMU()->AStackFrame( current_stack_type_, ref.address );
+		return proc_->MMU()->AStackFrame( frame_stack_type_, ref.address );
 
 	case S_FRAME_BACK:
-		return proc_->MMU()->AStackFrame( current_stack_type_, -ref.address );
+		return proc_->MMU()->AStackFrame( frame_stack_type_, -ref.address );
 
 	case S_REGISTER:
 		return proc_->MMU()->ARegister( static_cast<Register>( ref.address ) );

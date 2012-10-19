@@ -21,6 +21,7 @@ class INTERPRETER_API Logic : public ILogic
 	static const char* RegisterIDs [R_MAX];
 	std::stack<Context> call_stack_;
 	Value::Type current_stack_type_;
+	static const Value::Type frame_stack_type_ = Value::V_INTEGER;
 
 public:
 	virtual void Analyze( calc_t value );
