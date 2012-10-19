@@ -66,12 +66,22 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 	virtual llarray& Target();
 	virtual void AddCodeReference( size_t insn, bool relative );
 
+	// A big and dirty HACK
+	bool IsCmd( Command& cmd, const char* mnemonic )
+	{
+		return proc_->CommandSet()->DecodeCommand( mnemonic )->id == cmd.id;
+	}
+
 	void RecordNextInsnOffset()
 	{
 		current_image_->insn_offsets.push_back( current_image_->data.size() );
 	}
 
 	void CompileCommand( Command& cmd );
+	bool CompileCommand_Control( Command& cmd );
+	bool CompileCommand_Arithmetic( Command& cmd );
+	bool CompileCommand_Conditionals( Command& cmd );
+	bool CompileCommand_System( Command& cmd );
 	void CompilePrologue();
 	void CompileBinaryGateCall( BinaryFunction function, abiret_t argument );
 
