@@ -341,7 +341,15 @@ public:
 	virtual void MergeLink_Add( symbol_map&& symbols ) = 0;
 
 	// Retrieve a direct reference for given arbitrary reference.
-	virtual DirectReference Resolve( const Reference& reference ) = 0; // or get an unresolved symbol error
+	// If "partial_resolution" is not null, the reference shall be resolved statically: that is,
+	// 1) no indirections and dynamic symbols shall be resolved,
+	// 2) in case there are unresolved components, the returned address is invalid
+	//    and "partial_resolution" shall be set to false to indicate this.
+	// The section of returned direct reference shall always be resolved and valid.
+	//
+	// NOTE: If the reference is completely resolved in the partial method,
+	// "partial_resolution" is untouched (so it shall be initialized to true by the caller).
+	virtual DirectReference Resolve( const Reference& reference, bool* partial_resolution = nullptr ) = 0;
 };
 
 } // namespace Processor
