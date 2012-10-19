@@ -146,13 +146,15 @@ DirectReference UATLinker::Resolve( const Reference& reference, bool* partial_re
 				*partial_resolution = false;
 				msg( E_INFO, E_DEBUG, "[Component %u]: partial resolution is active, not resolving indirection", i );
 			} else {
-				/* load address value and reset section */
+				/* load address value */
 				proc_->LogicProvider()->Read( tmp_reference ).Get( Value::V_INTEGER, tmp_reference.address );
-				tmp_reference.section = S_NONE;
 
 				msg( E_INFO, E_DEBUG, "[Component %u]: indirection resolved to memory offset %zu",
 				     i, tmp_reference.address );
 			}
+
+			/* still reset the section (currently tmp_reference.section holds the indirection value section) */
+			tmp_reference.section = S_NONE;
 		}
 
 		msg( E_INFO, E_DEBUG, "[Component %u]: resolved to %s",
