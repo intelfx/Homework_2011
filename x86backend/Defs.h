@@ -31,7 +31,7 @@ enum class OperandType
 	Immediate
 };
 
-AddressSize EncodeSize( size_t size )
+inline AddressSize EncodeSize( size_t size )
 {
 	switch( size ) {
 	case 1:
