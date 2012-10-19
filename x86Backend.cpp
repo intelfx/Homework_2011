@@ -126,6 +126,213 @@ llarray& x86Backend::Target()
 	return current_image_->data;
 }
 
+ModRMWrapper x86Backend::CompileReferenceResolution( const DirectReference& dref )
+{
+	void* data_ptr = nullptr;
+
+	switch( dref.section ) {
+	case S_MAX:
+	case S_NONE:
+		casshole( "Invalid direct reference type while compiling reference access" );
+		break;
+
+	case S_CODE:
+		return ModRMWrapper( IndirectNoShift::Displacement32 ).SetDisplacementToInsn( dref.address );
+
+	case S_DATA:
+		data_ptr = &proc_->MMU()->AData( dref.address ).integer;
+		break;
+
+	case S_REGISTER:
+		data_ptr = &proc_->MMU()->ARegister( static_cast<Register>( dref.address ) ).integer;
+		break;
+
+	case S_BYTEPOOL:
+		data_ptr = proc_->MMU()->ABytepool( dref.address );
+		break;
+
+	case S_FRAME:
+	case S_FRAME_BACK: {
+		bool frame_is_reverse = ( dref.section == S_FRAME_BACK );
+		int32_t offset_to_native_frame = TranslateStackFrame( frame_is_reverse, dref.address );
+		return ModRMWrapper( IndirectShiftDisplacement32::RBP ).SetDisplacement( offset_to_native_frame );
+	}
+	}
+
+	// Load the data_ptr into some temporary register and return a modr/m referencing the register.
+	Insn()
+		.AddOpcode( 0xB8 )
+		.AddOpcodeRegister( Reg64::RCX )
+		.AddImmediate( data_ptr )
+		.Emit( this );
+	return ModRMWrapper( IndirectNoShift::RCX );
+}
+
+abiret_t x86Backend::RuntimeReferenceResolution( NativeImage* image, const DirectReference& dref )
+{
+	union {
+		abiret_t retval;
+		void* address;
+		int32_t offset_to_native_frame;
+	} result;
+
+	switch( dref.section ) {
+	case S_MAX:
+	case S_NONE:
+		casshole( "Invalid direct reference type while runtime-resolving reference access" );
+		break;
+
+	case S_CODE:
+		result.address = reinterpret_cast<char*>( image->mm.image ) + image->insn_offsets.at( dref.address );
+		break;
+
+	case S_DATA:
+		result.address = &proc_->MMU()->AData( dref.address ).integer;
+		break;
+
+	case S_REGISTER:
+		result.address = &proc_->MMU()->ARegister( static_cast<Register>( dref.address ) ).integer;
+		break;
+
+	case S_BYTEPOOL:
+		result.address = proc_->MMU()->ABytepool( dref.address );
+		break;
+
+	case S_FRAME:
+	case S_FRAME_BACK: {
+		bool frame_is_reverse = ( dref.section == S_FRAME_BACK );
+		result.offset_to_native_frame = TranslateStackFrame( frame_is_reverse, dref.address );
+	}
+	}
+
+	return result.retval;
+}
+
+ModRMWrapper x86Backend::CompileReferenceResolution( const Reference& ref )
+{
+	verify_method;
+
+	// Do partial resolution of the given reference.
+	bool ref_resolved_statically = true;
+	DirectReference dref = proc_->Linker()->Resolve( ref, &ref_resolved_statically );
+
+	if( ref_resolved_statically ) {
+		// If the reference has been statically resolved, emit a static modr/m.
+		return CompileReferenceResolution( dref );
+	} else {
+		// If not, emit a call to get the address into RCX and emit modr/m referencing RCX.
+		// The only exception is S_FRAME/S_FRAME_BACK, where we need to emit modr/m+sib which uses native stack frame.
+		CompileBinaryGateCall( BinaryFunction::BF_RESOLVEREFERENCE, reinterpret_cast<abiret_t>( &ref ) );
+
+		switch( dref.section ) {
+		case S_MAX:
+		case S_NONE:
+			casshole( "Invalid direct reference type while compiling reference access" );
+			break;
+
+		case S_CODE:
+		case S_DATA:
+		case S_REGISTER:
+		case S_BYTEPOOL:
+			return ModRMWrapper( IndirectNoShift::RCX );
+
+		case S_FRAME:
+		case S_FRAME_BACK: {
+			return ModRMWrapper( BaseRegs::RCX, IndexRegs::RBP, 1, ModField::NoShift );
+		}
+		}
+	}
+}
+
+void x86Backend::CompileBinaryGateCall( x86Backend::BinaryFunction function, abiret_t argument )
+{
+	/*
+	 * 1. Save the registers: rax, r11
+	 * 2. Pass the parameters: backend, image, function, argument
+	 * 3. Call the function
+	 * 4. Move the result into rcx
+	 * 5. Restore the registers: r11, rax
+	 */
+
+	// push rax
+	Insn()
+		.AddOpcode( 0x50 )
+		.AddOpcodeRegister( Reg64::RAX )
+		.SetIsDefault64Bit()
+		.Emit( this );
+
+	// push r11
+	Insn()
+		.AddOpcode( 0x50 )
+		.AddOpcodeRegister( Reg64E::R11 )
+		.SetIsDefault64Bit()
+		.Emit( this );
+
+	// mov rdi, {backend}
+	Insn()
+		.AddOpcode( 0xB8 )
+		.AddOpcodeRegister( Reg64::RDI )
+		.AddImmediate( this )
+		.Emit( this );
+
+	// mov rsi, {image}
+	Insn()
+		.AddOpcode( 0xB8 )
+		.AddOpcodeRegister( Reg64::RSI )
+		.AddImmediate( current_image_ )
+		.Emit( this );
+
+	// mov rdx, {function}
+	Insn()
+		.AddOpcode( 0xB8 )
+		.AddOpcodeRegister( Reg64::RDX )
+		.AddImmediate( function )
+		.Emit( this );
+
+	// mov rcx, {argument}
+	Insn()
+		.AddOpcode( 0xB8 )
+		.AddOpcodeRegister( Reg64::RCX )
+		.AddImmediate( argument )
+		.Emit( this );
+
+	// mov rax, {address}
+	Insn()
+		.AddOpcode( 0xB8 )
+		.AddOpcodeRegister( Reg64::RAX )
+		.AddImmediate( &BinaryGateFunction )
+		.Emit( this );
+
+	// call rax
+	Insn()
+		.AddOpcode( 0xFF )
+		.SetOpcodeExtension( 0x2 )
+		.AddRM( ModRMWrapper( Reg64::RAX ) )
+		.SetIsDefault64Bit()
+		.Emit( this );
+
+	// mov rcx, rax
+	Insn()
+		.AddOpcode( 0x8B )
+		.AddRegister( Reg64::RCX )
+		.AddRegister( Reg64::RAX )
+		.Emit( this );
+
+	// pop r11
+	Insn()
+		.AddOpcode( 0x58 )
+		.AddOpcodeRegister( Reg64E::R11 )
+		.SetIsDefault64Bit()
+		.Emit( this );
+
+	// pop rax
+	Insn()
+		.AddOpcode( 0x58 )
+		.AddOpcodeRegister( Reg64::RAX )
+		.SetIsDefault64Bit()
+		.Emit( this );
+}
+
 void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 {
 	msg( E_INFO, E_DEBUG, "Compiling for checksum %zx", chk );
@@ -157,6 +364,28 @@ void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 	Finalize();
 }
 
+abiret_t x86Backend::InternalBinaryGateFunction( NativeImage* image,
+                                                 BinaryFunction function,
+                                                 abiret_t argument )
+{
+	switch( function ) {
+	case BinaryFunction::BF_RESOLVEREFERENCE: {
+		// the argument is the reference
+		Reference* ref = reinterpret_cast<Reference*>( argument );
+		DirectReference dref = proc_->Linker()->Resolve( *ref );
+		return RuntimeReferenceResolution( image, dref );
+	}
+	}
+}
+
+abiret_t x86Backend::BinaryGateFunction( x86Backend* backend,
+										 x86Backend::NativeImage* image,
+										 x86Backend::BinaryFunction function,
+										 abiret_t argument )
+{
+	return backend->InternalBinaryGateFunction( image, function, argument );
+}
+
 void x86Backend::AddCodeReference( size_t insn, bool relative )
 {
 	verify_method;
@@ -177,6 +406,18 @@ void x86Backend::AddCodeReference( size_t insn, bool relative )
 	ref.where_insn = current_image_->insn_offsets.size();
 	ref.where = current_image_->data.size();
 	current_image_->references.push_back( ref );
+}
+
+int32_t x86Backend::TranslateStackFrame( bool is_reverse, size_t address )
+{
+	int32_t dest;
+	if( is_reverse ) {
+		dest = 1 + address;
+	} else {
+		dest = -address;
+	}
+	dest *= 8;
+	return dest;
 }
 
 x86Backend::x86Backend()

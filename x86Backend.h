@@ -14,6 +14,11 @@
 // Description:	x86 JIT compiler backend.
 // -------------------------------------------------------------------------------------
 
+namespace x86backend
+{
+struct ModRMWrapper;
+}
+
 namespace ProcessorImplementation
 {
 using namespace Processor;
@@ -30,6 +35,11 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 		off_t where; // offset in the native buffer where to write the reference
 		size_t where_insn; // virtual insn to which the reference shall belong to
 		size_t what; // virtual insn being referenced
+	};
+
+	enum class BinaryFunction : abiret_t
+	{
+		BF_RESOLVEREFERENCE
 	};
 
 	struct NativeImage
@@ -63,6 +73,29 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 
 	void CompileCommand( Command& cmd );
 	void CompilePrologue();
+	void CompileBinaryGateCall( BinaryFunction function, abiret_t argument );
+
+	// Compiles code needed to resolve a reference
+	// and returns a modr/m byte which points to the required data.
+	x86backend::ModRMWrapper CompileReferenceResolution( const Reference& ref );
+	x86backend::ModRMWrapper CompileReferenceResolution( const DirectReference& dref );
+
+	// Resolves a reference at runtime and returns its address.
+	// For S_FRAME or S_FRAME_BACK, returns offset to RBP.
+	abiret_t RuntimeReferenceResolution( NativeImage* image, const DirectReference& dref );
+
+	// Translates virtual stack frame access into a native offset to RBP.
+	// is_reverse: whether the reference is S_FRAME_BACK.
+	int32_t TranslateStackFrame( bool is_reverse, size_t address );
+
+	abiret_t InternalBinaryGateFunction( NativeImage* image,
+	                                     BinaryFunction function,
+	                                     abiret_t argument );
+
+	static abiret_t BinaryGateFunction( x86Backend* backend,
+	                                    NativeImage* image,
+	                                    BinaryFunction function,
+	                                    abiret_t argument );
 
 protected:
 	virtual bool _Verify() const;
