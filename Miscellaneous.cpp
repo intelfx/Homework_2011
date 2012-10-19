@@ -64,7 +64,7 @@ void PrintSingleReference( char*& output, const Reference::SingleRef& ref, IMMU*
 		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "indirect: " );
 
 		if( ref.indirect.section != S_NONE )
-			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "section %s ", AddrType_ids[ref.indirect.section] );
+			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "section %s ", Print( ref.indirect.section ).c_str() );
 	}
 
 	const Reference::BaseRef& bref = ( ref.is_indirect ) ? ref.indirect.target : ref.target;
@@ -86,7 +86,7 @@ void PrintSingleReference( char*& output, const Reference::SingleRef& ref, IMMU*
 std::string PrintReference( const DirectReference& ref )
 {
 	snprintf( debug_buffer, STATIC_LENGTH, "section %s address %zu",
-	          AddrType_ids[ref.section], ref.address );
+	          Print( ref.section ).c_str(), ref.address );
 	return debug_buffer;
 }
 
@@ -96,7 +96,7 @@ std::string PrintReference( const Reference& ref, IMMU* mmu )
 
 	if( ref.global_section != S_NONE )
 		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ),
-		                    "section %s ", AddrType_ids[ref.global_section] );
+		                    "section %s ", Print( ref.global_section ).c_str() );
 
 	if( ref.needs_linker_placement )
 		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ),
