@@ -46,14 +46,16 @@ class INTERPRETER_API MMU : public IMMU
 	void CheckFrameOperation( Value::Type frame_stack_type ) const
 	{
 		cassert( proc_->CurrentContext().frame <= stacks_[frame_stack_type].size(),
-		         "Invalid stack frame at %zu (T: %zu)",
+		         "Invalid %s stack frame at %zu (T: %zu)",
+				 ProcDebug::Print( frame_stack_type ).c_str(),
 		         proc_->CurrentContext().frame, stacks_[frame_stack_type].size() );
 	}
 
 	void CheckStackAddress( Value::Type main_stack_type, size_t offset ) const
 	{
 		cassert( offset < stacks_[main_stack_type].size(),
-		         "Invalid offset to stack top: %zu (T: %zu)",
+		         "Invalid offset to %s stack top: %zu (T: %zu)",
+				 ProcDebug::Print( main_stack_type ).c_str(),
 		         offset, stacks_[main_stack_type].size() );
 	}
 
@@ -63,10 +65,12 @@ class INTERPRETER_API MMU : public IMMU
 
 		ssize_t address = proc_->CurrentContext().frame + offset;
 		cassert( address >= 0,
-		         "Invalid parameter offset to frame: %zd (F: %zu)",
+		         "Invalid parameter offset to %s frame: %zd (F: %zu)",
+				 ProcDebug::Print( frame_stack_type ).c_str(),
 		         offset, proc_->CurrentContext().frame );
 		cassert( static_cast<size_t>( address ) < stacks_[frame_stack_type].size(),
-		         "Invalid local offset to frame: %zd (F: %zu T: %zu)",
+		         "Invalid local offset to %s frame: %zd (F: %zu T: %zu)",
+				 ProcDebug::Print( frame_stack_type ).c_str(),
 		         offset, proc_->CurrentContext().frame, stacks_[frame_stack_type].size() );
 	}
 
