@@ -3,6 +3,7 @@
 
 #include "build.h"
 
+#include "Interfaces.h"
 #include "Defs.h"
 #include "Registers.h"
 #include "REX.h"
@@ -32,7 +33,7 @@ class Insn
 	std::vector<OperandType> operands_;
 
 	llarray immediates_;
-	llarray displacement_;
+	DisplacementHelper displacement_;
 	llarray opcode_bytes_;
 
 	// Opcode generation parameters.
@@ -230,6 +231,23 @@ public:
 		}
 
 		AddOperand( rm.operand_size, OperandType::RegMem );
+
+		displacement_ = rm.displacement;
+		switch( modrm_.UsingDisplacement() ) {
+		case ModField::Direct:
+		case ModField::NoShift:
+			/* no-op */
+			break;
+
+		case ModField::Disp8:
+			AddOperand( AddressSize::BYTE, OperandType::Immediate );
+			break;
+
+		case ModField::Disp32:
+			AddOperand( AddressSize::DWORD, OperandType::Immediate );
+			break;
+		}
+
 		return *this;
 	}
 
@@ -242,18 +260,9 @@ public:
 		return *this;
 	}
 
-	template <typename T>
-	Insn& SetDisplacement( const T& disp )
+	void Emit( IEmissionDestination* dest )
 	{
-		size_t disp_size = sizeof( T );
-		s_cassert( disp_size == 1 || disp_size == 4, "Displacement can be only BYTE or QWORD (offending size: %zu)", disp_size );
-		displacement_.append( disp_size, &disp );
-		return *this;
-	}
-
-	llarray Emit()
-	{
-		llarray ret;
+		llarray& ret = dest->Target();
 
 		// Prefixes
 		GeneratePrefixes();
@@ -281,24 +290,46 @@ public:
 			switch( modrm_.UsingDisplacement() ) {
 			case ModField::Direct:
 			case ModField::NoShift:
-				s_cassert( displacement_.empty(), "ModR/M says no displacement, but displacement size is %zu", displacement_.size() );
+				s_cassert( displacement_.status == DisplacementStatus::DISPLACEMENT_UNSET,
+					       "Displacement set when not required by ModR/M" );
+				/* no-op */
 				break;
 
 			case ModField::Disp8:
-				s_cassert( displacement_.size() == 1, "ModR/M says disp8, but displacement size is %zu", displacement_.size() );
+				switch( displacement_.status ) {
+				case DisplacementStatus::DISPLACEMENT_SET:
+					ret.append( 1, &displacement_.disp8 );
+					break;
+
+				case DisplacementStatus::DISPLACEMENT_TO_INSN:
+					s_casshole( "Displacement to instruction set when ModR/M says disp8" );
+					dest->AddCodeReference( displacement_.insn, true );
+					break;
+
+				case DisplacementStatus::DISPLACEMENT_UNSET:
+					s_casshole( "Displacement unset when required by ModR/M" );
+				}
 				break;
 
 			case ModField::Disp32:
-				s_cassert( displacement_.size() == 4, "ModR/M says disp32, but displacement size is %zu", displacement_.size() );
+				switch( displacement_.status ) {
+				case DisplacementStatus::DISPLACEMENT_SET:
+					ret.append( 4, &displacement_.disp32 );
+					break;
+
+				case DisplacementStatus::DISPLACEMENT_TO_INSN:
+					dest->AddCodeReference( displacement_.insn, true );
+					break;
+
+				case DisplacementStatus::DISPLACEMENT_UNSET:
+					s_casshole( "Displacement unset when required by ModR/M" );
+				}
 				break;
 			}
-			ret.append( displacement_ );
 		}
 
 		// Immediates
 		ret.append( immediates_ );
-
-		return ret;
 	}
 };
 

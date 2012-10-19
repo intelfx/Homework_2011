@@ -25,6 +25,13 @@ enum class ModField : unsigned char
 	Direct  = 3  // 11b
 };
 
+enum class DisplacementStatus
+{
+	DISPLACEMENT_SET,
+	DISPLACEMENT_UNSET,
+	DISPLACEMENT_TO_INSN
+};
+
 // [xxx]
 enum class IndirectNoShift : unsigned char
 {
@@ -62,6 +69,21 @@ enum class IndirectShiftDisplacement32 : unsigned char
 	RBP    = 5,
 	RSI    = 6,
 	RDI    = 7
+};
+
+struct DisplacementHelper
+{
+	union {
+		int8_t disp8;
+		int32_t disp32;
+		size_t insn;
+	};
+	DisplacementStatus status;
+
+	DisplacementHelper() :
+	status( DisplacementStatus::DISPLACEMENT_UNSET )
+	{
+	}
 };
 
 struct ModRM
@@ -104,6 +126,8 @@ struct ModRMWrapper
 	AddressSize operand_size;
 
 	SIBWrapper sib;
+
+	DisplacementHelper displacement;
 
 	// Intended for mod == 00b, memory addressing like [RAX] or displacement32
 	ModRMWrapper( IndirectNoShift reg ) :
@@ -160,11 +184,41 @@ struct ModRMWrapper
 		operand_size( _DefaultMemoryLocationSize )
 	{
 		if( reg == Reg64E::R13 && shift == ModField::NoShift ) {
+			// Overlaps with IndirectNoShift::Displacement32 (as REX extension is not decoded),
+			// so use SIB with no index and disp8 of 0
 			rm_noshift = IndirectNoShift::UseSIB;
 			need_extension = false;
 			mod = ModField::Disp8;
 			sib = SIBWrapper( reg, IndexRegs::None );
+			SetDisplacement( int8_t( 0 ) );
 		}
+	}
+
+	ModRMWrapper& SetDisplacement( int8_t disp )
+	{
+		s_cassert( mod == ModField::Disp8, "Attempt to set disp8 while mod field does not match" );
+		displacement.disp8 = disp;
+		displacement.status = DisplacementStatus::DISPLACEMENT_SET;
+
+		return *this;
+	}
+
+	ModRMWrapper& SetDisplacement( int32_t disp )
+	{
+		s_cassert( mod == ModField::Disp32, "Attempt to set disp32 while mod field does not match" );
+		displacement.disp32 = disp;
+		displacement.status = DisplacementStatus::DISPLACEMENT_SET;
+
+		return *this;
+	}
+
+	ModRMWrapper& SetDisplacementToInsn( size_t insn )
+	{
+		s_cassert( mod == ModField::Disp32, "Attempt to set displacement to insn (disp32) while mod field does not match" );
+		displacement.insn = insn;
+		displacement.status = DisplacementStatus::DISPLACEMENT_TO_INSN;
+
+		return *this;
 	}
 };
 
