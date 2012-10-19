@@ -27,9 +27,9 @@ const char* AddrType_ids[S_MAX] = {
 	"code",
 	"data",
 	"register",
+	"byte-granular pool",
 	"stack frame",
-	"parameter",
-	"byte-granular pool"
+	"parameter"
 };
 
 const char* ValueType_ids[Value::V_MAX + 1] = {
