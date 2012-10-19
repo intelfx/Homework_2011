@@ -268,6 +268,32 @@ void x86Backend::CompileBinaryGateCall( x86Backend::BinaryFunction function, abi
 		.SetIsDefault64Bit()
 		.Emit( this );
 
+	// align the stack on 16-bit boundary
+	// see http://stackoverflow.com/a/9600102/857932
+
+	// push rsp
+	Insn()
+		.AddOpcode( 0x50 )
+		.AddOpcodeRegister( Reg64::RSP )
+		.SetIsDefault64Bit()
+		.Emit( this );
+
+	// push qword [rsp]
+	Insn()
+		.AddOpcode( 0xFF )
+		.SetOpcodeExtension( 0x6 )
+		.AddRM( ModRMWrapper( BaseRegs::RSP, IndexRegs::None, 1, ModField::NoShift ) )
+		.SetIsDefault64Bit()
+		.Emit( this );
+
+	// and rsp, -16 (0xffff ffff ffff fff0)
+	Insn()
+		.AddOpcode( 0x83 )
+		.SetOpcodeExtension( 0x4 )
+		.AddRM( RegisterWrapper( Reg64::RSP ) )
+		.AddImmediate<int8_t>( -0x10 )
+		.Emit( this );
+
 	// mov rdi, {backend}
 	Insn()
 		.AddOpcode( 0xB8 )
@@ -316,6 +342,16 @@ void x86Backend::CompileBinaryGateCall( x86Backend::BinaryFunction function, abi
 		.AddOpcode( 0x8B )
 		.AddRegister( Reg64::RCX )
 		.AddRegister( Reg64::RAX )
+		.Emit( this );
+
+	// recover rsp after alignment
+	// see http://stackoverflow.com/a/9600102/857932
+
+	// mov rsp, qword [rsp]+8
+	Insn()
+		.AddOpcode( 0x8B )
+		.AddRegister( Reg64::RSP )
+		.AddRM( ModRMWrapper( BaseRegs::RSP, IndexRegs::None, 1, ModField::Disp8 ).SetDisplacement( int8_t( 8 ) ) )
 		.Emit( this );
 
 	// pop r11
