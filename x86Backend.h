@@ -82,6 +82,7 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 	void CompileCommand( Command& cmd );
 	bool CompileCommand_Control( Command& cmd );
 	bool CompileCommand_Arithmetic( Command& cmd );
+	bool CompileCommand_ExtArithmetic( Command& cmd );
 	bool CompileCommand_Conditionals( Command& cmd );
 	bool CompileCommand_System( Command& cmd );
 	void CompilePrologue();

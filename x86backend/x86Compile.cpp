@@ -48,6 +48,7 @@ void x86Backend::CompilePrologue()
 void x86Backend::CompileCommand( Command& cmd )
 {
 	if( CompileCommand_Arithmetic( cmd ) ) { }
+	else if( CompileCommand_ExtArithmetic( cmd ) ) { }
 	else if( CompileCommand_Control( cmd ) ) { }
 	else if( CompileCommand_Conditionals( cmd ) ) { }
 	else if( CompileCommand_System( cmd ) ) { }
@@ -75,6 +76,96 @@ bool x86Backend::CompileCommand_Control( Command& cmd )
 	} else {
 		return false;
 	}
+	return true;
+}
+
+bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
+{
+	if( IsCmd( cmd, "sqrt" ) ) {
+		switch( cmd.type ) {
+		case Value::V_FLOAT:
+			// fsqrt
+			Insn()
+				.AddOpcode( 0xD9, 0xFA )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_INTEGER);
+		WRONG_TYPE(V_MAX);
+		}
+	} // sqrt
+
+	else if( IsCmd( cmd, "sin" ) ) {
+		switch( cmd.type ) {
+		case Value::V_FLOAT:
+			// fsin
+			Insn()
+				.AddOpcode( 0xD9, 0xFE )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_INTEGER);
+		WRONG_TYPE(V_MAX);
+		}
+	} // sin
+
+	else if( IsCmd( cmd, "cos" ) ) {
+		switch( cmd.type ) {
+		case Value::V_FLOAT:
+			// fcos
+			Insn()
+				.AddOpcode( 0xD9, 0xFF )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_INTEGER);
+		WRONG_TYPE(V_MAX);
+		}
+	} // cos
+
+	else if( IsCmd( cmd, "tan" ) ) {
+		switch( cmd.type ) {
+		case Value::V_FLOAT:
+			// fptan
+			Insn()
+				.AddOpcode( 0xD9, 0xF2 )
+				.Emit( this );
+
+			// ffree st(0) -- fptan pushes 1.0 after the tangent, pop it
+			Insn()
+				.AddOpcode( 0xDD, 0xC0 )
+				.AddOpcodeRegister( RegX87::ST0 )
+				.Emit( this );
+
+			// fincstp
+			Insn()
+				.AddOpcode( 0xD9, 0xF7 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_INTEGER);
+		WRONG_TYPE(V_MAX);
+		}
+	} // tan
+
+	else if( IsCmd( cmd, "atan" ) ) {
+		switch( cmd.type ) {
+		case Value::V_FLOAT:
+			// fpatan
+			Insn()
+				.AddOpcode( 0xD9, 0xF3 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_INTEGER);
+		WRONG_TYPE(V_MAX);
+		}
+	} // atan
+
+	else {
+		return false;
+	}
+
 	return true;
 }
 
