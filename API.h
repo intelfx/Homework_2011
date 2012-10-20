@@ -12,6 +12,7 @@
 
 #include "Interfaces.h"
 #include "AssemblyIO.h"
+#include "BytecodeIO.h"
 #include "CommandSet_original.h"
 #include "Executor.h"
 #include "Executor_int.h"
