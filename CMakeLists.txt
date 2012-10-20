@@ -53,3 +53,5 @@ target_link_libraries(homework_stack_nl ${LIBRARIES})
 add_library(interpreterplatform ${INTERPRETER_SRC})
 target_link_libraries(interpreterplatform ${LIBRARIES})
 # ----
+
+add_subdirectory(test_application)
