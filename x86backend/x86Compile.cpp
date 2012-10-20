@@ -923,6 +923,8 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 	else {
 		msg( E_WARNING, E_VERBOSE, "Using an interpreter gate call to execute instruction." );
+		cassert( cmd.type == Value::V_MAX, "Cannot use an interpreter gate call on a non-stack-less command (type: %s)",
+				 ProcDebug::Print( cmd.type ).c_str() );
 		CompileBinaryGateCall( BinaryFunction::BF_COMMANDGATE, reinterpret_cast<abiret_t>( &cmd ) );
 	}
 
