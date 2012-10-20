@@ -186,7 +186,6 @@ struct ModRMWrapper
 		mod( ModField::Direct ),
 		operand_size( reg.operand_size )
 	{
-		s_cassert( reg.operand_size == AddressSize::QWORD, "Cannot generate direct r/m field from non-QWORD register" );
 	}
 
 	template <typename BaseRegT, typename IndexRegT>
