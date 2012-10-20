@@ -316,22 +316,21 @@ public:
 class INTERPRETER_API ILinker : LogBase( ILinker ), public IModuleBase
 {
 public:
-	// Prepare for direct on-load symbol linkage.
+	// Prepare for symbol linkage; load any existing symbols.
 	virtual void DirectLink_Init() = 0;
 
-	// Commit collected buffers to the MMU.
+	// Commit collected symbols to the MMU.
 	virtual void DirectLink_Commit( bool UAT = false ) = 0;
 
-	// Collect symbols in decode stage.
+	// Collect symbols in decode stage and append them to the temporary image.
 	// Use provided offsets for auto-placement.
 	virtual void DirectLink_Add( symbol_map&& symbols, const Offsets& limits ) = 0;
 
-	// Relocate the image:
+	// Relocate the temporary image:
 	// - adjust symbols and (possibly) references
-	// - rebase section images on the new offsets
 	virtual void Relocate( const Offsets& offsets ) = 0;
 
-	// Collect symbols from another linked source.
+	// Collect symbols from another linked source and append them to the temporary image.
 	// Do not auto-place.
 	virtual void MergeLink_Add( symbol_map&& symbols ) = 0;
 

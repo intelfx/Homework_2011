@@ -180,6 +180,13 @@ void UATLinker::DirectLink_Init()
 
 	msg( E_INFO, E_DEBUG, "Starting link session" );
 	temporary_map.clear();
+
+	symbol_map source = proc_->MMU()->DumpSymbolImage();
+
+	msg( E_INFO, E_DEBUG, "Inserting existing symbols (count: %zu)", source.size() );
+	for( symbol_map::value_type& source_sym: source ) {
+		temporary_map.insert( source_sym );
+	}
 }
 
 void UATLinker::DirectLink_Commit( bool UAT )
@@ -251,16 +258,14 @@ void UATLinker::RelocateReference( Reference& ref, const Offsets& offsets )
 
 void UATLinker::Relocate( const Offsets& offsets )
 {
-	symbol_map source = proc_->MMU()->DumpSymbolImage();
+	msg( E_INFO, E_DEBUG, "Relocating %zu symbols", temporary_map.size() );
 
-	msg( E_INFO, E_DEBUG, "Relocating %zu symbols", source.size() );
-
-	for( symbol_map::value_type& symbol_pair: source ) {
+	for( symbol_tmap::value_type& symbol_pair: temporary_map ) {
 		Symbol& symbol = symbol_pair.second.second;
 
 		msg( E_INFO, E_DEBUG, "Relocating symbol \"%s\": reference to %s",
 			 symbol_pair.second.first.c_str(),
-			 ProcDebug::PrintReference( symbol.ref, proc_->MMU() ).c_str() );
+			 ProcDebug::PrintReference( symbol.ref, nullptr ).c_str() );
 
 		// Relocate only defined symbol records.
 		// Reason: for relocation of an image A (i. e., shifting all data in the image A)
@@ -293,9 +298,6 @@ void UATLinker::Relocate( const Offsets& offsets )
 			RelocateReference( ref, offsets );
 		}
 	}
-
-	// Save modified symbol image.
-	proc_->MMU()->SetSymbolImage( std::move( source ) );
 }
 
 void UATLinker::MergeLink_Add( symbol_map&& symbols )
@@ -310,14 +312,6 @@ void UATLinker::MergeLink_Add( symbol_map&& symbols )
 
 	msg( E_INFO, E_DEBUG, "Merge-linking %zu symbols", symbols.size() );
 
-	symbol_map source = proc_->MMU()->DumpSymbolImage();
-
-	msg( E_INFO, E_DEBUG, "Inserting source symbols (count: %zu)", source.size() );
-	for( symbol_map::value_type& source_sym: source ) {
-		temporary_map.insert( source_sym );
-	}
-
-	msg( E_INFO, E_DEBUG, "Inserting target symbols (count: %zu)", symbols.size() );
 	for( const symbol_map::value_type& target_sym: symbols ) {
 		temporary_map.insert( target_sym );
 	}
