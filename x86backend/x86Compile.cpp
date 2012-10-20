@@ -80,7 +80,303 @@ bool x86Backend::CompileCommand_Control( Command& cmd )
 
 bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 {
-	return false;
+	if( IsCmd( cmd, "add" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// pop rdx
+			Insn()
+				.AddOpcode( 0x58 )
+				.AddOpcodeRegister( Reg64::RDX )
+				.SetIsDefault64Bit()
+				.Emit( this );
+
+			// add rax, rdx
+			Insn()
+				.AddOpcode( 0x03 )
+				.AddRegister( Reg64::RAX )
+				.AddRegister( Reg64::RDX )
+				.Emit( this );
+			break;
+
+		case Value::V_FLOAT:
+			// faddp
+			Insn()
+				.AddOpcode( 0xDE, 0xC1 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // add
+
+	else if( IsCmd( cmd, "sub" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// pop rdx
+			Insn()
+				.AddOpcode( 0x58 )
+				.AddOpcodeRegister( Reg64::RDX )
+				.SetIsDefault64Bit()
+				.Emit( this );
+
+			// sub rax, rdx
+			Insn()
+				.AddOpcode( 0x2B )
+				.AddRegister( Reg64::RAX )
+				.AddRegister( Reg64::RDX )
+				.Emit( this );
+			break;
+
+		case Value::V_FLOAT:
+			// fsubrp
+			Insn()
+				.AddOpcode( 0xDE, 0xE1 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // sub
+
+	else if( IsCmd( cmd, "mul" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// pop rcx
+			Insn()
+				.AddOpcode( 0x58 )
+				.AddOpcodeRegister( Reg64::RCX )
+				.Emit( this );
+
+			// imul rcx
+			Insn()
+				.AddOpcode( 0xF7 )
+				.SetOpcodeExtension( 0x5 )
+				.AddRM( RegisterWrapper( Reg64::RCX ) )
+				.Emit( this );
+			break;
+
+		case Value::V_FLOAT:
+			// fmulp
+			Insn()
+				.AddOpcode( 0xDE, 0xC9 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // mul
+
+	else if( IsCmd( cmd, "div" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// pop rcx
+			Insn()
+				.AddOpcode( 0x58 )
+				.AddOpcodeRegister( Reg64::RCX )
+				.SetIsDefault64Bit()
+				.Emit( this );
+
+			// cqo
+			Insn()
+				.AddOpcode( 0x99 )
+				.SetOperandSize( AddressSize::QWORD )
+				.Emit( this );
+
+			// idiv rcx
+			Insn()
+				.AddOpcode( 0xF7 )
+				.SetOpcodeExtension( 0x7 )
+				.AddRM( RegisterWrapper( Reg64::RCX ) )
+				.Emit( this );
+			break;
+
+		case Value::V_FLOAT:
+			// fdivrp
+			Insn()
+				.AddOpcode( 0xDE, 0xF1 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // $cmd
+
+	else if( IsCmd( cmd, "mod" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// pop rcx
+			Insn()
+				.AddOpcode( 0x58 )
+				.AddOpcodeRegister( Reg64::RCX )
+				.SetIsDefault64Bit()
+				.Emit( this );
+
+			// cqo
+			Insn()
+				.AddOpcode( 0x99 )
+				.SetOperandSize( AddressSize::QWORD )
+				.Emit( this );
+
+			// idiv rcx
+			Insn()
+				.AddOpcode( 0xF7 )
+				.SetOpcodeExtension( 0x7 )
+				.AddRM( RegisterWrapper( Reg64::RCX ) )
+				.Emit( this );
+
+			// mov rax, rdx
+			Insn()
+				.AddOpcode( 0x8B )
+				.AddRegister( Reg64::RAX )
+				.AddRegister( Reg64::RDX )
+				.Emit( this );
+			break;
+
+		case Value::V_FLOAT:
+			// fprem1
+			Insn()
+				.AddOpcode( 0xD9, 0xF5 )
+				.Emit( this );
+
+			// TODO, FIXME: the remainder can be partial; check C2 and repeat if so.
+
+			// fxch
+			Insn()
+				.AddOpcode( 0xD9, 0xC9 )
+				.Emit( this );
+
+			// ffree st(0)
+			Insn()
+				.AddOpcode( 0xDD, 0xC0 )
+				.AddOpcodeRegister( RegX87::ST0 )
+				.Emit( this );
+
+			// fincstp
+			Insn()
+				.AddOpcode( 0xD9, 0xF7 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // mod
+
+	else if( IsCmd( cmd, "inc" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// inc rax
+			Insn()
+				.AddOpcode( 0xFF )
+				.SetOpcodeExtension( 0x0 )
+				.AddRM( RegisterWrapper( Reg64::RAX ) )
+				.Emit( this );
+			break;
+
+		case Value::V_FLOAT:
+			// fld1
+			Insn()
+				.AddOpcode( 0xD9, 0xE8 )
+				.Emit( this );
+
+			// faddp
+			Insn()
+				.AddOpcode( 0xDE, 0xC1 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // inc
+
+	else if( IsCmd( cmd, "dec" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// dec rax
+			Insn()
+				.AddOpcode( 0xFF )
+				.SetOpcodeExtension( 0x1 )
+				.AddRM( RegisterWrapper( Reg64::RAX ) )
+				.Emit( this );
+
+		case Value::V_FLOAT:
+			// fld1
+			Insn()
+				.AddOpcode( 0xD9, 0xE8 )
+				.Emit( this );
+
+			// fsubp
+			Insn()
+				.AddOpcode( 0xDE, 0xE9 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // dec
+
+	else if( IsCmd( cmd, "neg" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// neg rax
+			Insn()
+				.AddOpcode( 0xF7 )
+				.SetOpcodeExtension( 0x3 )
+				.AddRM( RegisterWrapper( Reg64::RAX ) )
+				.Emit( this );
+			break;
+
+		case Value::V_FLOAT:
+			// fchs
+			Insn()
+				.AddOpcode( 0xD9, 0xE0 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // neg
+
+	else if( IsCmd( cmd, "abs" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// algorithm taken from http://www.strchr.com/optimized_abs_function
+			// cqo
+			Insn()
+				.AddOpcode( 0x99 )
+				.SetOperandSize( AddressSize::QWORD )
+				.Emit( this );
+
+			// xor rax, rdx
+			Insn()
+				.AddOpcode( 0x33 )
+				.AddRegister( Reg64::RAX )
+				.AddRegister( Reg64::RDX )
+				.Emit( this );
+
+			// sub rax, rdx
+			Insn()
+				.AddOpcode( 0x2B )
+				.AddRegister( Reg64::RAX )
+				.AddRegister( Reg64::RDX )
+				.Emit( this );
+			break;
+
+		case Value::V_FLOAT:
+			// fabs
+			Insn()
+				.AddOpcode( 0xD9, 0xE1 )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // abs
+
+	else {
+		return false;
+	}
+
+	return true;
 }
 
 bool x86Backend::CompileCommand_Conditionals( Command& cmd )
