@@ -91,7 +91,7 @@ struct RegisterWrapper
 {
 	union {
 		Reg8 reg8;
-		Reg32 reg32;
+		Reg16 reg16;
 		Reg64 reg64;
 		Reg64E reg64e;
 		RegX87 regx87;
@@ -108,9 +108,9 @@ struct RegisterWrapper
 	{
 	}
 
-	RegisterWrapper( Reg32 reg ) :
-		reg32( reg ),
-		operand_size( AddressSize::DWORD ),
+	RegisterWrapper( Reg16 reg ) :
+		reg16( reg ),
+		operand_size( AddressSize::WORD ),
 		need_extension( false )
 	{
 	}
