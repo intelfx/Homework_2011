@@ -150,7 +150,7 @@ const CommandSet_mkI::InternalCommandDescriptor CommandSet_mkI::initial_commands
 	},
 	{
 		"cmp",
-		"Stack: compare two values on the stack (R/O subtraction)",
+		"Stack: compare two values on the stack by subtraction (subtrahend on top (popped), minuend not touched)",
 		A_NONE,
 		0
 	},
