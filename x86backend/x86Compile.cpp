@@ -60,7 +60,22 @@ void x86Backend::CompileCommand( Command& cmd )
 
 bool x86Backend::CompileCommand_Control( Command& cmd )
 {
-	return false;
+	if( IsCmd( cmd, "jmp" ) ) {
+		CompileControlTransferInstruction( cmd.arg.ref,
+										   Insn().AddOpcode( 0xE9 ),
+										   Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
+	} else if( IsCmd( cmd, "call" ) ) {
+		CompileControlTransferInstruction( cmd.arg.ref,
+										   Insn().AddOpcode( 0xE8 ),
+										   Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x2 ) );
+	} else if( IsCmd( cmd, "ret" ) ) {
+		Insn()
+		.AddOpcode( 0xC3 )
+		.Emit( this );
+	} else {
+		return false;
+	}
+	return true;
 }
 
 bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
