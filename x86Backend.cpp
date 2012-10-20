@@ -563,6 +563,14 @@ abiret_t x86Backend::InternalBinaryGateFunction( NativeImage* image,
 		DirectReference dref = proc_->Linker()->Resolve( *ref );
 		return RuntimeReferenceResolution( image, dref );
 	}
+
+	case BinaryFunction::BF_COMMANDGATE: {
+		// the argument is the virtual command to be executed
+		// TODO handle stacks, flags (for now unneeded)
+		Command* cmd = reinterpret_cast<Command*>( argument );
+		proc_->LogicProvider()->ExecuteSingleCommand( *cmd );
+		return 0;
+	}
 	}
 }
 

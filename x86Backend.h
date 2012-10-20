@@ -40,7 +40,8 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 
 	enum class BinaryFunction : abiret_t
 	{
-		BF_RESOLVEREFERENCE
+		BF_RESOLVEREFERENCE,
+		BF_COMMANDGATE
 	};
 
 	struct NativeImage
