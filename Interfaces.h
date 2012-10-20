@@ -28,8 +28,6 @@ namespace Processor
 
 class INTERPRETER_API ProcessorAPI : LogBase( ProcessorAPI )
 {
-	static ProcessorAPI* callback_procapi;
-
 	IReader*		reader_;
 	IWriter*		writer_;
 	IMMU*			mmu_;
@@ -76,9 +74,6 @@ class INTERPRETER_API ProcessorAPI : LogBase( ProcessorAPI )
 
 protected:
 	virtual bool _Verify() const;
-
-	static void SetCallbackProcAPI( ProcessorAPI* procapi );
-	static abiret_t InterpreterCallbackFunction( Command* cmd );
 
 	template <typename T>
 	T* CheckReturnModule( T* module, const char* modname ) {
@@ -312,7 +307,7 @@ public:
 class INTERPRETER_API IBackend : LogBase( IBackend ), public IModuleBase
 {
 public:
-	virtual void		CompileBuffer( size_t chk, abi_callback_fn_t callback ) = 0;
+	virtual void		CompileBuffer( size_t chk ) = 0;
 	virtual bool		ImageIsOK( size_t chk ) = 0;
 	virtual abi_native_fn_t
 						GetImage( size_t chk ) = 0;

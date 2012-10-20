@@ -53,7 +53,6 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 			void* image;
 			size_t length;
 		} mm;
-		abi_callback_fn_t callback; // processor API callback function
 	};
 	std::map<size_t, NativeImage> images_;
 	size_t current_chk_;
@@ -122,7 +121,7 @@ protected:
 public:
 	x86Backend();
 	virtual ~x86Backend();
-	virtual void CompileBuffer( size_t chk, abi_callback_fn_t callback );
+	virtual void CompileBuffer( size_t chk );
 	virtual abi_native_fn_t GetImage( size_t chk );
 	virtual bool ImageIsOK( size_t chk );
 };

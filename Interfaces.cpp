@@ -11,8 +11,6 @@
 namespace Processor
 {
 
-ProcessorAPI* ProcessorAPI::callback_procapi = 0;
-
 void ProcessorAPI::Attach( IModuleBase* module )
 {
 	bool was_attach = 0;

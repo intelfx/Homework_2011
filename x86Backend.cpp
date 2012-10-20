@@ -388,12 +388,11 @@ void x86Backend::CompileControlTransferInstruction( const Reference& ref,
 	jump_insn.Emit( this );
 }
 
-void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
+void x86Backend::CompileBuffer( size_t chk )
 {
 	msg( E_INFO, E_DEBUG, "Compiling for checksum %zx", chk );
 	Select( chk, true );
 	Clear();
-	current_image_->callback = callback;
 
 	IMMU* mmu = proc_->MMU();
 	ILogic* logic = proc_->LogicProvider();

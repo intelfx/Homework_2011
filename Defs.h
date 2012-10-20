@@ -94,18 +94,6 @@ static_assert( sizeof( int_abi_t ) == sizeof( abiret_t ),
                "ABI data type size does not equal integer intermediate data type size" );
 
 /*
- * The interpreter API callback function for the generated native code.
- *
- * - Takes the command which needs to be executed
- * - Returns its execution result (the stack top, if any)
- *
- * TODO:
- * - pass return value as per host ABI rather than in a wrapper type
- * - pass the values from stack as per host ABI (currently unimplemented)
- */
-typedef abiret_t( *abi_callback_fn_t )( Command* );
-
-/*
  * The generated native code's ABI for the interpreter.
  *
  * - Takes the pointer to the placeholder for the actual return type.
