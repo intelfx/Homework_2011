@@ -415,7 +415,7 @@ void Logic::Syscall( size_t index )
 	switch( index ) {
 	case 0: {
 		calc_t input_data = proc_->MMU()->ARegister( R_F );
-		cassert( input_data.type == Value::V_INTEGER, "Non-integer value in register $rf" );
+		input_data.Expect( Value::V_INTEGER, true );
 		msg( E_INFO, E_USER, "Application output: \"%s\"", proc_->MMU()->ABytepool( input_data.integer ) );
 		break;
 	}
@@ -424,7 +424,7 @@ void Logic::Syscall( size_t index )
 		msg( E_INFO, E_USER, "Reading integer from command-line" );
 		char buffer[STATIC_LENGTH];
 		fgets( buffer, STATIC_LENGTH, stdin );
-		StackPush( static_cast<int_t>( atoi( buffer ) ) );
+		proc_->MMU()->ARegister( R_A ).Set( Value::V_INTEGER, atoi( buffer ), true );
 	}
 
 	default:
