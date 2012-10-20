@@ -643,6 +643,67 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 			.Emit( this );
 	} // quit
 
+	else if( IsCmd( cmd, "cmp" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// mov rdx, rax -- subtrahend
+			Insn()
+				.AddOpcode( 0x8B )
+				.AddRegister( Reg64::RDX )
+				.AddRegister( Reg64::RAX )
+				.Emit( this );
+
+			// pop rax -- minuend
+			Insn()
+				.AddOpcode( 0x58 )
+				.AddOpcodeRegister( Reg64::RAX )
+				.SetIsDefault64Bit()
+				.Emit( this );
+
+			// cmp rax, rdx
+			Insn()
+				.AddOpcode( 0x3B )
+				.AddRegister( Reg64::RAX )
+				.AddRegister( Reg64::RDX )
+				.Emit( this );
+
+			CompileIntegerCompare();
+			break;
+
+		case Value::V_FLOAT:
+			CompileFPCompare();
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // cmp
+
+	else if( IsCmd( cmd, "anal" ) ) {
+		switch( cmd.type ) {
+		case Value::V_INTEGER:
+			// cmp rax, 0
+			Insn()
+				.AddOpcode( 0x3D )
+				.AddImmediate<int32_t>( 0 )
+				.SetOperandSize( AddressSize::QWORD )
+				.Emit( this );
+
+			CompileIntegerCompare();
+			break;
+
+		case Value::V_FLOAT:
+			// fldz
+			Insn()
+				.AddOpcode( 0xD9, 0xEE )
+				.Emit( this );
+
+			CompileFPCompare();
+			break;
+
+		WRONG_TYPE(V_MAX);
+		}
+	} // anal
+
 	else {
 		return false;
 	}

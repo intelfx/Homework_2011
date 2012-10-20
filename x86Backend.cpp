@@ -388,6 +388,99 @@ void x86Backend::CompileControlTransferInstruction( const Reference& ref,
 	jump_insn.Emit( this );
 }
 
+void x86Backend::CompileRestoreFlags()
+{
+	// push bx
+	Insn()
+		.AddOpcode( 0x50 )
+		.AddOpcodeRegister( Reg16::BX )
+		.SetIsDefault64Bit()
+		.Emit( this );
+
+	// popf word
+	Insn()
+		.AddOpcode( 0x9D )
+		.SetOperandSize( AddressSize::WORD )
+		.Emit( this );
+}
+
+void x86Backend::CompileStoreFlags()
+{
+	// pushf word
+	Insn()
+		.AddOpcode( 0x9C )
+		.SetOperandSize( AddressSize::WORD )
+		.Emit( this );
+
+	// pop bx
+	Insn()
+		.AddOpcode( 0x58 )
+		.AddOpcodeRegister( Reg16::BX )
+		.SetIsDefault64Bit()
+		.Emit( this );
+}
+
+void x86Backend::CompileIntegerCompare()
+{
+	// Now we have:
+	// ZF = {whether the values are equal}
+	// SF xor OF = {whether the result is "less"}
+
+	// pushf word
+	// pop bx
+	CompileStoreFlags();
+
+	// setl cl -- record the "SF xor OF" state to a register
+	Insn()
+		.AddOpcode( 0x0F, 0x9C )
+		.AddRM( RegisterWrapper( Reg8::CL ) )
+		.Emit( this );
+
+	// and bx, 1111 0111 0111 1110 b (~0000 1000 1000 0001) -- clear OF, SF and CF
+	Insn()
+		.AddOpcode( 0x81 )
+		.SetOpcodeExtension( 0x4 )
+		.AddRM( RegisterWrapper( Reg16::BX ) )
+		.AddImmediate<uint16_t>( ~0x0881 )
+		.Emit( this );
+
+	// or bl, cl -- set CF to "SF xor OF", that is, whether the result is "less"
+	Insn()
+		.AddOpcode( 0x0A )
+		.AddRegister( Reg8::BL )
+		.AddRegister( Reg8::CL )
+		.Emit( this );
+}
+
+void x86Backend::CompileFPCompare()
+{
+	// fcomip st(0), st(1)
+	Insn()
+		.AddOpcode( 0xDF, 0xF0 )
+		.AddOpcodeRegister( RegX87::ST1 )
+		.Emit( this );
+
+	// jz +1 -- skip inverting CF if ZF=1 (then CF=0 and it shall be so)
+	Insn()
+		.AddOpcode( 0x74 )
+		.AddDisplacement( int8_t( 1 ) ) // NOTE: here "1" is the length of the following command, namely "cmc"
+		.Emit( this );
+
+	// cmc -- invert CF to have it set when the result is "less"
+	Insn()
+		.AddOpcode( 0xF5 )
+		.Emit( this );
+
+	// Now we have:
+	// PF = 0 (1 if unordered) - for now ignore, TODO set some flag for that condition (F_INVALIDFP in the interpreter)
+	// ZF = {whether the values are equal}
+	// CF = {whether the result is "less"}
+
+	// pushf word
+	// pop bx
+	CompileStoreFlags();
+}
+
 void x86Backend::CompileBuffer( size_t chk )
 {
 	msg( E_INFO, E_DEBUG, "Compiling for checksum %zx", chk );

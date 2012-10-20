@@ -84,6 +84,10 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 	bool CompileCommand_Conditionals( Command& cmd );
 	bool CompileCommand_System( Command& cmd );
 	void CompilePrologue();
+	void CompileStoreFlags();
+	void CompileRestoreFlags();
+	void CompileIntegerCompare();
+	void CompileFPCompare();
 	void CompileBinaryGateCall( BinaryFunction function, abiret_t argument );
 
 	// Compiles a stub for a jump/call instruction.
