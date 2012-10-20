@@ -70,7 +70,8 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 	// A big and dirty HACK
 	bool IsCmd( Command& cmd, const char* mnemonic )
 	{
-		return proc_->CommandSet()->DecodeCommand( mnemonic )->id == cmd.id;
+		const CommandTraits* traits = proc_->CommandSet()->DecodeCommand( mnemonic );
+		return traits && ( traits->id == cmd.id );
 	}
 
 	void RecordNextInsnOffset()
