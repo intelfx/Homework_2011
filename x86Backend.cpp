@@ -388,6 +388,47 @@ void x86Backend::CompileControlTransferInstruction( const Reference& ref,
 	jump_insn.Emit( this );
 }
 
+void x86Backend::CompileConditionalControlTransferInstruction( const Reference& ref,
+															   const Insn& jcc_rel32_opcode,
+															   const Insn& jncc_rel8_opcode,
+															   const Insn& jmp_modrm_opcode )
+{
+	Insn jump_insn;
+	bool ref_resolved_statically = true;
+	DirectReference dref = proc_->Linker()->Resolve( ref, &ref_resolved_statically );
+	if( ref_resolved_statically ) {
+		// Just emit jcc_rel32_opcode with a staticaly resolved displacement.
+		jump_insn = jcc_rel32_opcode;
+		jump_insn.AddDisplacement( size_t( dref.address ) );
+		jump_insn.Emit( this );
+	} else {
+		// Emit an inversed-condition trampoline function (jncc_rel8_opcode), then
+		// a plain unconditional jump to the destination.
+		// The problem is to determine the displacement of the trampoline instruction.
+		// ReferencePatch cannot be used because we are jumping "inside" a single virtual command,
+		// so emit the trampoline with a stub address, then compile the call, calculate its size
+		// and patch the trampoline accordingly.
+		CompileBinaryGateCall( BinaryFunction::BF_RESOLVEREFERENCE, reinterpret_cast<abiret_t>( &ref ) );
+
+		Insn trampoline_insn = jncc_rel8_opcode;
+		trampoline_insn.AddDisplacement( int8_t( 0 ) );
+		trampoline_insn.Emit( this );
+
+		// HACK: we assume that the displacement byte is the last one in emitted trampoline.
+		char& byte_to_patch = Target().back();
+		size_t byte_after_trampoline = Target().size();
+
+		jump_insn = jmp_modrm_opcode;
+		jump_insn.AddRM( ModRMWrapper( IndirectNoShift::RCX ) );
+		jump_insn.Emit( this );
+
+		size_t byte_after_unconditional_jump = Target().size();
+
+		// Patch the trampoline.
+		byte_to_patch = static_cast<int8_t>( byte_after_unconditional_jump - byte_after_trampoline );
+	}
+}
+
 void x86Backend::CompileRestoreFlags()
 {
 	// push bx
