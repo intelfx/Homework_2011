@@ -381,7 +381,89 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 bool x86Backend::CompileCommand_Conditionals( Command& cmd )
 {
-	return false;
+	if( IsCmd( cmd, "je" ) ) {
+		// push bx
+		// popf word
+		CompileRestoreFlags();
+
+		// the conditional trampoline (jz rel32 / jnz rel8)
+		CompileConditionalControlTransferInstruction( cmd.arg.ref,
+		                                              Insn().AddOpcode( 0x0F, 0x84 ),
+		                                              Insn().AddOpcode( 0x75 ),
+		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
+
+	} // je
+
+	else if( IsCmd( cmd, "jne" ) ) {
+		// push bx
+		// popf word
+		CompileRestoreFlags();
+
+		// the conditional trampoline (jnz rel32 / jz rel8)
+		CompileConditionalControlTransferInstruction( cmd.arg.ref,
+		                                              Insn().AddOpcode( 0x0F, 0x85 ),
+		                                              Insn().AddOpcode( 0x74 ),
+		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
+
+	} // je
+
+	else if( IsCmd( cmd, "ja" ) || IsCmd( cmd, "jnbe" ) ) {
+		// push bx
+		// popf word
+		CompileRestoreFlags();
+
+		// the conditional trampoline set (ja rel32 / jna rel8)
+		CompileConditionalControlTransferInstruction( cmd.arg.ref,
+		                                              Insn().AddOpcode( 0x0F, 0x87 ),
+		                                              Insn().AddOpcode( 0x76 ),
+		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
+
+	} // ja/jnbe
+
+	else if( IsCmd( cmd, "jae" ) || IsCmd( cmd, "jnb" ) ) {
+		// push bx
+		// popf word
+		CompileRestoreFlags();
+
+		// the conditional trampoline set (jnb rel32 / jb rel8)
+		CompileConditionalControlTransferInstruction( cmd.arg.ref,
+		                                              Insn().AddOpcode( 0x0F, 0x83 ),
+		                                              Insn().AddOpcode( 0x72 ),
+		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
+
+	} // jae/jnb
+
+	else if( IsCmd( cmd, "jna" ) || IsCmd( cmd, "jbe" ) ) {
+		// push bx
+		// popf word
+		CompileRestoreFlags();
+
+		// the conditional trampoline set (jna rel32 / ja rel8)
+		CompileConditionalControlTransferInstruction( cmd.arg.ref,
+		                                              Insn().AddOpcode( 0x0F, 0x86 ),
+		                                              Insn().AddOpcode( 0x77 ),
+		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
+
+	} // jna/jbe
+
+	else if( IsCmd( cmd, "jnae" ) || IsCmd( cmd, "jb" ) ) {
+		// push bx
+		// popf word
+		CompileRestoreFlags();
+
+		// the conditional trampoline set (jb rel32 / jnb rel8)
+		CompileConditionalControlTransferInstruction( cmd.arg.ref,
+		                                              Insn().AddOpcode( 0x0F, 0x82 ),
+		                                              Insn().AddOpcode( 0x73 ),
+		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
+
+	} // jnae/jb
+
+	else {
+		return false;
+	}
+
+	return true;
 }
 
 bool x86Backend::CompileCommand_System( Command& cmd )
