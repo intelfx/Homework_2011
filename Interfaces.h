@@ -112,10 +112,12 @@ public:
 	void	Flush(); // Completely reset and reinitialise the system
 	void	Reset(); // Reset current execution context
 	void	Clear(); // Clear current execution buffers (implies Reset())
-	void	Load( FILE* file ); // Load into a new context/buffer
-	void	Dump( FILE* file ); // Dump current context/buffer
-	void	MergeWithContext( ctx_t ctx_id ); // Merge the last context with the specified one
-	void	Delete(); // Return to previous context buffer, exiting from all frames in the current one
+	ctx_t	Load( FILE* file ); // Load into a new context/buffer
+	void	Dump( ctx_t id, FILE* file ); // Dump current context/buffer
+	ctx_t	MergeContexts( const std::vector<ctx_t>& contexts ); // Merge all contexts into a new one
+	void	SelectContext( ctx_t id ); // Switch to a context
+	void	DeleteContext( ctx_t id ); // Delete (deallocate) the given context
+	void	DeleteCurrentContext(); // Return to previous context buffer, exiting from all frames in the current one
 	void	Compile(); // Invoke backend to compile the bytecode
 	calc_t	Exec(); // Execute current system state whatever it is now
 

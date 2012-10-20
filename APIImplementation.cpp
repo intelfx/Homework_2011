@@ -40,7 +40,22 @@ void ProcessorAPI::Clear()
 	MMU()->ResetContextBuffer( CurrentContext().buffer );
 }
 
-void ProcessorAPI::Delete()
+void ProcessorAPI::SelectContext( ctx_t id )
+{
+	verify_method;
+
+	LogicProvider()->SwitchToContextBuffer( id );
+}
+
+void ProcessorAPI::DeleteContext( ctx_t id )
+{
+	verify_method;
+
+	cassert( CurrentContext().buffer != id, "Attempt to deallocate currently selected context buffer %zu", id );
+	MMU()->ReleaseContextBuffer( id );
+}
+
+void ProcessorAPI::DeleteCurrentContext()
 {
 	verify_method;
 
@@ -62,7 +77,7 @@ void ProcessorAPI::Delete()
 		 current_context_buffer, new_context_buffer, frames_erased );
 }
 
-void ProcessorAPI::Load( FILE* file )
+ctx_t ProcessorAPI::Load( FILE* file )
 {
 	verify_method;
 
@@ -155,9 +170,12 @@ void ProcessorAPI::Load( FILE* file )
 
 	msg( E_INFO, E_VERBOSE, "Loading completed" );
 	reader->RdReset();
+
+	logic->RestoreCurrentContext();
+	return allocated_ctx;
 }
 
-void ProcessorAPI::Dump( FILE* file )
+void ProcessorAPI::Dump( ctx_t id, FILE* file )
 {
 	verify_method;
 
@@ -166,37 +184,49 @@ void ProcessorAPI::Dump( FILE* file )
 	IWriter* writer = Writer();
 	cassert( writer, "Writer module is not attached" );
 	writer->WrSetup( file );
-	writer->Write( CurrentContext().buffer );
+	writer->Write( id );
 	writer->WrReset();
 }
 
-void ProcessorAPI::MergeWithContext( size_t source_ctx )
+ctx_t ProcessorAPI::MergeContexts( const std::vector<ctx_t>& contexts )
 {
 	verify_method;
 
 	IMMU* mmu = MMU();
 	ILinker* linker = Linker();
 	ILogic* logic = LogicProvider();
-	msg( E_INFO, E_VERBOSE, "Merging context buffers: %zu -> %zu", CurrentContext().buffer, source_ctx );
+	msg( E_INFO, E_VERBOSE, "Merging %zu context buffers", contexts.size() );
 
-	logic->SwitchToContextBuffer( source_ctx );
+	ctx_t result_ctx = mmu->AllocateContextBuffer();
+	logic->SwitchToContextBuffer( result_ctx );
+	linker->DirectLink_Init();
 
-	Offsets source_limits = mmu->QuerySectionLimits();
+	for( std::vector<ctx_t>::const_reverse_iterator it = contexts.crbegin(); it != contexts.crend(); ++it ) {
+		ctx_t source_ctx = *it;
+		msg( E_INFO, E_VERBOSE, "Adding context buffer %zu", source_ctx );
 
-	msg( E_INFO, E_DEBUG, "Reading source context symbol map" );
-	symbol_map src_symbols = mmu->DumpSymbolImage();
+		logic->SwitchToContextBuffer( source_ctx );
 
+		Offsets source_limits = mmu->QuerySectionLimits();
+
+		msg( E_INFO, E_DEBUG, "Reading source context symbol map" );
+		symbol_map src_symbols = mmu->DumpSymbolImage();
+
+		logic->RestoreCurrentContext();
+
+		// Relocate dest section to free space for pasting
+		mmu->ShiftImages( source_limits );
+		mmu->PasteFromContext( source_ctx );
+
+		linker->Relocate( source_limits );
+		linker->MergeLink_Add( std::move( src_symbols ) );
+	}
+
+	linker->DirectLink_Commit();
 	logic->RestoreCurrentContext();
 
-	// Relocate dest section to free space for pasting
-	mmu->ShiftImages( source_limits );
-	linker->Relocate( source_limits );
-
-	mmu->PasteFromContext( source_ctx );
-
-	linker->DirectLink_Init();
-	linker->MergeLink_Add( std::move( src_symbols ) );
-	linker->DirectLink_Commit();
+	msg( E_INFO, E_VERBOSE, "Merging completed" );
+	return result_ctx;
 }
 
 void ProcessorAPI::Compile()
