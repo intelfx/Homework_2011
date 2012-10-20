@@ -369,6 +369,25 @@ void x86Backend::CompileBinaryGateCall( x86Backend::BinaryFunction function, abi
 		.Emit( this );
 }
 
+void x86Backend::CompileControlTransferInstruction( const Reference& ref,
+                                                    const Insn& jmp_rel32_opcode,
+                                                    const Insn& jmp_modrm_opcode )
+{
+	Insn jump_insn;
+	bool ref_resolved_statically = true;
+	DirectReference dref = proc_->Linker()->Resolve( ref, &ref_resolved_statically );
+	if( ref_resolved_statically ) {
+		jump_insn = jmp_rel32_opcode;
+		jump_insn.AddDisplacement( size_t( dref.address ) );
+	} else {
+		CompileBinaryGateCall( BinaryFunction::BF_RESOLVEREFERENCE, reinterpret_cast<abiret_t>( &ref ) );
+
+		jump_insn = jmp_modrm_opcode;
+		jump_insn.AddRM( ModRMWrapper( IndirectNoShift::RCX ) );
+	}
+	jump_insn.Emit( this );
+}
+
 void x86Backend::CompileBuffer( size_t chk, abi_callback_fn_t callback )
 {
 	msg( E_INFO, E_DEBUG, "Compiling for checksum %zx", chk );

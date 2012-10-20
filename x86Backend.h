@@ -17,6 +17,7 @@
 namespace x86backend
 {
 struct ModRMWrapper;
+class Insn;
 }
 
 namespace ProcessorImplementation
@@ -84,6 +85,13 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 	bool CompileCommand_System( Command& cmd );
 	void CompilePrologue();
 	void CompileBinaryGateCall( BinaryFunction function, abiret_t argument );
+
+	// Compiles a stub for a jump/call instruction.
+	// Actually, this is a version of CompileReferenceResolution() but for jumps
+	// as they need directly specified disp32 instead of using modr/m with mod == 00b and r/m == 101b.
+	void CompileControlTransferInstruction( const Reference& ref,
+	                                        const x86backend::Insn& jmp_rel32_opcode,
+	                                        const x86backend::Insn& jmp_modrm_opcode );
 
 	// Compiles code needed to resolve a reference
 	// and returns a modr/m byte which points to the required data.
