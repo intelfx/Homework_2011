@@ -522,6 +522,32 @@ void x86Backend::CompileFPCompare()
 	CompileStoreFlags();
 }
 
+void DumpEmitted( const llarray& data )
+{
+	static const size_t oneline = 10;
+
+	smsg( E_WARNING, E_DEBUG, "Code emission completed. Emitted %zu bytes", data.size() );
+	char* buffer = reinterpret_cast<char*>( malloc( 5 * oneline + 1 ) );
+	char* dest = buffer;
+
+	size_t count = 1;
+	for( auto byte: data ) {
+		dest += sprintf( dest, "0x%02hhx ", byte );
+		if( count >= oneline ) {
+			smsg( E_INFO, E_DEBUG, "CODE DUMP: %s", buffer );
+			dest = buffer;
+			count = 0;
+		}
+		++count;
+	}
+	if( count > 1 ) {
+		*dest = '\0';
+		smsg( E_INFO, E_DEBUG, "CODE DUMP: %s", buffer );
+	}
+
+	free( buffer );
+}
+
 void x86Backend::CompileBuffer( size_t chk )
 {
 	msg( E_INFO, E_DEBUG, "Compiling for checksum %zx", chk );
@@ -549,6 +575,7 @@ void x86Backend::CompileBuffer( size_t chk )
 	RecordNextInsnOffset();
 
 	msg( E_INFO, E_VERBOSE, "Native code emission completed" );
+	DumpEmitted( Target() );
 	Finalize();
 }
 
