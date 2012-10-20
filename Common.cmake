@@ -82,7 +82,7 @@ endmacro()
 # Sets normal development tree mode
 macro (set_normal_devel_tree)
 	SET(FX_PROJECT_BASE ${PROJECT_SOURCE_DIR}/../..)
-	SET(FX_OUTPUT_BASE ${CMAKE_BINARY_DIR}/../..)
+	SET(FX_OUTPUT_BASE ${FX_PROJECT_BASE})
 
 	add_library_group (Common)
 	add_library_group (Libs)
@@ -92,7 +92,7 @@ endmacro()
 # Sets local development tree mode
 macro (set_local_devel_tree dirname)
 	SET(FX_PROJECT_BASE ${PROJECT_SOURCE_DIR})
-	SET(FX_OUTPUT_BASE ${CMAKE_BINARY_DIR}/../..)
+	SET(FX_OUTPUT_BASE ${FX_PROJECT_BASE})
 
 	add_library_group (${dirname})
 	reconfigure_devel_tree()
@@ -126,11 +126,11 @@ if ("${FX_COMPILER_ID}" STREQUAL "Clang")
 	if (NOT WIN32)
 		SET(FX_TUNE_ARGS "-fPIC")
 	endif (NOT WIN32)
-	
+
 	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fvisibility=hidden")
 	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -ftrapv -pipe")
-	SET(FX_OPT_ARGS		"-O4 -flto -emit-llvm")
-	SET(FX_LD_OPT_ARGS	"-Wl,-O1")
+	SET(FX_OPT_ARGS		"-O4 -emit-llvm")
+	SET(FX_LD_OPT_ARGS	"-Wl,-O1 -flto -fuse-linker-plugin")
 
 	SET(FX_INSTR_ARGS	"-march=native")
 	SET(FX_DBG_ARGS		"")
@@ -156,7 +156,7 @@ if ("${FX_COMPILER_ID}" STREQUAL "GNU")
 	if (NOT WIN32)
 		SET(FX_TUNE_ARGS "-fPIC")
 	endif (NOT WIN32)
-	
+
 	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fvisibility=hidden -fabi-version=6")
 	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -ftrapv -fuse-linker-plugin -pipe")
 	SET(FX_OPT_ARGS		"-O3 -fno-enforce-eh-specs -fnothrow-opt -fstrict-aliasing -fipa-struct-reorg")
@@ -170,7 +170,7 @@ if ("${FX_COMPILER_ID}" STREQUAL "GNU")
 		SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -flto")
 		SET(FX_LD_OPT_ARGS	"${FX_LD_OPT_ARGS} -flto")
 	endif (NOT WIN32)
-	
+
 	SET(FX_INSTR_ARGS	"-mfpmath=both -march=native")
 	SET(FX_DBG_ARGS		"")
 	SET(FX_LD_FLAGS		"")
