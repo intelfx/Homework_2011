@@ -818,8 +818,21 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 		}
 	} // anal
 
+	else if( IsCmd( cmd, "snfc" ) ) {
+		msg( E_WARNING, E_VERBOSE, "NFC is not implemented in JIT mode. It acts like NFC=1, \"snfc\" becomes no-op." );
+	} // snfc
+
+	else if( IsCmd( cmd, "cnfc") ) {
+		msg( E_WARNING, E_VERBOSE, "NFC is not implemented in JIT mode. It acts like NFC=1, \"cnfc\" becomes no-op." );
+	} // cnfc
+
+	else if( IsCmd( cmd, "top") ) {
+		msg( E_WARNING, E_VERBOSE, "\"top\" is a no-op in JIT mode." );
+	} // top
+
 	else {
-		return false;
+		msg( E_WARNING, E_VERBOSE, "Using an interpreter gate call to execute instruction." );
+		CompileBinaryGateCall( BinaryFunction::BF_COMMANDGATE, reinterpret_cast<abiret_t>( &cmd ) );
 	}
 
 	return true;
