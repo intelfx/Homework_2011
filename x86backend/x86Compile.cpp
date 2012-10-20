@@ -610,6 +610,38 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 		}
 	} // st
 
+	else if( IsCmd( cmd, "ldint") ) {
+		switch( cmd.type ) {
+		case Value::V_FLOAT:
+			// fild m64
+			Insn()
+				.AddOpcode( 0xDF )
+				.SetOpcodeExtension( 0x5 )
+				.AddRM( CompileReferenceResolution( cmd.arg.ref ) )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE( V_INTEGER );
+		WRONG_TYPE( V_MAX );
+		}
+	} // ldint
+
+	else if( IsCmd( cmd, "stint") ) {
+		switch( cmd.type ) {
+		case Value::V_FLOAT:
+			// fistp m64
+			Insn()
+				.AddOpcode( 0xDF )
+				.SetOpcodeExtension( 0x7 )
+				.AddRM( CompileReferenceResolution( cmd.arg.ref ) )
+				.Emit( this );
+			break;
+
+		WRONG_TYPE( V_INTEGER );
+		WRONG_TYPE( V_MAX );
+		}
+	} // stint
+
 	else if( IsCmd( cmd, "dup" ) ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
