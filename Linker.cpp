@@ -89,12 +89,17 @@ void UATLinker::DirectLink_Add( symbol_map&& symbols, const Offsets& limits )
 	msg( E_INFO, E_DEBUG, "(Direct link) add completed" );
 }
 
-DirectReference UATLinker::Resolve( const Reference& reference )
+DirectReference UATLinker::Resolve( const Reference& reference, bool* partial_resolution )
 {
 	verify_method;
 
-	msg( E_INFO, E_DEBUG, "Resolving reference to %s",
-		 ProcDebug::PrintReference( reference, proc_->MMU() ).c_str() );
+	if( partial_resolution ) {
+		msg( E_INFO, E_DEBUG, "Partially resolving reference to %s",
+		     ProcDebug::PrintReference( reference, proc_->MMU() ).c_str() );
+	} else {
+		msg( E_INFO, E_DEBUG, "Resolving reference to %s",
+		     ProcDebug::PrintReference( reference, proc_->MMU() ).c_str() );
+	}
 
 	DirectReference result; mem_init( result );
 	result.section = reference.global_section;
@@ -113,7 +118,7 @@ DirectReference UATLinker::Resolve( const Reference& reference )
 			symbol_type& referenced_symbol = proc_->MMU()->ASymbol( bref.symbol_hash );
 			cverify( referenced_symbol.second.is_resolved, "Undefined symbol requested at runtime: \"%s\"",
 					 referenced_symbol.first.c_str() );
-			tmp_reference = Resolve( referenced_symbol.second.ref );
+			tmp_reference = Resolve( referenced_symbol.second.ref, partial_resolution );
 		}
 
 		else {
@@ -136,12 +141,20 @@ DirectReference UATLinker::Resolve( const Reference& reference )
 			/* verify we have section set */
 			cassert( tmp_reference.section != S_NONE, "No section specified to resolve indirect address" );
 
-			/* load address value and reset section */
-			proc_->LogicProvider()->Read( tmp_reference ).Get( Value::V_INTEGER, tmp_reference.address );
-			tmp_reference.section = S_NONE;
+			if( partial_resolution ) {
+				/* mark the reference as invalid */
+				*partial_resolution = false;
+				msg( E_INFO, E_DEBUG, "[Component %u]: partial resolution is active, not resolving indirection", i );
+			} else {
+				/* load address value */
+				proc_->LogicProvider()->Read( tmp_reference ).Get( Value::V_INTEGER, tmp_reference.address );
 
-			msg( E_INFO, E_DEBUG, "[Component %u]: indirection resolved to memory offset %zu",
-				 i, tmp_reference.address );
+				msg( E_INFO, E_DEBUG, "[Component %u]: indirection resolved to memory offset %zu",
+				     i, tmp_reference.address );
+			}
+
+			/* still reset the section (currently tmp_reference.section holds the indirection value section) */
+			tmp_reference.section = S_NONE;
 		}
 
 		msg( E_INFO, E_DEBUG, "[Component %u]: resolved to %s",

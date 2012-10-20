@@ -158,14 +158,13 @@ std::string PrintArgument( ArgumentType arg_type, const Command::Argument& argum
 
 } // namespace ProcDebug
 
-calc_t ExecuteGate( void* address )
+calc_t ExecuteGate( abi_native_fn_t jit_compiled_function )
 {
-	s_cassert( address, "Invalid image" );
+	s_cassert( jit_compiled_function, "Invalid image" );
 
 	abiret_t return_value;
 	Value::Type return_type = Value::V_MAX;
 
-	abi_gate_pointer jit_compiled_function = reinterpret_cast<abi_gate_pointer>( address );
 	unsigned* jit_compiled_function_argument = reinterpret_cast<unsigned*>( &return_type );
 
 	/*

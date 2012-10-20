@@ -28,8 +28,6 @@ namespace Processor
 
 class INTERPRETER_API ProcessorAPI : LogBase( ProcessorAPI )
 {
-	static ProcessorAPI* callback_procapi;
-
 	IReader*		reader_;
 	IWriter*		writer_;
 	IMMU*			mmu_;
@@ -76,9 +74,6 @@ class INTERPRETER_API ProcessorAPI : LogBase( ProcessorAPI )
 
 protected:
 	virtual bool _Verify() const;
-
-	static void SetCallbackProcAPI( ProcessorAPI* procapi );
-	static abiret_t InterpreterCallbackFunction( Command* cmd );
 
 	template <typename T>
 	T* CheckReturnModule( T* module, const char* modname ) {
@@ -312,9 +307,10 @@ public:
 class INTERPRETER_API IBackend : LogBase( IBackend ), public IModuleBase
 {
 public:
-	virtual void		CompileBuffer( size_t chk, abi_callback_fn_t callback ) = 0;
+	virtual void		CompileBuffer( size_t chk ) = 0;
 	virtual bool		ImageIsOK( size_t chk ) = 0;
-	virtual void*		GetImage( size_t chk ) = 0;
+	virtual abi_native_fn_t
+						GetImage( size_t chk ) = 0;
 };
 
 class INTERPRETER_API ILinker : LogBase( ILinker ), public IModuleBase
@@ -340,7 +336,15 @@ public:
 	virtual void MergeLink_Add( symbol_map&& symbols ) = 0;
 
 	// Retrieve a direct reference for given arbitrary reference.
-	virtual DirectReference Resolve( const Reference& reference ) = 0; // or get an unresolved symbol error
+	// If "partial_resolution" is not null, the reference shall be resolved statically: that is,
+	// 1) no indirections and dynamic symbols shall be resolved,
+	// 2) in case there are unresolved components, the returned address is invalid
+	//    and "partial_resolution" shall be set to false to indicate this.
+	// The section of returned direct reference shall always be resolved and valid.
+	//
+	// NOTE: If the reference is completely resolved in the partial method,
+	// "partial_resolution" is untouched (so it shall be initialized to true by the caller).
+	virtual DirectReference Resolve( const Reference& reference, bool* partial_resolution = nullptr ) = 0;
 };
 
 } // namespace Processor

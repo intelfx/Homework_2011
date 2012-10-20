@@ -212,7 +212,7 @@ void ProcessorAPI::Compile()
 
 		size_t chk = logic->ChecksumState();
 
-		backend->CompileBuffer( chk, &InterpreterCallbackFunction );
+		backend->CompileBuffer( chk );
 		cassert( backend->ImageIsOK( chk ), "Backend reported compile error" );
 
 		msg( E_INFO, E_VERBOSE, "Compilation OK: checksum assigned %zx", chk );
@@ -242,12 +242,8 @@ calc_t ProcessorAPI::Exec()
 		msg( E_INFO, E_VERBOSE, "Backend reports image is OK. Using precompiled image" );
 
 		try {
-			SetCallbackProcAPI( this );
-
-			void* address = backend->GetImage( chk );
+			abi_native_fn_t address = backend->GetImage( chk );
 			calc_t result = ExecuteGate( address );
-
-			SetCallbackProcAPI( 0 );
 
 			msg( E_INFO, E_VERBOSE, "Native code execution COMPLETED." );
 			return result;
@@ -295,25 +291,6 @@ calc_t ProcessorAPI::Exec()
 
 	msg( E_INFO, E_VERBOSE, "Interpreter COMPLETED." );
 	return result;
-}
-
-void ProcessorAPI::SetCallbackProcAPI( ProcessorAPI* procapi )
-{
-	callback_procapi = procapi;
-}
-
-abiret_t ProcessorAPI::InterpreterCallbackFunction( Command* cmd )
-{
-	// TODO, FIXME: this does not account for arguments.
-	// While it is clear how to pass integer arguments (just use varargs to steal them from the native stack),
-	// passing fp ones is unclear...
-	// For now just manifest it in the trampoline's limitations.
-	ILogic* logic = callback_procapi->LogicProvider();
-	logic->ExecuteSingleCommand( *cmd );
-
-	// stack is still set to the last type
-	calc_t temporary_result = logic->StackPop();
-	return temporary_result.GetABI();
 }
 
 void ProcessorAPI::DumpExecutionContext( std::string* ctx_dump )

@@ -93,8 +93,17 @@ static_assert( sizeof( fp_abi_t ) == sizeof( abiret_t ),
 static_assert( sizeof( int_abi_t ) == sizeof( abiret_t ),
                "ABI data type size does not equal integer intermediate data type size" );
 
-typedef abiret_t( *abi_callback_fn_t )( Command* );
-typedef abiret_t( *abi_gate_pointer )( unsigned* );
+/*
+ * The generated native code's ABI for the interpreter.
+ *
+ * - Takes the pointer to the placeholder for the actual return type.
+ *   The generated function shall write to this pointer, designating type of value which it shall return.
+ * - Returns the code execution result (ignored, if ret type marker is not set)
+ *
+ * TODO:
+ * - pass return value to a memory buffer rather than in a wrapper type
+ */
+typedef abiret_t( *abi_native_fn_t )( unsigned* );
 
 // API types
 

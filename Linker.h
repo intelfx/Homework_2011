@@ -33,7 +33,7 @@ public:
 
 	virtual void Relocate( const Offsets& offsets );
 
-	DirectReference Resolve( const Reference& reference );
+	DirectReference Resolve( const Reference& reference, bool* partial_resolution = nullptr );
 };
 
 } // namespace ProcessorImplementation
