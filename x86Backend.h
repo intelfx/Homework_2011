@@ -33,7 +33,7 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 			RT_TO_INSTRUCTIONPOINTER // to RIP of the next insn executed, 32-bit signed offset
 		} type;
 		off_t where; // offset in the native buffer where to write the reference
-		size_t where_insn; // virtual insn to which the reference shall belong to
+		size_t next_insn; // next virtual insn wrt. the one to which the reference shall belong
 		size_t what; // virtual insn being referenced
 	};
 

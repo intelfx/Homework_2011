@@ -97,7 +97,7 @@ void x86Backend::Finalize()
 			*reinterpret_cast<void**>( where ) = target_insn;
 			break;
 		case ReferencePatch::RT_TO_INSTRUCTIONPOINTER: {
-			char* next_insn = img + current_image_->insn_offsets.at( ref.where_insn + 1 );
+			char* next_insn = img + current_image_->insn_offsets.at( ref.next_insn );
 			ptrdiff_t offset_to_target_insn = target_insn - next_insn;
 			*reinterpret_cast<int32_t*>( where ) = offset_to_target_insn;
 			break;
@@ -430,6 +430,9 @@ void x86Backend::AddCodeReference( size_t insn, bool relative )
 	static const uint64_t disp64_stub = 0xdeadc0de00bf00bf;
 
 	ReferencePatch ref;
+	ref.what = insn;
+	ref.next_insn = current_image_->insn_offsets.size();
+	ref.where = Target().size();
 
 	if( relative ) {
 		ref.type = ReferencePatch::RT_TO_INSTRUCTIONPOINTER;
@@ -438,9 +441,6 @@ void x86Backend::AddCodeReference( size_t insn, bool relative )
 		ref.type = ReferencePatch::RT_ABSOLUTE;
 		Target().append( sizeof( disp64_stub ), &disp64_stub );
 	}
-	ref.what = insn;
-	ref.where_insn = current_image_->insn_offsets.size();
-	ref.where = current_image_->data.size();
 	current_image_->references.push_back( ref );
 }
 
