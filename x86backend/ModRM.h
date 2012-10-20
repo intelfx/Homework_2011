@@ -79,9 +79,32 @@ struct DisplacementHelper
 		size_t insn;
 	};
 	DisplacementStatus status;
+	AddressSize size;
 
 	DisplacementHelper() :
-	status( DisplacementStatus::DISPLACEMENT_UNSET )
+	status( DisplacementStatus::DISPLACEMENT_UNSET ),
+	size( AddressSize::NONE )
+	{
+	}
+
+	DisplacementHelper( int8_t disp ) :
+	disp8( disp ),
+	status( DisplacementStatus::DISPLACEMENT_SET ),
+	size( AddressSize::BYTE )
+	{
+	}
+
+	DisplacementHelper( int32_t disp ) :
+	disp32( disp ),
+	status( DisplacementStatus::DISPLACEMENT_SET ),
+	size( AddressSize::DWORD )
+	{
+	}
+
+	DisplacementHelper( size_t insn ) :
+	insn( insn ),
+	status( DisplacementStatus::DISPLACEMENT_TO_INSN ),
+	size( AddressSize::DWORD )
 	{
 	}
 };
@@ -199,6 +222,7 @@ struct ModRMWrapper
 		s_cassert( mod == ModField::Disp8, "Attempt to set disp8 while mod field does not match" );
 		displacement.disp8 = disp;
 		displacement.status = DisplacementStatus::DISPLACEMENT_SET;
+		displacement.size = AddressSize::BYTE;
 
 		return *this;
 	}
@@ -208,6 +232,7 @@ struct ModRMWrapper
 		s_cassert( mod == ModField::Disp32, "Attempt to set disp32 while mod field does not match" );
 		displacement.disp32 = disp;
 		displacement.status = DisplacementStatus::DISPLACEMENT_SET;
+		displacement.size = AddressSize::DWORD;
 
 		return *this;
 	}
@@ -217,6 +242,7 @@ struct ModRMWrapper
 		s_cassert( mod == ModField::Disp32, "Attempt to set displacement to insn (disp32) while mod field does not match" );
 		displacement.insn = insn;
 		displacement.status = DisplacementStatus::DISPLACEMENT_TO_INSN;
+		displacement.size = AddressSize::DWORD;
 
 		return *this;
 	}

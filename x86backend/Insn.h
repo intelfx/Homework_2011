@@ -233,19 +233,8 @@ public:
 		AddOperand( rm.operand_size, OperandType::RegMem );
 
 		displacement_ = rm.displacement;
-		switch( modrm_.UsingDisplacement() ) {
-		case ModField::Direct:
-		case ModField::NoShift:
-			/* no-op */
-			break;
-
-		case ModField::Disp8:
-			AddOperand( AddressSize::BYTE, OperandType::Immediate );
-			break;
-
-		case ModField::Disp32:
-			AddOperand( AddressSize::DWORD, OperandType::Immediate );
-			break;
+		if( displacement_.size != AddressSize::NONE ) {
+			AddOperand( displacement_.size, OperandType::Immediate );
 		}
 
 		return *this;
@@ -257,6 +246,15 @@ public:
 		size_t imm_size = sizeof( T );
 		immediates_.append( imm_size, &imm );
 		AddOperand( EncodeSize( imm_size ), OperandType::Immediate );
+		return *this;
+	}
+
+	Insn& AddDisplacement( DisplacementHelper disp )
+	{
+		displacement_ = disp;
+		if( displacement_.size != AddressSize::NONE ) {
+			AddOperand( displacement_.size, OperandType::Immediate );
+		}
 		return *this;
 	}
 
@@ -292,40 +290,40 @@ public:
 			case ModField::NoShift:
 				s_cassert( displacement_.status == DisplacementStatus::DISPLACEMENT_UNSET,
 					       "Displacement set when not required by ModR/M" );
-				/* no-op */
 				break;
 
 			case ModField::Disp8:
-				switch( displacement_.status ) {
-				case DisplacementStatus::DISPLACEMENT_SET:
-					ret.append( 1, &displacement_.disp8 );
-					break;
-
-				case DisplacementStatus::DISPLACEMENT_TO_INSN:
-					s_casshole( "Displacement to instruction set when ModR/M says disp8" );
-					dest->AddCodeReference( displacement_.insn, true );
-					break;
-
-				case DisplacementStatus::DISPLACEMENT_UNSET:
-					s_casshole( "Displacement unset when required by ModR/M" );
-				}
+				s_cassert( displacement_.status == DisplacementStatus::DISPLACEMENT_SET,
+						   "Displacement unset or to instruction when disp8 is required by ModR/M" );
 				break;
 
 			case ModField::Disp32:
-				switch( displacement_.status ) {
-				case DisplacementStatus::DISPLACEMENT_SET:
-					ret.append( 4, &displacement_.disp32 );
-					break;
-
-				case DisplacementStatus::DISPLACEMENT_TO_INSN:
-					dest->AddCodeReference( displacement_.insn, true );
-					break;
-
-				case DisplacementStatus::DISPLACEMENT_UNSET:
-					s_casshole( "Displacement unset when required by ModR/M" );
-				}
+				s_cassert( displacement_.status != DisplacementStatus::DISPLACEMENT_UNSET,
+					"Displacement unset when disp32 is required by ModR/M" );
 				break;
 			}
+		}
+
+		// Displacement
+		switch( displacement_.status ) {
+		case DisplacementStatus::DISPLACEMENT_UNSET:
+			/* no-op */
+			break;
+
+		case DisplacementStatus::DISPLACEMENT_SET:
+			if( displacement_.size == AddressSize::BYTE ) {
+				ret.append( 1, &displacement_.disp8 );
+			} else if( displacement_.size == AddressSize::DWORD ) {
+				ret.append( 4, &displacement_.disp32 );
+			} else {
+				s_casshole( "Displacement has wrong size" );
+			}
+			break;
+
+		case DisplacementStatus::DISPLACEMENT_TO_INSN:
+			s_cassert( displacement_.size == AddressSize::DWORD, "Displacement to instruction has wrong size" );
+			dest->AddCodeReference( displacement_.insn, true );
+			break;
 		}
 
 		// Immediates
