@@ -36,7 +36,7 @@ The JIT translation is currently implemented for Intel IA-32e (Long mode) archit
 Building the platform
 ====
 
-The platform can be built using Clang C++ compiler. Building with GCC shall be possible, but the author, while relying on "bleeding-edge" C++11 conformance, rarely tests compilation with this toolchain. Overall building process is managed using [CMake] [1].
+The platform can be built using Clang C++ compiler. Building with GCC shall be possible, but the author, while relying on "bleeding-edge" C\+\+11 conformance, rarely tests compilation with this toolchain. Overall building process is managed using [CMake] [1].
 
 Platform consists of two components: an AAL-like library called [uXray](intelfx/uXray) and the platform itself, which can be accessed here: intelfx/Homework_2011. Git-repository for the latter contains the support library as a submodule, so the following can be done to checkout the sources:
 
@@ -47,6 +47,7 @@ Platform consists of two components: an AAL-like library called [uXray](intelfx/
 CMake is configured such that it would place the output files in a `__bin` folder inside of the source tree, regardless of where you would put the building directory. Moreover, the helper library will put its executable (which is a DSO) into the primary source tree, so you will end up having both the helper library and the platform in a same directory automatically.
 
 The platform has two targets, `interpreterplatform` and `homework_stack_nl`. The former is a DSO, while the latter is a historic statically linked executable which does nothing more than just open an assembly file and interpret it.
+Also there is a dynamically linked test application called `interpreterplatformtest`, which is a best way to test the platform.
 
 Consider the following commands for building (assuming that you are in the root source tree after checking it out as shown above):
 
@@ -67,7 +68,7 @@ Usage/testing
 Running the test executable
 ----
 
-The test executable (the statically linked one) will load any number of files whose names are provided on the command line, link them together and pass the resulting context to execution.
+The test executable (the dynamically linked one, `interpreterplatformtest`),  will load any number of files whose names are provided on the command line, link them together and pass the resulting context to execution.
 
 Switches accepted by the test executable:
 * `--jit`:      enable JIT mode.
@@ -201,3 +202,5 @@ The JIT-compilation is an alternative to VM-based execution. It is faster, but i
 * User-registered instructions are supported only if they do not work with stacks
 
 The platform is able to automatically fall back to interpreting if an error happens during compilation or execution.
+
+[1]: http://www.cmake.org "CMake"
