@@ -62,29 +62,42 @@ void x86Backend::CompileCommand( Command& cmd )
 
 #define WRONG_TYPE(type) case Value::type: casshole( "Wrong/unsupported value type when compiling command: %s", ProcDebug::Print( Value::type ).c_str() )
 
+#define CheckMnemonic( c, m )      CheckCmd< crc32( m ) >( c, m )
+#define OnCmd( c, m )              if( CheckMnemonic( c, m ) )
+#define OnMultipleCmd( c, m1, m2 ) if( CheckMnemonic( c, m1 ) || CheckMnemonic( c, m2 ) )
+
 bool x86Backend::CompileCommand_Control( Command& cmd )
 {
-	if( IsCmd( cmd, "jmp" ) ) {
+	OnCmd( cmd, "jmp" ) {
 		CompileControlTransferInstruction( cmd.arg.ref,
-										   Insn().AddOpcode( 0xE9 ),
-										   Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
-	} else if( IsCmd( cmd, "call" ) ) {
+		                                   Insn().AddOpcode( 0xE9 ),
+		                                   Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
+
+		return true;
+	} // jmp
+
+	OnCmd( cmd, "call" ) {
 		CompileControlTransferInstruction( cmd.arg.ref,
-										   Insn().AddOpcode( 0xE8 ),
-										   Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x2 ) );
-	} else if( IsCmd( cmd, "ret" ) ) {
+		                                   Insn().AddOpcode( 0xE8 ),
+		                                   Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x2 ) );
+
+		return true;
+	} // call
+
+	OnCmd( cmd, "ret" ) {
 		Insn()
-		.AddOpcode( 0xC3 )
-		.Emit( this );
-	} else {
-		return false;
-	}
-	return true;
+			.AddOpcode( 0xC3 )
+			.Emit( this );
+
+		return true;
+	} // ret
+
+	return false;
 }
 
 bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 {
-	if( IsCmd( cmd, "sqrt" ) ) {
+	OnCmd( cmd, "sqrt" ) {
 		switch( cmd.type ) {
 		case Value::V_FLOAT:
 			// fsqrt
@@ -96,9 +109,11 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 		WRONG_TYPE(V_INTEGER);
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // sqrt
 
-	else if( IsCmd( cmd, "sin" ) ) {
+	OnCmd( cmd, "sin" ) {
 		switch( cmd.type ) {
 		case Value::V_FLOAT:
 			// fsin
@@ -110,9 +125,11 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 		WRONG_TYPE(V_INTEGER);
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // sin
 
-	else if( IsCmd( cmd, "cos" ) ) {
+	OnCmd( cmd, "cos" ) {
 		switch( cmd.type ) {
 		case Value::V_FLOAT:
 			// fcos
@@ -124,9 +141,11 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 		WRONG_TYPE(V_INTEGER);
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // cos
 
-	else if( IsCmd( cmd, "tan" ) ) {
+	OnCmd( cmd, "tan" ) {
 		switch( cmd.type ) {
 		case Value::V_FLOAT:
 			// fptan
@@ -149,9 +168,11 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 		WRONG_TYPE(V_INTEGER);
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // tan
 
-	else if( IsCmd( cmd, "atan" ) ) {
+	OnCmd( cmd, "atan" ) {
 		switch( cmd.type ) {
 		case Value::V_FLOAT:
 			// fpatan
@@ -163,18 +184,16 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 		WRONG_TYPE(V_INTEGER);
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // atan
 
-	else {
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 {
-	if( IsCmd( cmd, "add" ) ) {
+	OnCmd( cmd, "add" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// pop rdx
@@ -201,9 +220,11 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // add
 
-	else if( IsCmd( cmd, "sub" ) ) {
+	OnCmd( cmd, "sub" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// pop rdx
@@ -230,9 +251,11 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // sub
 
-	else if( IsCmd( cmd, "mul" ) ) {
+	OnCmd( cmd, "mul" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// pop rcx
@@ -258,9 +281,11 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // mul
 
-	else if( IsCmd( cmd, "div" ) ) {
+	OnCmd( cmd, "div" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// pop rcx
@@ -293,9 +318,11 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
-	} // $cmd
 
-	else if( IsCmd( cmd, "mod" ) ) {
+		return true;
+	} // div
+
+	OnCmd( cmd, "mod" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// pop rcx
@@ -353,9 +380,11 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // mod
 
-	else if( IsCmd( cmd, "inc" ) ) {
+	OnCmd( cmd, "inc" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// inc rax
@@ -380,9 +409,11 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // inc
 
-	else if( IsCmd( cmd, "dec" ) ) {
+	OnCmd( cmd, "dec" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// dec rax
@@ -406,9 +437,11 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // dec
 
-	else if( IsCmd( cmd, "neg" ) ) {
+	OnCmd( cmd, "neg" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// neg rax
@@ -428,9 +461,11 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // neg
 
-	else if( IsCmd( cmd, "abs" ) ) {
+	OnCmd( cmd, "abs" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// algorithm taken from http://www.strchr.com/optimized_abs_function
@@ -464,18 +499,16 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // abs
 
-	else {
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 bool x86Backend::CompileCommand_Conditionals( Command& cmd )
 {
-	if( IsCmd( cmd, "je" ) ) {
+	OnCmd( cmd, "je" ) {
 		// push bx
 		// popf word
 		CompileRestoreFlags();
@@ -486,9 +519,10 @@ bool x86Backend::CompileCommand_Conditionals( Command& cmd )
 		                                              Insn().AddOpcode( 0x75 ),
 		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
 
+		return true;
 	} // je
 
-	else if( IsCmd( cmd, "jne" ) ) {
+	OnCmd( cmd, "jne" ) {
 		// push bx
 		// popf word
 		CompileRestoreFlags();
@@ -499,9 +533,10 @@ bool x86Backend::CompileCommand_Conditionals( Command& cmd )
 		                                              Insn().AddOpcode( 0x74 ),
 		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
 
+		return true;
 	} // je
 
-	else if( IsCmd( cmd, "ja" ) || IsCmd( cmd, "jnbe" ) ) {
+	OnMultipleCmd( cmd, "ja", "jnbe" ) {
 		// push bx
 		// popf word
 		CompileRestoreFlags();
@@ -512,9 +547,10 @@ bool x86Backend::CompileCommand_Conditionals( Command& cmd )
 		                                              Insn().AddOpcode( 0x76 ),
 		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
 
+		return true;
 	} // ja/jnbe
 
-	else if( IsCmd( cmd, "jae" ) || IsCmd( cmd, "jnb" ) ) {
+	OnMultipleCmd( cmd, "jae", "jnb" ) {
 		// push bx
 		// popf word
 		CompileRestoreFlags();
@@ -525,9 +561,10 @@ bool x86Backend::CompileCommand_Conditionals( Command& cmd )
 		                                              Insn().AddOpcode( 0x72 ),
 		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
 
+		return true;
 	} // jae/jnb
 
-	else if( IsCmd( cmd, "jna" ) || IsCmd( cmd, "jbe" ) ) {
+	OnMultipleCmd( cmd, "jna", "jbe" ) {
 		// push bx
 		// popf word
 		CompileRestoreFlags();
@@ -538,9 +575,10 @@ bool x86Backend::CompileCommand_Conditionals( Command& cmd )
 		                                              Insn().AddOpcode( 0x77 ),
 		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
 
+		return true;
 	} // jna/jbe
 
-	else if( IsCmd( cmd, "jnae" ) || IsCmd( cmd, "jb" ) ) {
+	OnMultipleCmd( cmd, "jnae", "jb" ) {
 		// push bx
 		// popf word
 		CompileRestoreFlags();
@@ -551,18 +589,15 @@ bool x86Backend::CompileCommand_Conditionals( Command& cmd )
 		                                              Insn().AddOpcode( 0x73 ),
 		                                              Insn().AddOpcode( 0xFF ).SetOpcodeExtension( 0x4 ) );
 
+		return true;
 	} // jnae/jb
 
-	else {
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 bool x86Backend::CompileCommand_System( Command& cmd )
 {
-	if( IsCmd( cmd, "push" ) ) {
+	OnCmd( cmd, "push" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// push rax
@@ -612,9 +647,11 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // push
 
-	else if( IsCmd( cmd, "pop" ) ) {
+	OnCmd( cmd, "pop" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// pop rax -- overwrite
@@ -640,9 +677,11 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // pop
 
-	else if( IsCmd( cmd, "ld" ) ) {
+	OnCmd( cmd, "ld" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// push rax
@@ -671,9 +710,11 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
-	}
 
-	else if( IsCmd( cmd, "st" ) ) {
+		return true;
+	} // ld
+
+	OnCmd( cmd, "st" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// mov [reference], rax
@@ -702,9 +743,11 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // st
 
-	else if( IsCmd( cmd, "ldint") ) {
+	OnCmd( cmd, "ldint" ) {
 		switch( cmd.type ) {
 		case Value::V_FLOAT:
 			// fild m64
@@ -715,12 +758,14 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE( V_INTEGER );
-		WRONG_TYPE( V_MAX );
+		WRONG_TYPE(V_INTEGER);
+		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // ldint
 
-	else if( IsCmd( cmd, "stint") ) {
+	OnCmd( cmd, "stint" ) {
 		switch( cmd.type ) {
 		case Value::V_FLOAT:
 			// fistp m64
@@ -731,12 +776,14 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE( V_INTEGER );
-		WRONG_TYPE( V_MAX );
+		WRONG_TYPE(V_INTEGER);
+		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // stint
 
-	else if( IsCmd( cmd, "dup" ) ) {
+	OnCmd( cmd, "dup" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// push rax
@@ -757,9 +804,11 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // dup
 
-	else if( IsCmd( cmd, "swap" ) ) {
+	OnCmd( cmd, "swap" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// xchg rax, [rsp]
@@ -779,9 +828,11 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // swap
 
-	else if( IsCmd( cmd, "quit" ) ) {
+	OnCmd( cmd, "quit" ) {
 		// mov dword [r11], {cmd.type}
 		Insn()
 			.AddOpcode( 0xC7 )
@@ -849,9 +900,11 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 		Insn()
 			.AddOpcode( 0xC3 )
 			.Emit( this );
+
+		return true;
 	} // quit
 
-	else if( IsCmd( cmd, "cmp" ) ) {
+	OnCmd( cmd, "cmp" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// mov rdx, rax -- subtrahend
@@ -884,9 +937,11 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // cmp
 
-	else if( IsCmd( cmd, "anal" ) ) {
+	OnCmd( cmd, "anal" ) {
 		switch( cmd.type ) {
 		case Value::V_INTEGER:
 			// cmp rax, 0
@@ -910,25 +965,29 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 
 		WRONG_TYPE(V_MAX);
 		}
+
+		return true;
 	} // anal
 
-	else if( IsCmd( cmd, "snfc" ) ) {
+	OnCmd( cmd, "snfc" ) {
 		msg( E_WARNING, E_VERBOSE, "NFC is not implemented in JIT mode. It acts like NFC=1, \"snfc\" becomes no-op." );
+
+		return true;
 	} // snfc
 
-	else if( IsCmd( cmd, "cnfc") ) {
+	OnCmd( cmd, "cnfc" ) {
 		msg( E_WARNING, E_VERBOSE, "NFC is not implemented in JIT mode. It acts like NFC=1, \"cnfc\" becomes no-op." );
+
+		return true;
 	} // cnfc
 
-	else if( IsCmd( cmd, "top") ) {
-		msg( E_WARNING, E_VERBOSE, "\"top\" is a no-op in JIT mode." );
+	OnCmd( cmd, "top" ) {
+// 		msg( E_WARNING, E_VERBOSE, "\"top\" is a no-op in JIT mode." );
+
+		return true;
 	} // top
 
-	else {
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 } // namespace ProcessorImplementation
