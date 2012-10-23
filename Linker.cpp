@@ -101,6 +101,8 @@ DirectReference UATLinker::Resolve( const Reference& reference, bool* partial_re
 		     ProcDebug::PrintReference( reference, proc_->MMU() ).c_str() );
 	}
 
+	cassert( !reference.needs_linker_placement, "The reference is not placed - resolution is not possible" );
+
 	DirectReference result; mem_init( result );
 	result.section = reference.global_section;
 	msg( E_INFO, E_DEBUG, "Global section: %s", ProcDebug::Print( result.section ).c_str() );
