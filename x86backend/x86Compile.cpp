@@ -53,7 +53,10 @@ void x86Backend::CompileCommand( Command& cmd )
 	else if( CompileCommand_Conditionals( cmd ) ) { }
 	else if( CompileCommand_System( cmd ) ) { }
 	else {
-		casshole( "Unsupported command. Interpreter command gate is not implemented." );
+		msg( E_WARNING, E_VERBOSE, "Using an interpreter gate call to execute instruction." );
+		cassert( cmd.type == Value::V_MAX, "Cannot use an interpreter gate call on a non-stack-less command (type: %s)",
+		         ProcDebug::Print( cmd.type ).c_str() );
+		CompileBinaryGateCall( BinaryFunction::BF_COMMANDGATE, reinterpret_cast<abiret_t>( &cmd ) );
 	}
 }
 
@@ -922,10 +925,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 	} // top
 
 	else {
-		msg( E_WARNING, E_VERBOSE, "Using an interpreter gate call to execute instruction." );
-		cassert( cmd.type == Value::V_MAX, "Cannot use an interpreter gate call on a non-stack-less command (type: %s)",
-				 ProcDebug::Print( cmd.type ).c_str() );
-		CompileBinaryGateCall( BinaryFunction::BF_COMMANDGATE, reinterpret_cast<abiret_t>( &cmd ) );
+		return false;
 	}
 
 	return true;
