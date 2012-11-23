@@ -136,24 +136,26 @@ AddrType AsmHandler::DecodeSectionType( char id )
 	return S_NONE; /* for compiler not to complain */
 }
 
-Reference::IndirectRef AsmHandler::ParseIndirectReference( char* arg )
+Reference::SingleRef AsmHandler::ParseIndirectReference( char* arg )
 {
 	verify_method;
 
-	Reference::IndirectRef result; mem_init( result );
+	Reference::SingleRef result; mem_init( result );
 
 	msg( E_INFO, E_DEBUG, "Parsing indirect reference \"%s\"", arg );
 
 	if( arg[0] == '$' ) {
-		result.section = S_REGISTER;
-		result.target = ParseRegisterReference( arg + 1 ).target;
+		result.indirection_section = S_REGISTER;
+		result.target = ParseRegisterReference( arg + 1 );
 	}
 
 	else {
 		// Read section specifier (if present)
 		if( arg[1] == ':' ) {
-			result.section = DecodeSectionType( arg[0] );
+			result.indirection_section = DecodeSectionType( arg[0] );
 			arg += 2;
+		} else {
+			result.indirection_section = S_MAX;
 		}
 
 		result.target = ParseBaseReference( arg );
@@ -171,75 +173,78 @@ Reference AsmHandler::ParseFullReference( char* arg )
 	simplify( arg );
 	msg( E_INFO, E_DEBUG, "Parsing complete reference \"%s\"", arg );
 
-	if( arg[0] == '$' ) {
-		result.has_second_component = 0;
-		result.global_section = S_REGISTER;
-		result.components[0] = ParseRegisterReference( arg + 1 );
+	char* second_component = 0;
+
+	// Read section specifier (if present)
+	if( arg[1] == ':' ) {
+		result.global_section = DecodeSectionType( arg[0] );
+		arg += 2;
 	}
 
-	else if( arg[0] == '\"' ) {
-		result.has_second_component = 0;
-		result.global_section = S_BYTEPOOL;
-		result.needs_linker_placement = 1;
-
-		ParseInsertString( arg /* no increment */ );
+	// Get pointer to second component (if present)
+	if( ( second_component = strchr( arg, '+' ) ) ) {
+		*second_component++ = '\0';
 	}
 
-	else {
-		char* second_component = 0;
+	result.components[0] = ParseSingleReference( arg, &result.global_section );
 
-		// Read section specifier (if present)
-		if( arg[1] == ':' ) {
-			result.global_section = DecodeSectionType( arg[0] );
-			arg += 2;
-		}
-
-		// Get pointer to second component (if present)
-		if( ( second_component = strchr( arg, '+' ) ) ) {
-			*second_component++ = '\0';
-		}
-
-		result.components[0] = ParseSingleReference( arg );
-
-		if( second_component ) {
-			result.has_second_component = 1;
-			result.components[1] = ParseSingleReference( second_component );
-		}
+	if( second_component ) {
+		result.has_second_component = 1;
+		result.components[1] = ParseSingleReference( second_component, &result.global_section );
 	}
 
 	return result;
 }
 
-Reference::SingleRef AsmHandler::ParseRegisterReference( char* arg )
+Reference::BaseRef AsmHandler::ParseRegisterReference( char* arg )
 {
-	Reference::SingleRef result; mem_init( result );
+	Reference::BaseRef result; mem_init( result );
 
-	result.is_indirect = 0;
-	result.target.is_symbol = 0;
-	result.target.memory_address = proc_->LogicProvider()->DecodeRegister( arg );
+	result.type = Reference::BaseRef::BRT_MEMORY_REF;
+	result.memory_address = proc_->LogicProvider()->DecodeRegister( arg );
 
 	return result;
 }
 
-Reference::SingleRef AsmHandler::ParseSingleReference( char* arg )
+Reference::SingleRef AsmHandler::ParseSingleReference( char* arg, AddrType* global_section )
 {
 	Reference::SingleRef result; mem_init( result );
 
 	msg( E_INFO, E_DEBUG, "Parsing single reference \"%s\"", arg );
 
-	if( arg[0] != '(' ) { /* direct reference */
-		result.is_indirect = 0;
+	switch( arg[0] ) {
+	default: /* direct reference */
+		result.indirection_section = S_NONE;
 		result.target = ParseBaseReference( arg );
-	}
+		break;
 
-	else { /* indirect reference */
+	case '(': { /* indirect reference */
 		++arg; // skip opening bracket
 		char* closing_bracket = strchr( arg, ')' );
 		cverify( closing_bracket, "Malformed indirect reference: \"%s\"", arg );
 		*closing_bracket = '\0';
 
-		result.is_indirect = 1;
-		result.indirect = ParseIndirectReference( arg );
+		result = ParseIndirectReference( arg );
+		break;
+	}
+
+	case '"': /* string reference */
+		cverify( *global_section == S_NONE, "Cannot use string reference when global section is specified" );
+		*global_section = S_BYTEPOOL;
+
+		result.indirection_section = S_NONE;
+		result.target.type = Reference::BaseRef::BRT_DEFINITION;
+
+		ParseInsertString( arg /* no increment */ );
+		break;
+
+	case '$': /* register reference */
+		cverify( *global_section == S_NONE, "Cannot use register reference when global section is specified" );
+		*global_section = S_REGISTER;
+
+		result.indirection_section = S_NONE;
+		result.target = ParseRegisterReference( arg + 1 );
+		break;
 	}
 
 	return result;
@@ -262,7 +267,7 @@ Reference::BaseRef AsmHandler::ParseBaseReference( char* arg )
 
 		cverify( *endptr == '\0', "Invalid address: \"%s\": garbage at end-of-input", arg );
 
-		result.is_symbol = 0;
+		result.type = Reference::BaseRef::BRT_MEMORY_REF;
 		result.memory_address = immediate;
 
 		msg( E_INFO, E_DEBUG, "Basic reference: immediate \"%lu\"", immediate );
@@ -272,7 +277,7 @@ Reference::BaseRef AsmHandler::ParseBaseReference( char* arg )
 		Symbol referenced_symbol( arg );
 		InsertSymbol( referenced_symbol, arg, decode_output.mentioned_symbols );
 
-		result.is_symbol = 1;
+		result.type = Reference::BaseRef::BRT_SYMBOL;
 		result.symbol_hash = referenced_symbol.hash;
 
 		msg( E_INFO, E_DEBUG, "Basic reference: symbol \"%s\" (%zx)", arg, referenced_symbol.hash );
@@ -421,7 +426,9 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 		case '=': {
 			// Create reference to data
 			declaration_reference.global_section = S_DATA;
-			declaration_reference.needs_linker_placement = 1;
+			declaration_reference.has_second_component = 0;
+			declaration_reference.components[0].indirection_section = S_NONE;
+			declaration_reference.components[0].target.type = Reference::BaseRef::BRT_DEFINITION;
 
 			// Parse the initialiser
 			cassert( last_statement_type != Value::V_MAX,
@@ -460,7 +467,9 @@ void AsmHandler::ReadSingleDeclaration( const char* decl_data )
 	case 1: {
 		// Create reference to data
 		declaration_reference.global_section = S_DATA;
-		declaration_reference.needs_linker_placement = 1;
+		declaration_reference.has_second_component = 0;
+		declaration_reference.components[0].indirection_section = S_NONE;
+		declaration_reference.components[0].target.type = Reference::BaseRef::BRT_DEFINITION;
 
 		// Create "uninitialised" value and set its type
 		calc_t uninitialised_data;
@@ -591,7 +600,9 @@ void AsmHandler::ReadSingleStatement( char* input )
 	while( char* next_chunk = ParseLabel( current_position ) ) {
 		Reference label_reference; mem_init( label_reference );
 		label_reference.global_section = S_CODE;
-		label_reference.needs_linker_placement = 1;
+		label_reference.has_second_component = 0;
+		label_reference.components[0].indirection_section = S_NONE;
+		label_reference.components[0].target.type = Reference::BaseRef::BRT_DEFINITION;
 
 		Symbol label_symbol( current_position, label_reference );
 		InsertSymbol( label_symbol, current_position, decode_output.mentioned_symbols );

@@ -41,9 +41,9 @@ class INTERPRETER_API AsmHandler : virtual LogBase( AsmHandler ), public IReader
 	void                   ParseInsertString( char* arg );
 	Reference              ParseFullReference( char* arg );
 	Reference::BaseRef     ParseBaseReference( char* arg );
-	Reference::IndirectRef ParseIndirectReference( char* arg );
-	Reference::SingleRef   ParseSingleReference( char* arg );
-	Reference::SingleRef   ParseRegisterReference( char* arg );
+	Reference::SingleRef   ParseIndirectReference( char* arg );
+	Reference::SingleRef   ParseSingleReference( char* arg, Processor::AddrType* global_section );
+	Reference::BaseRef     ParseRegisterReference( char* arg );
 
 protected:
 	virtual bool _Verify() const;

@@ -162,23 +162,17 @@ struct Reference
 			size_t memory_address;
 		};
 
-		bool is_symbol;
-	};
-
-	struct IndirectRef
-	{
-		AddrType	section;
-		BaseRef		target;
+		enum BaseRefType {
+			BRT_SYMBOL,
+			BRT_DEFINITION,
+			BRT_MEMORY_REF
+		} type;
 	};
 
 	struct SingleRef
 	{
-		union {
-			BaseRef		target;
-			IndirectRef indirect;
-		};
-
-		bool is_indirect;
+		BaseRef		target;
+		AddrType	indirection_section; // If not S_NONE, then this is an indirect reference
 	};
 
 	AddrType global_section;
@@ -188,8 +182,6 @@ struct Reference
 	 * for (int i = 0; i <= reference.has_second_component; ++i)
 	 */
 	bool has_second_component;
-
-	bool needs_linker_placement;
 };
 
 struct DirectReference

@@ -60,32 +60,40 @@ std::string Print( Value::Type arg )
 
 void PrintSingleReference( char*& output, const Reference::SingleRef& ref, IMMU* mmu )
 {
-	if( ref.is_indirect ) {
-		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "indirect: " );
-
-		if( ref.indirect.section != S_NONE )
-			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "section %s ", Print( ref.indirect.section ).c_str() );
+	if( ref.indirection_section != S_NONE ) {
+		if( ref.indirection_section == S_MAX ) {
+			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "(indirect to unknown section) " );
+		} else {
+			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "(indirect to section \"%s\") ",
+			                    Print( ref.indirection_section ).c_str() );
+		}
 	}
 
-	const Reference::BaseRef& bref = ( ref.is_indirect ) ? ref.indirect.target : ref.target;
-
-	if( bref.is_symbol ) {
+	switch( ref.target.type ) {
+	case Reference::BaseRef::BRT_SYMBOL:
 		if( mmu )
 			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "symbol \"%s\"",
-			                    mmu->ASymbol( bref.symbol_hash ).first.c_str() );
+			                    mmu->ASymbol( ref.target.symbol_hash ).first.c_str() );
 
 		else
 			output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "symbol [%zx]",
-			                    bref.symbol_hash );
-	}
+			                    ref.target.symbol_hash );
+		break;
 
-	else
-		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "address %zu", bref.memory_address );
+	case Reference::BaseRef::BRT_MEMORY_REF:
+		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ), "address %zu", ref.target.memory_address );
+		break;
+
+	case Reference::BaseRef::BRT_DEFINITION:
+		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ),
+							"unplaced definition" ); 
+		break;
+	}
 }
 
 std::string PrintReference( const DirectReference& ref )
 {
-	snprintf( debug_buffer, STATIC_LENGTH, "section %s address %zu",
+	snprintf( debug_buffer, STATIC_LENGTH, "section \"%s\" address %zu",
 	          Print( ref.section ).c_str(), ref.address );
 	return debug_buffer;
 }
@@ -96,21 +104,15 @@ std::string PrintReference( const Reference& ref, IMMU* mmu )
 
 	if( ref.global_section != S_NONE )
 		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ),
-		                    "section %s ", Print( ref.global_section ).c_str() );
+		                    "section \"%s\" ", Print( ref.global_section ).c_str() );
 
-	if( ref.needs_linker_placement )
-		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ),
-		                    "unresolved" );
+	PrintSingleReference( output, ref.components[0], mmu );
 
-	else {
-		PrintSingleReference( output, ref.components[0], mmu );
+	if( ref.has_second_component ) {
+		strcpy( output, " + " );
+		output += 3;
 
-		if( ref.has_second_component ) {
-			strcpy( output, " + " );
-			output += 3;
-
-			PrintSingleReference( output, ref.components[1], mmu );
-		}
+		PrintSingleReference( output, ref.components[1], mmu );
 	}
 	return debug_buffer;
 }
@@ -145,7 +147,7 @@ std::string PrintArgument( ArgumentType arg_type, const Command::Argument& argum
 		return "absent";
 
 	case A_REFERENCE:
-		return PrintReference( argument.ref, mmu );
+		return "reference to " + PrintReference( argument.ref, mmu );
 
 	case A_VALUE:
 		return PrintValue( argument.value );

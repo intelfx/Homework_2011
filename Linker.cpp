@@ -38,22 +38,24 @@ void UATLinker::DirectLink_Add( symbol_map&& symbols, const Offsets& limits )
 
 		// If symbol is defined here, link it (set address).
 		if( symbol.is_resolved ) {
-			if( symbol.ref.needs_linker_placement ) {
-				cassert( !symbol.ref.has_second_component, "Invalid label %s", sym_nm_buf );
-				cassert( !symbol.ref.components[0].is_indirect, "Invalid label %s", sym_nm_buf );
-				cassert( !symbol.ref.components[0].target.is_symbol, "Invalid label %s", sym_nm_buf );
+			for( size_t i = 0; i < 1 + symbol.ref.has_second_component; ++i ) {
+				Reference::SingleRef& sref = symbol.ref.components[i];
+				if( sref.target.type != Reference::BaseRef::BRT_DEFINITION ) {
+					continue;
+				}
+				cassert( sref.indirection_section == S_NONE, "Invalid label %s (indirection set)", sym_nm_buf );
 
 				switch( symbol.ref.global_section ) {
 				case S_CODE:
 					msg( E_INFO, E_DEBUG, "Definition of TEXT label %s: assigning address %zu",
 					     sym_nm_buf, limits.Code() );
-					symbol.ref.components[0].target.memory_address = limits.Code();
+					sref.target.memory_address = limits.Code();
 					break;
 
 				case S_DATA:
 					msg( E_INFO, E_DEBUG, "Definition of DATA label %s: assigning address %zu",
 						 sym_nm_buf, limits.Data() );
-					symbol.ref.components[0].target.memory_address = limits.Data();
+					sref.target.memory_address = limits.Data();
 					break;
 
 				case S_REGISTER:
@@ -71,12 +73,10 @@ void UATLinker::DirectLink_Add( symbol_map&& symbols, const Offsets& limits )
 					break;
 				}
 
-				symbol.ref.needs_linker_placement = 0;
+				sref.target.type = Reference::BaseRef::BRT_MEMORY_REF;
 			} // needs linker placement
 
-			else {
-				msg( E_INFO, E_DEBUG, "Definition of symbol %s", sym_nm_buf );
-			}
+			msg( E_INFO, E_DEBUG, "Definition of symbol %s", sym_nm_buf );
 		} // if symbol is resolved (defined)
 
 		else {
@@ -101,8 +101,6 @@ DirectReference UATLinker::Resolve( const Reference& reference, bool* partial_re
 		     ProcDebug::PrintReference( reference, proc_->MMU() ).c_str() );
 	}
 
-	cassert( !reference.needs_linker_placement, "The reference is not placed - resolution is not possible" );
-
 	DirectReference result; mem_init( result );
 	result.section = reference.global_section;
 	msg( E_INFO, E_DEBUG, "Global section: %s", ProcDebug::Print( result.section ).c_str() );
@@ -111,11 +109,13 @@ DirectReference UATLinker::Resolve( const Reference& reference, bool* partial_re
 		DirectReference tmp_reference; mem_init( tmp_reference );
 
 		const Reference::SingleRef& cref = reference.components[i];
-		const Reference::BaseRef& bref = cref.is_indirect ? cref.indirect.target : cref.target;
-		msg( E_INFO, E_DEBUG, "[Component %u]: %s", i, cref.is_indirect ? "indirect" : "direct" );
+		const Reference::BaseRef& bref = cref.target;
+		msg( E_INFO, E_DEBUG, "[Component %u]: %s", i, cref.indirection_section == S_NONE ? "direct" : "indirect" );
+
+		cassert( bref.type != Reference::BaseRef::BRT_DEFINITION, "[Component %u]: unplaced - resolution is not possible", i );
 
 		/* resolve main base address of the component */
-		if( bref.is_symbol ) {
+		if( bref.type == Reference::BaseRef::BRT_SYMBOL ) {
 			msg( E_INFO, E_DEBUG, "[Component %u]: reference to symbol, hash %zx", i, bref.symbol_hash );
 			symbol_type& referenced_symbol = proc_->MMU()->ASymbol( bref.symbol_hash );
 			cverify( referenced_symbol.second.is_resolved, "Undefined symbol requested at runtime: \"%s\"",
@@ -129,13 +129,14 @@ DirectReference UATLinker::Resolve( const Reference& reference, bool* partial_re
 		}
 
 		/* resolve indirection */
-		if( reference.components[i].is_indirect ) {
+		if( cref.indirection_section != S_NONE ) {
 			/* load explicitly specified section (if it is not specified in symbol) */
 			if( tmp_reference.section == S_NONE )
-				tmp_reference.section = cref.indirect.section;
+				tmp_reference.section = cref.indirection_section;
 
 			else
-				cassert( cref.indirect.section == S_NONE, "Duplicate specified section in indirection" );
+				cassert( cref.indirection_section == S_NONE || cref.indirection_section == S_MAX,
+						 "Duplicate specified section in indirection" );
 
 			msg( E_INFO, E_DEBUG, "[Component %u]: indirection to section %s",
 				 i, ProcDebug::Print( tmp_reference.section ).c_str() );
@@ -213,7 +214,11 @@ void UATLinker::DirectLink_Commit( bool UAT )
 		         sym_nm_buf, hash, symbol_iterator.first );
 
 		Symbol& symbol = current_symbol_record->second;
-		cassert( !symbol.ref.needs_linker_placement, "Unplaced symbol %s", sym_nm_buf );
+
+		for( size_t i = 0; i < 1 + symbol.ref.has_second_component; ++i ) {
+			cassert( symbol.ref.components[i].target.type != Reference::BaseRef::BRT_DEFINITION,
+					 "Unplaced symbol %s", sym_nm_buf );
+		}
 
 		// Replace any reference already present in the map.
 		if( existing_record != target_map.end() ) {
@@ -243,8 +248,8 @@ void UATLinker::DirectLink_Commit( bool UAT )
 void UATLinker::RelocateReference( Reference& ref, const Offsets& offsets )
 {
 	Reference::SingleRef& sref = ref.components[0];
-	cassert( !sref.is_indirect, "Shall not relocate indirect references" );
-	cassert( !sref.target.is_symbol, "Shall not relocate symbol references" );
+	cassert( sref.indirection_section == S_NONE, "Shall not relocate indirect references" );
+	cassert( sref.target.type == Reference::BaseRef::BRT_MEMORY_REF, "Shall not relocate symbol references" );
 
 	MemorySectionIdentifier section( ref.global_section );
 	if( !section.isValid() ) {
@@ -281,7 +286,6 @@ void UATLinker::Relocate( const Offsets& offsets )
 		}
 
 		Reference& ref = symbol.ref;
-		cassert( !ref.needs_linker_placement, "Reference needs to be link-placed; inconsistency." );
 
 		// Do not relocate what seems to be an alias.
 		// Reason: too much corner-cases.
@@ -289,8 +293,11 @@ void UATLinker::Relocate( const Offsets& offsets )
 		// unusual (like "d:(4+2)").
 		bool do_skip = false;
 		for( size_t i = 0; i < 1 + ref.has_second_component; ++i ) {
-			if( ref.components[i].is_indirect ||
-				ref.components[i].target.is_symbol ) {
+			cassert( ref.components[i].target.type != Reference::BaseRef::BRT_DEFINITION,
+					 "Reference needs to be link-placed; inconsistency." );
+
+			if( ref.components[i].indirection_section != S_NONE ||
+				ref.components[i].target.type != Reference::BaseRef::BRT_MEMORY_REF ) {
 				do_skip = true;
 				break;
 			}
