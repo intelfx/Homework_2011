@@ -130,12 +130,20 @@ ctx_t ProcessorAPI::Load( FILE* file )
 		linker->DirectLink_Init();
 
 		while( DecodeResult* result = reader->ReadStream() ) {
+			Offsets limits = mmu->QuerySectionLimits();
+
 			if( !result->mentioned_symbols.empty() ) {
 				msg( E_INFO, E_DEBUG, "Adding symbols" );
-				linker->DirectLink_Add( std::move( result->mentioned_symbols ), mmu->QuerySectionLimits() );
+				linker->DirectLink_Add( std::move( result->mentioned_symbols ), limits );
 			}
 
 			if( !result->commands.empty() ) {
+				msg( E_INFO, E_DEBUG, "Processing commands: %zu", result->commands.size() );
+				for( Command& cmd: result->commands ) {
+					if( CommandSet()->DecodeCommand( cmd.id )->arg_type == A_REFERENCE ) {
+						linker->DirectLink_HandleReference( cmd.arg.ref, limits );
+					}
+				}
 				msg( E_INFO, E_DEBUG, "Adding commands: %zu", result->commands.size() );
 				mmu->AppendSection( SEC_CODE_IMAGE, result->commands.data(), result->commands.size() );
 			}

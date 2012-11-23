@@ -27,6 +27,7 @@ class INTERPRETER_API UATLinker: public ILinker
 public:
 	virtual void DirectLink_Init();
 	virtual void DirectLink_Add( symbol_map&& symbols, const Offsets& limits );
+	virtual void DirectLink_HandleReference( Reference& ref, const Offsets& limits );
 	virtual void DirectLink_Commit( bool UAT );
 
 	virtual void MergeLink_Add( symbol_map&& symbols );

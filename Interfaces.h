@@ -328,6 +328,10 @@ public:
 	// Use provided offsets for auto-placement.
 	virtual void DirectLink_Add( symbol_map&& symbols, const Offsets& limits ) = 0;
 
+	// Handle a plain reference in decode stage.
+	// Use provided offsets for auto-placement.
+	virtual void DirectLink_HandleReference( Reference& ref, const Offsets& limits ) = 0;
+
 	// Relocate the temporary image:
 	// - adjust symbols and (possibly) references
 	virtual void Relocate( const Offsets& offsets ) = 0;

@@ -18,6 +18,55 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
+void UATLinker::DirectLink_HandleReference( Reference& ref, const Offsets& limits )
+{
+	verify_method;
+	msg( E_INFO, E_DEBUG, "(Direct link) handling reference to %s", ProcDebug::PrintReference( ref ).c_str() );
+
+	for( size_t i = 0; i < 1 + ref.has_second_component; ++i ) {
+		Reference::SingleRef& sref = ref.components[i];
+		if( sref.target.type != Reference::BaseRef::BRT_DEFINITION ) {
+			continue;
+		}
+		cassert( sref.indirection_section == S_NONE, "Invalid label (indirection set)" );
+
+		switch( ref.global_section ) {
+		case S_CODE:
+			msg( E_INFO, E_DEBUG, "Definition of TEXT label: assigning address %zu",
+			     limits.Code() );
+			sref.target.memory_address = limits.Code();
+			break;
+
+		case S_DATA:
+			msg( E_INFO, E_DEBUG, "Definition of DATA label: assigning address %zu",
+			     limits.Data() );
+			sref.target.memory_address = limits.Data();
+			break;
+
+		case S_BYTEPOOL:
+			msg( E_INFO, E_DEBUG, "Definition of BYTEPOOL label: assigning address %zu",
+			     limits.Bytepool() );
+			sref.target.memory_address = limits.Bytepool();
+
+			break;
+
+		case S_REGISTER:
+		case S_FRAME:
+		case S_FRAME_BACK:
+			casshole( "Definition of label: type %s, cannot auto-assign",
+			          ProcDebug::Print( ref.global_section ).c_str() );
+
+		default:
+		case S_NONE:
+		case S_MAX:
+			casshole( "Invalid symbol type" );
+			break;
+		}
+
+		sref.target.type = Reference::BaseRef::BRT_MEMORY_REF;
+	} // needs linker placement
+}
+
 void UATLinker::DirectLink_Add( symbol_map&& symbols, const Offsets& limits )
 {
 	verify_method;
@@ -38,44 +87,7 @@ void UATLinker::DirectLink_Add( symbol_map&& symbols, const Offsets& limits )
 
 		// If symbol is defined here, link it (set address).
 		if( symbol.is_resolved ) {
-			for( size_t i = 0; i < 1 + symbol.ref.has_second_component; ++i ) {
-				Reference::SingleRef& sref = symbol.ref.components[i];
-				if( sref.target.type != Reference::BaseRef::BRT_DEFINITION ) {
-					continue;
-				}
-				cassert( sref.indirection_section == S_NONE, "Invalid label %s (indirection set)", sym_nm_buf );
-
-				switch( symbol.ref.global_section ) {
-				case S_CODE:
-					msg( E_INFO, E_DEBUG, "Definition of TEXT label %s: assigning address %zu",
-					     sym_nm_buf, limits.Code() );
-					sref.target.memory_address = limits.Code();
-					break;
-
-				case S_DATA:
-					msg( E_INFO, E_DEBUG, "Definition of DATA label %s: assigning address %zu",
-						 sym_nm_buf, limits.Data() );
-					sref.target.memory_address = limits.Data();
-					break;
-
-				case S_REGISTER:
-				case S_FRAME:
-				case S_FRAME_BACK:
-				case S_BYTEPOOL:
-					casshole( "Definition of symbol %s : type %s, cannot auto-assign",
-					          sym_nm_buf, ProcDebug::Print( symbol.ref.global_section ).c_str() );
-					break;
-
-				default:
-				case S_NONE:
-				case S_MAX:
-					casshole( "Invalid symbol type" );
-					break;
-				}
-
-				sref.target.type = Reference::BaseRef::BRT_MEMORY_REF;
-			} // needs linker placement
-
+			DirectLink_HandleReference( symbol.ref, limits );
 			msg( E_INFO, E_DEBUG, "Definition of symbol %s", sym_nm_buf );
 		} // if symbol is resolved (defined)
 
