@@ -67,10 +67,22 @@ class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmission
 	virtual llarray& Target();
 	virtual void AddCodeReference( size_t insn, bool relative );
 
-	// A big and dirty HACK
-	bool IsCmd( Command& cmd, const char* mnemonic )
+	/*
+	 * This is a pretty hackish, but nevertheless better than the previous approach
+	 * (querying commandset on each decode).
+	 * Template parameter is currently used just to generate different functions
+	 * for each mnemonic.
+	 */
+	template <uint32_t crc>
+	bool CheckCmd( Command& cmd, const char* mnemonic ) const
 	{
-		const CommandTraits* traits = proc_->CommandSet()->DecodeCommand( mnemonic );
+		static const ICommandSet* cmdset = nullptr;
+		static const CommandTraits* traits;
+		const ICommandSet* current_cmdset = proc_->CommandSet();
+		if( cmdset != current_cmdset ) {
+			cmdset = current_cmdset;
+			traits = cmdset->DecodeCommand( mnemonic );
+		}
 		return traits && ( traits->id == cmd.id );
 	}
 
