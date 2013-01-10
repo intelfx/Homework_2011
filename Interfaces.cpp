@@ -282,6 +282,15 @@ ProcessorAPI::ProcessorAPI() :
 	memset( shadow_executors_, 0, Value::V_MAX );
 }
 
+#ifdef NEED_STUB_BACKEND
+
+Processor::IBackend* Processor::IBackend::BackendForCurrentProcessor()
+{
+	return nullptr;
+}
+
+#endif
+
 } // namespace Processor
 
 ImplementDescriptor( IReader, "reader module", MOD_APPMODULE );

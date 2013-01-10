@@ -313,6 +313,8 @@ public:
 	virtual bool		ImageIsOK( size_t chk ) = 0;
 	virtual abi_native_fn_t
 						GetImage( size_t chk ) = 0;
+
+	static IBackend* BackendForCurrentProcessor();
 };
 
 class INTERPRETER_API ILinker : LogBase( ILinker ), public IModuleBase
