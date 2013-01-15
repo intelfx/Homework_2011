@@ -17,7 +17,7 @@
 namespace x86backend
 {
 
-enum class ModField : unsigned char
+enum ModField : unsigned char
 {
 	NoShift = 0, // 00b
 	Disp8   = 1, // 01b
