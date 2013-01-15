@@ -1,15 +1,15 @@
-#ifndef INTERPRETER_X86BACKEND_H
-#define INTERPRETER_X86BACKEND_H
+#ifndef INTERPRETER_X86BACKEND_BACKEND_H
+#define INTERPRETER_X86BACKEND_BACKEND_H
 
 #include "build.h"
 
+#include "../Interfaces.h"
 #include "Interfaces.h"
-#include "x86backend/Interfaces.h"
 #include <uXray/fxcontainers.h>
 
 // -------------------------------------------------------------------------------------
 // Library:		Homework
-// File:		x86Backend.h
+// File:		Backend.h
 // Author:		Ivan Shapovalov <intelfx100@gmail.com>
 // Description:	x86 JIT compiler backend.
 // -------------------------------------------------------------------------------------
@@ -24,7 +24,7 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
-class INTERPRETER_API x86Backend : public IBackend, public x86backend::IEmissionDestination
+class INTERPRETER_X86BACKEND_API x86Backend : public IBackend, public x86backend::IEmissionDestination
 {
 	struct ReferencePatch
 	{
@@ -164,4 +164,4 @@ public:
 
 } // namespace ProcessorImplementation
 
-#endif // INTERPRETER_X86BACKEND_H
+#endif // INTERPRETER_X86BACKEND_BACKEND_H

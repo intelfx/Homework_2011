@@ -1,14 +1,18 @@
-#include "stdafx.h"
-#include "x86Backend.h"
+#include "Backend.h"
 
-#include "x86backend/Insn.h"
+#include "Insn.h"
 
 // -------------------------------------------------------------------------------------
 // Library:		Homework
-// File:		x86Backend.h
+// File:		Backend.cpp
 // Author:		Ivan Shapovalov <intelfx100@gmail.com>
 // Description:	x86 JIT compiler backend.
 // -------------------------------------------------------------------------------------
+
+Processor::IBackend* Processor::IBackend::BackendForCurrentProcessor()
+{
+	return new ProcessorImplementation::x86Backend;
+}
 
 namespace ProcessorImplementation
 {

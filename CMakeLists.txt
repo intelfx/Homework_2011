@@ -36,7 +36,6 @@ set (INTERPRETER_SRC ${INTERPRETER_SRC} BytecodeIO.cpp BytecodeIO.h)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Logic.h Logic.cpp CommandSet_original.h CommandSet_original.cpp)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Executor.h Executor.cpp Executor_int.h Executor_int.cpp)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Executor_service.h Executor_service.cpp)
-set (INTERPRETER_SRC ${INTERPRETER_SRC} x86Backend.cpp x86backend/x86Compile.cpp)
 set (STACK_NL_SRC ${INTERPRETER_SRC} NLUnitTests.cpp)
 
 MAIN_ADD_GCH(stdafx.h ${INTERPRETER_SRC})
@@ -45,12 +44,27 @@ MAIN_ADD_GCH(stdafx.h ${INTERPRETER_SRC})
 # Target specification
 # ----
 # add_subdirectory(language_parser)
-# add_subdirectory(x86_codegen)
+
+# TODO: determine the backend dynamically.
+set(BACKEND "" CACHE STRING "JIT backend name to build. Currently suppored: x86.")
+
+if(BACKEND)
+	set(BACKEND_DIR backend_${BACKEND})
+	add_subdirectory(${BACKEND_DIR})
+
+	set(BACKEND_TARGET interpreter_${BACKEND_DIR})
+	list(APPEND LIBRARIES ${BACKEND_TARGET})
+	list(APPEND DEPS ${BACKEND_TARGET})
+else(BACKEND)
+	add_definitions(-DNEED_STUB_BACKEND)
+endif(BACKEND)
 
 add_executable(homework_stack_nl ${STACK_NL_SRC})
+add_dependencies(homework_stack_nl "${DEPS}")
 target_link_libraries(homework_stack_nl ${LIBRARIES})
 
 add_library(interpreterplatform ${INTERPRETER_SRC})
+add_dependencies(interpreterplatform "${DEPS}")
 target_link_libraries(interpreterplatform ${LIBRARIES})
 # ----
 

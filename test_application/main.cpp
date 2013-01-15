@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include "../API.h"
-#include "../x86Backend.h"
 
 #include <uXray/fxlog_console.h>
 #include <uXray/fxjitruntime.h>
@@ -611,7 +610,7 @@ public:
 		processor.Attach( new ProcessorImplementation::ServiceExecutor );
 
 		if( use_jit ) {
-			processor.Attach( new ProcessorImplementation::x86Backend );
+			processor.Attach( Processor::IBackend::BackendForCurrentProcessor() );
 		}
 	}
 
