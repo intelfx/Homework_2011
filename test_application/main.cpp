@@ -622,16 +622,16 @@ public:
 
 	void RegisterCommandHandlers() {
 		processor.CommandSet()->AddCommand( Processor::CommandTraits( "delay", "User: Delay execution for milliseconds", Processor::A_VALUE, true ) );
-		processor.CommandSet()->AddCommandImplementation( "delay", 0, reinterpret_cast<void*>( &delay_command ) );
+		processor.CommandSet()->AddCommandImplementation( "delay", 0, Fcast<void*>( &delay_command ) );
 
 		processor.CommandSet()->AddCommand( Processor::CommandTraits( "rand", "User: Random value", Processor::A_NONE, true ) );
-		processor.CommandSet()->AddCommandImplementation( "rand", 0, reinterpret_cast<void*>( &rand_c ) );
+		processor.CommandSet()->AddCommandImplementation( "rand", 0, Fcast<void*>( &rand_c ) );
 
 		processor.CommandSet()->AddCommand( Processor::CommandTraits( "pi", "User: Get Pi", Processor::A_NONE, false ) );
-		processor.CommandSet()->AddCommandImplementation( "pi", 0, reinterpret_cast<void*>( &pi_c ) );
+		processor.CommandSet()->AddCommandImplementation( "pi", 0, Fcast<void*>( &pi_c ) );
 
 		processor.CommandSet()->AddCommand( Processor::CommandTraits( "lcm", "User: Least Common Multiple", Processor::A_NONE, false ) );
-		processor.CommandSet()->AddCommandImplementation( "lcm", 0, reinterpret_cast<void*>( &lcm_c ) );
+		processor.CommandSet()->AddCommandImplementation( "lcm", 0, Fcast<void*>( &lcm_c ) );
 	}
 
 	InterpreterClientApplication( bool periodic_write, bool jit, const char* dump_fn ) :
