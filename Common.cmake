@@ -103,7 +103,7 @@ endmacro()
 # Determine compiler and system
 # ----
 if (NOT ${CMAKE_C_COMPILER_ID} STREQUAL ${CMAKE_CXX_COMPILER_ID})
-	message(FATAL_ERROR "C compiler identification does not match CXX compiler identification, cannot continue for now")
+	message(FATAL_ERROR "C and CXX compiler identifications do not match, cannot continue for now")
 endif(NOT ${CMAKE_C_COMPILER_ID} STREQUAL ${CMAKE_CXX_COMPILER_ID})
 
 SET(FX_COMPILER_ID ${CMAKE_C_COMPILER_ID})
@@ -112,63 +112,44 @@ SET(FX_COMPILER_ID ${CMAKE_C_COMPILER_ID})
 
 # Compiler arguments
 # ----
-if ("${FX_COMPILER_ID}" STREQUAL "Clang")
+
+# Common things
+if ("${FX_COMPILER_ID}" STREQUAL "Clang" OR "${FX_COMPILER_ID}" STREQUAL "GNU")
+
 	SET(FX_C_ARGS "-std=c99 -Wold-style-definition -Wstrict-prototypes")
-	SET(FX_CXX_ARGS "-std=c++11 -Wold-style-cast -Woverloaded-virtual -fvisibility-inlines-hidden")
-	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wall -Wextra -Wmain -Wswitch-enum -Wswitch-default")
-	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wmissing-include-dirs -Wstrict-overflow=4 -Wpointer-arith")
-	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wunreachable-code -Wundef")
-	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wcast-align -Wwrite-strings -Wcast-qual")
-	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wredundant-decls -Winit-self -Wshadow -Wabi -Wstrict-aliasing")
-	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Winvalid-pch")
-
-	# Already enabled on MinGW
-	if (NOT WIN32)
-		SET(FX_TUNE_ARGS "-fPIC")
-	endif (NOT WIN32)
-
-	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fvisibility=hidden")
-	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -ftrapv -pipe")
-	SET(FX_OPT_ARGS		"-O4 -emit-llvm")
-	SET(FX_LD_OPT_ARGS	"-Wl,-O1 -flto -fuse-linker-plugin")
-
-	SET(FX_INSTR_ARGS	"-march=native")
-	SET(FX_DBG_ARGS		"")
-	SET(FX_LD_FLAGS		"")
-
-	# Settings for MinGW
-	if (WIN32)
-# 		SET(FX_LD_FLAGS "${FX_LD_FLAGS} -static")
-	endif (WIN32)
-endif("${FX_COMPILER_ID}" STREQUAL "Clang")
-
-if ("${FX_COMPILER_ID}" STREQUAL "GNU")
-	SET(FX_C_ARGS "-std=c99 -Wold-style-definition -Wstrict-prototypes")
-	SET(FX_CXX_ARGS "-std=c++11 -Wold-style-cast -Woverloaded-virtual -fvisibility-inlines-hidden")
+	SET(FX_CXX_ARGS "-std=c++11 -Wold-style-cast -Woverloaded-virtual -fvisibility-inlines-hidden -Wnoexcept -Wzero-as-null-pointer-constant")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wall -Wextra -Wmain -Wswitch-enum -Wswitch-default")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wmissing-include-dirs -Wstrict-overflow=4 -Wpointer-arith")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wunreachable-code -Wundef -Wunsafe-loop-optimizations")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wcast-align -Wwrite-strings -Wcast-qual")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wredundant-decls -Winit-self -Wshadow -Wabi -Wstrict-aliasing")
-	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Winvalid-pch")
+	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Winvalid-pch -pedantic -Wno-variadic-macros -Wno-format")
+	
+	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fvisibility=hidden")
+	
+	SET(FX_LD_OPT_ARGS	"-Wl,-O1")
+
+endif ("${FX_COMPILER_ID}" STREQUAL "Clang" OR "${FX_COMPILER_ID}" STREQUAL "GNU")
+
+# GCC-specific things
+if ("${FX_COMPILER_ID}" STREQUAL "GNU")
 
 	# Already enabled on MinGW
 	if (NOT WIN32)
 		SET(FX_TUNE_ARGS "-fPIC")
 	endif (NOT WIN32)
 
-	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fvisibility=hidden -fabi-version=6")
+	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fabi-version=6")
 	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -ftrapv -fuse-linker-plugin -pipe")
 	SET(FX_OPT_ARGS		"-O3 -fno-enforce-eh-specs -fnothrow-opt -fstrict-aliasing -fipa-struct-reorg")
 	SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -fipa-pta -fipa-matrix-reorg -funsafe-loop-optimizations")
-	SET(FX_LD_OPT_ARGS	"-Wl,-O1")
 
 	# Unsupported by MinGW
 	if (NOT WIN32)
 		SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -floop-block -floop-strip-mine -ftree-loop-distribution")
 		SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -floop-interchange -floop-flatten -ftree-parallelize-loops=2")
-		SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -flto")
-		SET(FX_LD_OPT_ARGS	"${FX_LD_OPT_ARGS} -flto")
+		SET(FX_OPT_ARGS		"${FX_OPT_ARGS} -frepo -flto")
+		SET(FX_LD_OPT_ARGS	"${FX_LD_OPT_ARGS} -frepo -flto")
 	endif (NOT WIN32)
 
 	SET(FX_INSTR_ARGS	"-mfpmath=both -march=native")
@@ -179,7 +160,22 @@ if ("${FX_COMPILER_ID}" STREQUAL "GNU")
 	if (WIN32)
 # 		SET(FX_LD_FLAGS "${FX_LD_FLAGS} -static")
 	endif (WIN32)
+
 endif ("${FX_COMPILER_ID}" STREQUAL "GNU")
+
+# Clang-specific things
+if ("${FX_COMPILER_ID}" STREQUAL "Clang")
+
+	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fvisibility=hidden")
+	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -ftrapv -pipe")
+	SET(FX_OPT_ARGS		"-O4 -emit-llvm")
+	SET(FX_LD_OPT_ARGS	"-Wl,-O1 -flto -fuse-linker-plugin")
+
+	SET(FX_INSTR_ARGS	"-march=native")
+	SET(FX_DBG_ARGS		"")
+	SET(FX_LD_FLAGS		"")
+
+endif ("${FX_COMPILER_ID}" STREQUAL "Clang")
 
 # TODO MSVC compiler arguments
 # ----
