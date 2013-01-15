@@ -13,6 +13,14 @@ namespace Processor
 
 void ProcessorAPI::Attach( IModuleBase* module )
 {
+	unverified_method
+
+	if( !module ) {
+		msg( E_WARNING, E_VERBOSE, "Attempt to attach a NULL pointer",
+		     Debug::API::GetClassName( module ), module );
+		return;
+	}
+
 	bool was_attach = false;
 
 	if( IBackend* backend = dynamic_cast<IBackend*>( module ) ) {
@@ -62,6 +70,14 @@ void ProcessorAPI::Attach( IModuleBase* module )
 
 void ProcessorAPI::Detach( const IModuleBase* module )
 {
+	unverified_method
+
+	if( !module ) {
+		msg( E_WARNING, E_VERBOSE, "Attempt to detach a NULL pointer",
+		     Debug::API::GetClassName( module ), module );
+		return;
+	}
+
 	bool was_detach = false;
 
 	if( shadow_backend_ == module ) {
