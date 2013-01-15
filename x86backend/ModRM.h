@@ -101,8 +101,8 @@ struct DisplacementHelper
 	{
 	}
 
-	DisplacementHelper( size_t insn ) :
-	insn( insn ),
+	DisplacementHelper( size_t instruction ) :
+	insn( instruction ),
 	status( DisplacementStatus::DISPLACEMENT_TO_INSN ),
 	size( AddressSize::DWORD )
 	{

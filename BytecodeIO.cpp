@@ -168,7 +168,8 @@ std::pair< MemorySectionIdentifier, size_t > BytecodeHandler::NextSection()
 		return std::make_pair( MemorySectionIdentifier(), size_t( 0 ) );
 	} else {
 		ReadSectionInfo();
-		return std::make_pair( MemorySectionIdentifier( current_section_.section_type ), current_section_.size_entries );
+		return std::make_pair( MemorySectionIdentifier( current_section_.section_type ),
+							   size_t( current_section_.size_entries ) );
 	}
 }
 

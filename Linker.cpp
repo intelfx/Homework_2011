@@ -23,7 +23,7 @@ void UATLinker::DirectLink_HandleReference( Reference& ref, const Offsets& limit
 	verify_method;
 	msg( E_INFO, E_DEBUG, "(Direct link) handling reference to %s", ProcDebug::PrintReference( ref ).c_str() );
 
-	for( size_t i = 0; i < 1 + ref.has_second_component; ++i ) {
+	for( int i = 0; i < 1 + ref.has_second_component; ++i ) {
 		Reference::SingleRef& sref = ref.components[i];
 		if( sref.target.type != Reference::BaseRef::BRT_DEFINITION ) {
 			continue;
@@ -227,7 +227,7 @@ void UATLinker::DirectLink_Commit( bool UAT )
 
 		Symbol& symbol = current_symbol_record->second;
 
-		for( size_t i = 0; i < 1 + symbol.ref.has_second_component; ++i ) {
+		for( int i = 0; i < 1 + symbol.ref.has_second_component; ++i ) {
 			cassert( symbol.ref.components[i].target.type != Reference::BaseRef::BRT_DEFINITION,
 					 "Unplaced symbol %s", sym_nm_buf );
 		}
@@ -304,7 +304,7 @@ void UATLinker::Relocate( const Offsets& offsets )
 		// Though we can relocate bicomponent plain references, despite they seem highly
 		// unusual (like "d:(4+2)").
 		bool do_skip = false;
-		for( size_t i = 0; i < 1 + ref.has_second_component; ++i ) {
+		for( int i = 0; i < 1 + ref.has_second_component; ++i ) {
 			cassert( ref.components[i].target.type != Reference::BaseRef::BRT_DEFINITION,
 					 "Reference needs to be link-placed; inconsistency." );
 
