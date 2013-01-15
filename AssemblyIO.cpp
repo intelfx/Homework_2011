@@ -15,8 +15,8 @@ namespace ProcessorImplementation
 using namespace Processor;
 
 AsmHandler::AsmHandler() :
-	reading_file_( 0 ),
-	writing_file_( 0 ),
+	reading_file_( nullptr ),
+	writing_file_( nullptr ),
 	current_line_num( 0 )
 {
 }
@@ -57,7 +57,7 @@ void AsmHandler::RdReset()
 		msg( E_INFO, E_DEBUG, "Resetting reader" );
 
 		fclose( reading_file_ );
-		reading_file_ = 0;
+		reading_file_ = nullptr;
 
 		current_line_num = 0;
 		last_statement_type = Value::V_MAX;
@@ -73,7 +73,7 @@ void AsmHandler::WrReset()
 		msg( E_INFO, E_DEBUG, "Resetting writing file" );
 
 		fclose( writing_file_ );
-		writing_file_ = 0;
+		writing_file_ = nullptr;
 	}
 }
 
@@ -173,7 +173,7 @@ Reference AsmHandler::ParseFullReference( char* arg )
 	simplify( arg );
 	msg( E_INFO, E_DEBUG, "Parsing complete reference \"%s\"", arg );
 
-	char* second_component = 0;
+	char* second_component = nullptr;
 
 	// Read section specifier (if present)
 	if( arg[1] == ':' ) {
@@ -365,7 +365,7 @@ char* AsmHandler::PrepLine( char* read_buffer )
 	while( isspace( * ( begin = tmp++ ) ) );
 
 	if( *begin == '\0' )
-		return 0;
+		return nullptr;
 
 	tmp = begin;
 	last_non_whitespace = begin;
@@ -569,7 +569,7 @@ char* AsmHandler::ParseLabel( char* string )
 {
 	do { // TODO rewrite to while()
 		if( *string == ' ' || *string == '\0' )
-			return 0; // no label
+			return nullptr; // no label
 
 		if( *string == ':' ) {
 			*string = '\0';
@@ -577,7 +577,7 @@ char* AsmHandler::ParseLabel( char* string )
 		}
 	} while( *string++ );
 
-	return 0;
+	return nullptr;
 }
 
 void AsmHandler::ReadSingleStatement( char* input )
@@ -618,7 +618,7 @@ void AsmHandler::ReadSingleStatement( char* input )
 
 	/* get remaining statement */
 	command = strtok( current_position, " \t" );
-	argument = strtok( 0, "" );
+	argument = strtok( nullptr, "" );
 
 	if( !command ) {
 		msg( E_INFO, E_DEBUG, "Statement: no statement" );
@@ -666,7 +666,7 @@ DecodeResult* AsmHandler::ReadStream()
 		decode_output.Clear();
 
 		if( !fgets( read_buffer, STATIC_LENGTH, reading_file_ ) )
-			return 0;
+			return nullptr;
 
 		++current_line_num;
 

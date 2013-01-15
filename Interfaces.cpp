@@ -13,46 +13,46 @@ namespace Processor
 
 void ProcessorAPI::Attach( IModuleBase* module )
 {
-	bool was_attach = 0;
+	bool was_attach = false;
 
 	if( IBackend* backend = dynamic_cast<IBackend*>( module ) ) {
 		Attach_( backend );
-		was_attach = 1;
+		was_attach = true;
 	}
 
 	if( IReader* reader = dynamic_cast<IReader*>( module ) ) {
 		Attach_( reader );
-		was_attach = 1;
+		was_attach = true;
 	}
 
 	if( IWriter* writer = dynamic_cast<IWriter*>( module ) ) {
 		Attach_( writer );
-		was_attach = 1;
+		was_attach = true;
 	}
 
 	if( IMMU* mmu = dynamic_cast<IMMU*>( module ) ) {
 		Attach_( mmu );
-		was_attach = 1;
+		was_attach = true;
 	}
 
 	if( IExecutor* executor = dynamic_cast<IExecutor*>( module ) ) {
 		Attach_( executor );
-		was_attach = 1;
+		was_attach = true;
 	}
 
 	if( ICommandSet* cset = dynamic_cast<ICommandSet*>( module ) ) {
 		Attach_( cset );
-		was_attach = 1;
+		was_attach = true;
 	}
 
 	if( ILogic* internal_logic = dynamic_cast<ILogic*>( module ) ) {
 		Attach_( internal_logic );
-		was_attach = 1;
+		was_attach = true;
 	}
 
 	if( ILinker* linker = dynamic_cast<ILinker*>( module ) ) {
 		Attach_( linker );
-		was_attach = 1;
+		was_attach = true;
 	}
 
 	if( !was_attach )
@@ -62,11 +62,11 @@ void ProcessorAPI::Attach( IModuleBase* module )
 
 void ProcessorAPI::Detach( const IModuleBase* module )
 {
-	bool was_detach = 0;
+	bool was_detach = false;
 
 	if( shadow_backend_ == module ) {
-		shadow_backend_ = backend_ = 0;
-		was_detach = 1;
+		shadow_backend_ = backend_ = nullptr;
+		was_detach = true;
 	}
 
 	// We can not dynamic_cast<>() to IExecutor* to get executor's type
@@ -74,39 +74,39 @@ void ProcessorAPI::Detach( const IModuleBase* module )
 	// See explanations in Interfaces.h near shadow_* declarations.
 	for( unsigned i = 0; i <= Value::V_MAX; ++i )
 		if( shadow_executors_[i] == module ) {
-			shadow_executors_[i] = executors_[i] = 0;
-			was_detach = 1;
+			shadow_executors_[i] = executors_[i] = nullptr;
+			was_detach = true;
 			break;
 		}
 
 	if( shadow_reader_ == module ) {
-		shadow_reader_ = reader_ = 0;
-		was_detach = 1;
+		shadow_reader_ = reader_ = nullptr;
+		was_detach = true;
 	}
 
 	if( shadow_writer_ == module ) {
-		shadow_writer_ = writer_ = 0;
-		was_detach = 1;
+		shadow_writer_ = writer_ = nullptr;
+		was_detach = true;
 	}
 
 	if( shadow_cset_ == module ) {
-		shadow_cset_ = cset_ = 0;
-		was_detach = 1;
+		shadow_cset_ = cset_ = nullptr;
+		was_detach = true;
 	}
 
 	if( shadow_logic_ == module ) {
-		shadow_logic_ = internal_logic_ = 0;
-		was_detach = 1;
+		shadow_logic_ = internal_logic_ = nullptr;
+		was_detach = true;
 	}
 
 	if( shadow_linker_ == module ) {
-		shadow_linker_ = linker_ = 0;
-		was_detach = 1;
+		shadow_linker_ = linker_ = nullptr;
+		was_detach = true;
 	}
 
 	if( shadow_mmu_ == module ) {
-		shadow_mmu_ = mmu_ = 0;
-		was_detach = 1;
+		shadow_mmu_ = mmu_ = nullptr;
+		was_detach = true;
 	}
 
 	if( !was_detach )
@@ -206,7 +206,7 @@ IModuleBase::~IModuleBase()
 void ProcessorAPI::Initialise( bool value )
 {
 	if( value ) {
-		initialise_completed = 1;
+		initialise_completed = true;
 		msg( E_INFO, E_USER, "API initialised" );
 		verify_method;
 	}
@@ -214,7 +214,7 @@ void ProcessorAPI::Initialise( bool value )
 	else {
 		msg( E_WARNING, E_VERBOSE, "API deinitialised" );
 		verify_method;
-		initialise_completed = 0;
+		initialise_completed = false;
 	}
 }
 
@@ -263,20 +263,25 @@ bool ProcessorAPI::_Verify() const
 }
 
 ProcessorAPI::ProcessorAPI() :
-	reader_( 0 ),
-	writer_( 0 ),
-	mmu_( 0 ),
+	reader_( nullptr ),
+	writer_( nullptr ),
+	mmu_( nullptr ),
 	executors_(),
-	backend_( 0 ),
-	linker_( 0 ),
-	cset_( 0 ),
-	internal_logic_( 0 ),
-	shadow_reader_( 0 ),
-	shadow_writer_( 0 ),
-	shadow_mmu_( 0 ),
+	backend_( nullptr ),
+	linker_( nullptr ),
+	cset_( nullptr ),
+	internal_logic_( nullptr ),
+	shadow_reader_( nullptr ),
+	shadow_writer_( nullptr ),
+	shadow_mmu_( nullptr ),
 	shadow_executors_(),
-	shadow_backend_( 0 ),
-	initialise_completed( 0 )
+	shadow_backend_( nullptr ),
+	shadow_linker_( nullptr ),
+	shadow_cset_( nullptr ),
+	shadow_logic_( nullptr ),
+	initialise_completed( false ),
+	nem_(),
+	current_execution_context_()
 {
 	memset( executors_, 0, Value::V_MAX );
 	memset( shadow_executors_, 0, Value::V_MAX );

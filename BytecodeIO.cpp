@@ -20,8 +20,8 @@ namespace ProcessorImplementation
 using namespace Processor;
 
 BytecodeHandler::BytecodeHandler() :
-	reading_file_( 0 ),
-	writing_file_( 0 ),
+	reading_file_( nullptr ),
+	writing_file_( nullptr ),
 	count_sections_read_( 0 )
 {
 	mem_init( current_file_ );
@@ -90,7 +90,7 @@ void BytecodeHandler::RdReset()
 		msg( E_INFO, E_DEBUG, "Resetting reader" );
 
 		fclose( reading_file_ );
-		reading_file_ = 0;
+		reading_file_ = nullptr;
 		count_sections_read_ = 0;
 
 		mem_init( current_file_ );
@@ -106,7 +106,7 @@ void BytecodeHandler::WrReset()
 		msg( E_INFO, E_DEBUG, "Resetting writing file" );
 
 		fclose( writing_file_ );
-		writing_file_ = 0;
+		writing_file_ = nullptr;
 	}
 }
 

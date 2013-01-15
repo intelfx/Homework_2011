@@ -81,7 +81,7 @@ void* CommandSet_mkI::GetExecutionHandle( const CommandTraits& cmd, size_t modul
 	if( handle_iterator != cmd.execution_handles.end() )
 		return handle_iterator->second;
 
-	return 0;
+	return nullptr;
 }
 
 const CommandTraits* CommandSet_mkI::DecodeCommand( const char* mnemonic ) const
@@ -92,7 +92,7 @@ const CommandTraits* CommandSet_mkI::DecodeCommand( const char* mnemonic ) const
 	if( cmd_iterator != by_id.end() )
 		return &cmd_iterator->second;
 
-	return 0;
+	return nullptr;
 }
 
 const CommandTraits* CommandSet_mkI::DecodeCommand( cid_t id ) const
@@ -102,7 +102,7 @@ const CommandTraits* CommandSet_mkI::DecodeCommand( cid_t id ) const
 	if( cmd_iterator != by_id.end() )
 		return &cmd_iterator->second;
 
-	return 0;
+	return nullptr;
 }
 
 const CommandSet_mkI::InternalCommandDescriptor CommandSet_mkI::initial_commands[] = {
@@ -110,303 +110,304 @@ const CommandSet_mkI::InternalCommandDescriptor CommandSet_mkI::initial_commands
 		"init",
 		"System: initialize stack and execution environment",
 		A_NONE,
-		1
+		true
 	},
 	{
 		"sleep",
 		"System: hand off control to the OS",
 		A_NONE,
-		1
+		true
 	},
 	{
 		"sys",
 		"System: invoke execution environment",
 		A_VALUE,
-		1
+		true
 	},
 	{
 		"dump",
 		"System: dump context",
 		A_NONE,
-		1
+		true
 	},
 	{
 		"push",
 		"Stack: push a value onto the stack",
 		A_VALUE,
-		0
+		false
 	},
 	{
 		"pop",
 		"Stack: remove a value from the stack",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"top",
 		"Stack: peek a value from the stack",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"cmp",
 		"Stack: compare two values on the stack by subtraction (subtrahend on top (popped), minuend not touched)",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"swap",
 		"Stack: swap two values on the stack",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"dup",
 		"Stack: duplicate the value on the stack",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"lea",
 		"Data: load effective address",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"ld",
 		"Data: read (load) memory/register",
 		A_REFERENCE,
-		0
+		false
 	},
 	{
 		"st",
 		"Data: write (store) memory/register",
 		A_REFERENCE,
-		0
+		false
 	},
 	{
 		"ldint",
 		"Data: read (load) integer from memory/register",
 		A_REFERENCE,
-		0
+		false
 	},
 	{
 		"stint",
 		"Data: write (store) integer memory/register",
 		A_REFERENCE,
-		0
+		false
 	},
 	{
 		"settype",
 		"Data: change type of memory location",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"abs",
 		"Arithmetic: absolute value",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"add",
 		"Arithmetic: addition",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"sub",
 		"Arithmetic: subtraction (minuend on top)",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"mul",
 		"Arithmetic: multiplication",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"div",
 		"Arithmetic: division (dividend on top)",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"mod",
 		"Arithmetic: modulo (dividend on top)",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"inc",
 		"Arithmetic: increment by one",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"dec",
 		"Arithmetic: decrement by one",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"neg",
 		"Arithmetic: negation",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"sqrt",
 		"Arithmetic: square root extraction",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"sin",
 		"Trigonometry: sine",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"cos",
 		"Trigonometry: cosine",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"tan",
 		"Trigonometry: tangent",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"asin",
 		"Trigonometry: arcsine",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"acos",
 		"Trigonometry: arccosine",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"atan",
 		"Trigonometry: arctangent",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"anal", /* fuck yeah. */
 		"Stack: analyze top of the stack",
 		A_NONE,
-		0
+		false
 	},
 	{
 		"je",
 		"Address: jump if ZERO",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jne",
 		"Address: jump if not ZERO",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"ja",
 		"Address: jump if ABOVE",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jna",
 		"Address: jump if not ABOVE",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jae",
 		"Address: jump if ABOVE or EQUAL",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jnae",
 		"Address: jump if not ABOVE or EQUAL",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jb",
 		"Address: jump if BELOW",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jnb",
 		"Address: jump if not BELOW",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jbe",
 		"Address: jump if BELOW or EQUAL",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jnbe",
 		"Address: jump if not BELOW or EQUAL",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"jmp",
 		"Address: unconditional jump",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"call",
 		"Address: unconditional call",
 		A_REFERENCE,
-		1
+		true
 	},
 	{
 		"ret",
 		"Address: unconditional return",
 		A_NONE,
-		1
+		true
 	},
 	{
 		"snfc",
 		"Flags: set No-Flag-Change flag",
 		A_NONE,
-		1
+		true
 	},
 	{
 		"cnfc",
 		"Flags: clear No-Flag-Change flag",
 		A_NONE,
-		1
+		true
 	},
 	{
 		"quit",
 		"Management: stop execution/quit context",
 		A_NONE,
-		1
+		true
 	},
 	{
-		0,
-		0,
+		nullptr,
+		nullptr,
 		A_NONE,
-		0
+		false
 	}
 };
 
 } // namespace ProcessorImplementation
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
+

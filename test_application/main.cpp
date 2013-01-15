@@ -62,7 +62,7 @@ pthread_attr_t global_detached_attrs;
 class InterpreterClientApplication;
 
 pthread_t interpreter_thread;
-InterpreterClientApplication* application = 0;
+InterpreterClientApplication* application = nullptr;
 
 void* interpreter_threadfunc( void* argument );
 void interpreter_cancellation( void* );
@@ -72,8 +72,8 @@ class SDLApplication;
 
 pthread_t gui_thread;
 pthread_mutex_t gui_init_mutex;
-SDLApplication* gui = 0;
-bool gui_thread_need_to_join = 0;
+SDLApplication* gui = nullptr;
+bool gui_thread_need_to_join = false;
 
 void* gui_threadfunc( void* );
 void gui_cancellation( void* );
@@ -82,7 +82,7 @@ void gui_cancellation( void* );
 class Timer;
 
 pthread_t timer_thread;
-Timer* timer = 0;
+Timer* timer = nullptr;
 
 void* timer_threadfunc( void* );
 void timer_cancellation( void* );
@@ -129,7 +129,7 @@ public:
 
 	void EventLoop() {
 		SDL_Event* event;
-		bool running = 1;
+		bool running = true;
 
 		while( running ) {
 			event = ssb_get_event();
@@ -142,7 +142,7 @@ public:
 			switch( event->type ) {
 			case SDL_QUIT:
 				smsg( E_INFO, E_USER, "GUI has been closed - exiting event loop" );
-				running = 0;
+				running = false;
 				break;
 
 			case SDL_MOUSEMOTION:
@@ -244,7 +244,7 @@ public:
 	}
 
 	StatisticsCollectorLogic() {
-		pthread_mutex_init( &statistics_mutex, 0 );
+		pthread_mutex_init( &statistics_mutex, nullptr );
 		ResetStatistics();
 	}
 
@@ -273,8 +273,8 @@ public:
 			pthread_mutex_lock( &gui_init_mutex );
 
 			gui = new SDLApplication;
-			gui_thread_need_to_join = 1;
-			pthread_create( &gui_thread, 0, &gui_threadfunc, 0 );
+			gui_thread_need_to_join = true;
+			pthread_create( &gui_thread, nullptr, &gui_threadfunc, nullptr );
 
 			double sx, sy;
 
@@ -297,7 +297,7 @@ public:
 
 			if( gui_thread_need_to_join ) {
 				pthread_mutex_unlock( &gui_init_mutex );
-				pthread_join( gui_thread, 0 );
+				pthread_join( gui_thread, nullptr );
 			}
 
 			else
@@ -550,7 +550,7 @@ class InterpreterClientApplication : LogBase( ICA )
 
 	static void delay_command( Processor::ProcessorAPI*, Processor::Command& command ) {
 		float ms = 0;
-		command.arg.value.Get( Processor::Value::V_MAX, ms, 0 );
+		command.arg.value.Get( Processor::Value::V_MAX, ms, false );
 
 		smsg( E_INFO, E_DEBUG, "Delaying execution for %g milliseconds", ms );
 
@@ -570,34 +570,34 @@ class InterpreterClientApplication : LogBase( ICA )
 	static void lcm_c( Processor::ProcessorAPI* proc, Processor::Command& ) {
 		unsigned a, b;
 
-		proc->LogicProvider()->StackPop().Get( Processor::Value::V_INTEGER, a, 0 );
-		proc->LogicProvider()->StackPop().Get( Processor::Value::V_INTEGER, b, 0 );
+		proc->LogicProvider()->StackPop().Get( Processor::Value::V_INTEGER, a, false );
+		proc->LogicProvider()->StackPop().Get( Processor::Value::V_INTEGER, b, false );
 
 		proc->LogicProvider()->StackPush( static_cast<fp_t>( ( a * b ) / gcd( a, b ) ) );
 	}
 
 	void StartTimer() {
 		if( !is_running ) {
-			is_running = 1;
+			is_running = true;
 
 			// Synchronously do preparation.
 			timer = new Timer;
 
 			if( use_periodic_write )
-				pthread_create( &timer_thread, 0, &timer_threadfunc, 0 );
+				pthread_create( &timer_thread, nullptr, &timer_threadfunc, nullptr );
 		}
 	}
 
 	void StopTimer() {
 		if( is_running ) {
-			is_running = 0;
+			is_running = false;
 
 			if( use_periodic_write ) {
 				pthread_cancel( timer_thread );
-				pthread_join( timer_thread, 0 );
+				pthread_join( timer_thread, nullptr );
 			}
 
-			delete timer; timer = 0;
+			delete timer; timer = nullptr;
 		}
 	}
 
@@ -635,8 +635,8 @@ public:
 	}
 
 	InterpreterClientApplication( bool periodic_write, bool jit, const char* dump_fn ) :
-		custom_logic( 0 ),
-		is_running( 0 ),
+		custom_logic( nullptr ),
+		is_running( false ),
 		use_periodic_write( periodic_write ),
 		use_jit( jit ),
 		dump_filename( dump_fn )
@@ -809,33 +809,33 @@ public:
 void gui_cancellation( void* )
 {
 	pthread_mutex_lock( &gui_init_mutex );
-	delete gui; gui = 0;
+	delete gui; gui = nullptr;
 	pthread_mutex_unlock( &gui_init_mutex );
 }
 
 void* gui_threadfunc( void* )
 {
-	pthread_cleanup_push( &gui_cancellation, 0 );
+	pthread_cleanup_push( &gui_cancellation, nullptr );
 
 	gui->EventLoop();
 
 	// Stop interpreter only if we are stopping on our own (exited the loop)
 	pthread_cancel( interpreter_thread );
-	pthread_join( interpreter_thread, 0 );
+	pthread_join( interpreter_thread, nullptr );
 
-	pthread_cleanup_pop( 1 );
+	pthread_cleanup_pop( true );
 
-	return 0;
+	return nullptr;
 }
 
 void interpreter_cancellation( void* )
 {
-	delete application; application = 0;
+	delete application; application = nullptr;
 }
 
 void* interpreter_threadfunc( void* argument )
 {
-	pthread_cleanup_push( &interpreter_cancellation, 0 );
+	pthread_cleanup_push( &interpreter_cancellation, nullptr );
 
 	clockid_t clockid;
 	pthread_getcpuclockid( interpreter_thread, &clockid );
@@ -847,8 +847,8 @@ void* interpreter_threadfunc( void* argument )
 	application->LoadKernel( params->files );
 	application->ExecKernelOnce();
 
-	pthread_cleanup_pop( 1 );
-	return 0;
+	pthread_cleanup_pop( true );
+	return nullptr;
 }
 
 void Timer::ProcessSingleFrame()
@@ -904,15 +904,17 @@ void* timer_threadfunc( void* )
 		timeops::sleep( 1000 );
 
 		// protect thread from killing while we print statistics
-		pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
+		pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, nullptr );
 
 		// update data and output results.
 		// exit loop if interpreter had stopped.
 		timer->ProcessSingleFrame();
 
 		// allow thread killing
-		pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
+		pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, nullptr );
 	}
+
+	return nullptr;
 }
 
 void usage( const char* name )
@@ -985,20 +987,20 @@ int main( int argc, char** argv )
 
 	Debug::API::SetDefaultVerbosity( params.debug_level );
 
-	pthread_mutex_init( &gui_init_mutex, 0 );
+	pthread_mutex_init( &gui_init_mutex, nullptr );
 	pthread_attr_init( &global_detached_attrs );
 	pthread_attr_setdetachstate( &global_detached_attrs, PTHREAD_CREATE_DETACHED );
 
 	smsg( E_INFO, E_DEBUG, "Starting interpreter thread" );
-	pthread_create( &interpreter_thread, 0, &interpreter_threadfunc, &params );
+	pthread_create( &interpreter_thread, nullptr, &interpreter_threadfunc, &params );
 
-	pthread_join( interpreter_thread, 0 );
+	pthread_join( interpreter_thread, nullptr );
 
 	pthread_mutex_lock( &gui_init_mutex );
 
 	if( gui_thread_need_to_join ) {
 		pthread_mutex_unlock( &gui_init_mutex );
-		pthread_join( gui_thread, 0 );
+		pthread_join( gui_thread, nullptr );
 	}
 
 	else

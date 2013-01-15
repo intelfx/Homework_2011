@@ -73,7 +73,7 @@ void x86Backend::Deallocate()
 
 	if( current_image_->mm.image ) {
 		proc_->ExecutionManager().DeallocateMemory( current_image_->mm.image, current_image_->mm.length );
-		current_image_->mm.image = 0;
+		current_image_->mm.image = nullptr;
 	}
 }
 

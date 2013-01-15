@@ -48,7 +48,7 @@ enum COMMANDS {
 };
 
 const char* FloatExecutor::supported_mnemonics[C_MAX] = {
-	0,
+	nullptr,
 	"push",
 	"pop",
 	"top",

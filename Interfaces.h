@@ -129,7 +129,7 @@ class INTERPRETER_API IModuleBase : LogBase( IModuleBase )
 protected:
 	ProcessorAPI* proc_;
 
-	IModuleBase() : proc_( 0 ) {}
+	IModuleBase() : proc_( nullptr ) {}
 	virtual ~IModuleBase();
 
 	virtual void OnAttach() {}
@@ -150,7 +150,7 @@ public:
 		if( proc_ ) {
 			proc_->Detach( this );
 			OnDetach();
-			proc_ = 0;
+			proc_ = nullptr;
 		}
 	}
 

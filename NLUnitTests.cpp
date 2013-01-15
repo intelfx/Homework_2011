@@ -19,7 +19,7 @@ int main( int argc, char** argv )
 	Debug::API::SetTypewideVerbosity( "StaticAllocator", Debug::E_USER );
 
 	Debug::API::SetDefaultVerbosity( Debug::E_VERBOSE );
-	Debug::API::SetTypewideVerbosity( 0, Debug::E_DEBUG );
+	Debug::API::SetTypewideVerbosity( nullptr, Debug::E_DEBUG );
 // 	Debug::API::SetTypewideVerbosity ("NativeExecutionManager", Debug::E_VERBOSE);
 
 

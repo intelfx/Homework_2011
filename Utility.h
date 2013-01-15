@@ -22,7 +22,7 @@ static const size_t SEC_COUNT = SEC_STACK_IMAGE + Value::V_MAX;
 namespace ProcDebug
 {
 
-INTERPRETER_API std::string PrintReference( const Reference& ref, IMMU* mmu = 0 );
+INTERPRETER_API std::string PrintReference( const Reference& ref, IMMU* mmu = nullptr );
 INTERPRETER_API std::string PrintReference( const DirectReference& ref );
 INTERPRETER_API std::string PrintValue( const Value& val );
 
@@ -241,7 +241,7 @@ struct Command
 	void* cached_handle;
 
 	Command() :
-		arg( {} ), id( 0 ), type( Value::V_MAX ), cached_executor( 0 ), cached_handle( 0 ) {}
+		arg( {} ), id( 0 ), type( Value::V_MAX ), cached_executor( nullptr ), cached_handle( nullptr ) {}
 };
 
 namespace ProcDebug
@@ -249,7 +249,7 @@ namespace ProcDebug
 
 INTERPRETER_API std::string PrintArgument( ArgumentType arg_type,
                                            const Command::Argument& argument,
-                                           IMMU* mmu = 0 );
+                                           IMMU* mmu = nullptr );
 } // namespace ProcDebug
 
 struct Context

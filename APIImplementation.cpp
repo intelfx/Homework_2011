@@ -295,7 +295,7 @@ calc_t ProcessorAPI::Exec()
 	// Else fall back to the interpreter.
 	msg( E_INFO, E_VERBOSE, "Using interpreter" );
 
-	Command* last_command = 0;
+	Command* last_command = nullptr;
 
 	while( !( CurrentContext().flags & MASK( F_EXIT ) ) ) {
 

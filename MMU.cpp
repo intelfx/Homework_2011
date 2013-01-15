@@ -459,7 +459,7 @@ void MMU::ResetEverything()
 void MMU::InternalDumpCtx( const InternalContextBuffer* icb, std::string& registers, std::string& stacks ) const
 {
 	char temporary_buffer[STATIC_LENGTH];
-	char* out = 0;
+	char* out = nullptr;
 
 	// Dump registers
 	out = temporary_buffer;
@@ -500,7 +500,7 @@ void MMU::DumpContext( std::string* regs, std::string* stacks ) const
 {
 	verify_method;
 
-	InternalDumpCtx( current_buffer_ == buffers_.end() ? 0 : &current_buffer_->second,
+	InternalDumpCtx( current_buffer_ == buffers_.end() ? nullptr : &current_buffer_->second,
 	                 *regs, *stacks );
 }
 

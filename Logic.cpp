@@ -48,7 +48,7 @@ void Logic::ExecuteSingleCommand( Command& command )
 
 		// User-supplied handle (pointer to function) should be registered with module ID 0
 		if( void* user_handle = command_set->GetExecutionHandle( *command_traits, 0 ) ) {
-			command.cached_executor = 0;
+			command.cached_executor = nullptr;
 			command.cached_handle = user_handle;
 		}
 
@@ -323,7 +323,7 @@ calc_t Logic::Read( const DirectReference& ref )
 		break;
 	}
 
-	return static_cast<fp_t>( strtof( "NAN", 0 ) ); /* for GCC not to complain */
+	return static_cast<fp_t>( strtof( "NAN", nullptr ) ); /* for GCC not to complain */
 }
 
 size_t Logic::StackSize()

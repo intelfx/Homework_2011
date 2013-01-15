@@ -49,7 +49,7 @@ enum COMMANDS {
 };
 
 const char* ServiceExecutor::supported_mnemonics[C_MAX] = {
-	0,
+	nullptr,
 	"init",
 	"sleep",
 	"settype",
