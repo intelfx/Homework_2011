@@ -88,6 +88,9 @@ void PrintSingleReference( char*& output, const Reference::SingleRef& ref, IMMU*
 		output += snprintf( output, STATIC_LENGTH - ( output - debug_buffer ),
 							"unplaced definition" ); 
 		break;
+
+	default:
+		s_casshole( "Switch error" );
 	}
 }
 

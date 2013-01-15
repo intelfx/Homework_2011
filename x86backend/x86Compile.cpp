@@ -60,7 +60,9 @@ void x86Backend::CompileCommand( Command& cmd )
 	}
 }
 
-#define WRONG_TYPE(type) case Value::type: casshole( "Wrong/unsupported value type when compiling command: %s", ProcDebug::Print( Value::type ).c_str() )
+#define HANDLE_WRONG_TYPE casshole( "Wrong/unsupported value type when compiling command: %s", ProcDebug::Print( cmd.type ).c_str() )
+#define WRONG_TYPE(type) case Value::type: HANDLE_WRONG_TYPE
+#define WRONG_DEFAULT    default:          HANDLE_WRONG_TYPE
 
 #define CheckMnemonic( c, m )      CheckCmd< crc32( m ) >( c, m )
 #define OnCmd( c, m )              if( CheckMnemonic( c, m ) )
@@ -107,7 +109,7 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 			break;
 
 		WRONG_TYPE(V_INTEGER);
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -123,7 +125,7 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 			break;
 
 		WRONG_TYPE(V_INTEGER);
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -139,7 +141,7 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 			break;
 
 		WRONG_TYPE(V_INTEGER);
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -166,7 +168,7 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 			break;
 
 		WRONG_TYPE(V_INTEGER);
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -182,7 +184,7 @@ bool x86Backend::CompileCommand_ExtArithmetic( Command& cmd )
 			break;
 
 		WRONG_TYPE(V_INTEGER);
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -218,7 +220,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -249,7 +251,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -279,7 +281,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -316,7 +318,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -378,7 +380,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -407,7 +409,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -435,7 +437,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -459,7 +461,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -497,7 +499,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -645,7 +647,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -675,7 +677,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -708,7 +710,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -741,7 +743,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -759,7 +761,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 			break;
 
 		WRONG_TYPE(V_INTEGER);
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -777,7 +779,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 			break;
 
 		WRONG_TYPE(V_INTEGER);
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -802,7 +804,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -826,7 +828,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.Emit( this );
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -877,6 +879,8 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 				.AddRegister( Reg64::RAX )
 				.Emit( this );
 			break;
+
+		WRONG_DEFAULT;
 		}
 
 		// finit
@@ -935,7 +939,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 			CompileFPCompare();
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;
@@ -963,7 +967,7 @@ bool x86Backend::CompileCommand_System( Command& cmd )
 			CompileFPCompare();
 			break;
 
-		WRONG_TYPE(V_MAX);
+		default: WRONG_TYPE(V_MAX);
 		}
 
 		return true;

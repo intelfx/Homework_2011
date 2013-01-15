@@ -74,6 +74,9 @@ class Insn
 		case AddressSize::NONE:
 			/* invariant no-op */
 			break;
+
+		default:
+			s_casshole( "Switch error" );
 		}
 
 		if( flags_.need_opcode_reg_extension ) {
@@ -301,6 +304,9 @@ public:
 				s_cassert( displacement_.status != DisplacementStatus::DISPLACEMENT_UNSET,
 					"Displacement unset when disp32 is required by ModR/M" );
 				break;
+
+			default:
+				s_casshole( "Switch error" );
 			}
 		}
 
@@ -324,6 +330,9 @@ public:
 			s_cassert( displacement_.size == AddressSize::DWORD, "Displacement to instruction has wrong size" );
 			dest->AddCodeReference( displacement_.insn, true );
 			break;
+
+		default:
+			s_casshole( "Switch error" );
 		}
 
 		// Immediates

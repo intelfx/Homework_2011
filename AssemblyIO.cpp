@@ -681,6 +681,7 @@ DecodeResult* AsmHandler::ReadStream()
 			     current_line_num, e.what() );
 			break;
 
+		default:
 		case Debug::EX_BUG:
 			msg( E_CRITICAL, E_USER, "Parser internal error on line %d: %s",
 			     current_line_num, e.what() );

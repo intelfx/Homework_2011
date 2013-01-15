@@ -102,6 +102,9 @@ void x86Backend::Finalize()
 			*reinterpret_cast<int32_t*>( where ) = offset_to_target_insn;
 			break;
 		}
+
+		default:
+			casshole( "Switch error" );
 		}
 	}
 
@@ -131,6 +134,7 @@ ModRMWrapper x86Backend::CompileReferenceResolution( const DirectReference& dref
 	void* data_ptr = nullptr;
 
 	switch( dref.section ) {
+	default:
 	case S_MAX:
 	case S_NONE:
 		casshole( "Invalid direct reference type while compiling reference access" );
@@ -177,6 +181,7 @@ abiret_t x86Backend::RuntimeReferenceResolution( NativeImage* image, const Direc
 	} result;
 
 	switch( dref.section ) {
+	default:
 	case S_MAX:
 	case S_NONE:
 		casshole( "Invalid direct reference type while runtime-resolving reference access" );
@@ -225,6 +230,7 @@ ModRMWrapper x86Backend::CompileReferenceResolution( const Reference& ref )
 		CompileBinaryGateCall( BinaryFunction::BF_RESOLVEREFERENCE, reinterpret_cast<abiret_t>( &ref ) );
 
 		switch( dref.section ) {
+		default:
 		case S_MAX:
 		case S_NONE:
 			casshole( "Invalid direct reference type while compiling reference access" );
@@ -598,6 +604,9 @@ abiret_t x86Backend::InternalBinaryGateFunction( NativeImage* image,
 		proc_->LogicProvider()->ExecuteSingleCommand( *cmd );
 		return 0;
 	}
+
+	default:
+		casshole( "Invalid gate function: %u", function );
 	}
 }
 
