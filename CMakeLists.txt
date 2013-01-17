@@ -51,7 +51,6 @@ set (INTERPRETER_SRC ${INTERPRETER_SRC} BytecodeIO.cpp BytecodeIO.h)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Logic.h Logic.cpp CommandSet_original.h CommandSet_original.cpp)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Executor.h Executor.cpp Executor_int.h Executor_int.cpp)
 set (INTERPRETER_SRC ${INTERPRETER_SRC} Executor_service.h Executor_service.cpp)
-set (STACK_NL_SRC ${INTERPRETER_SRC} NLUnitTests.cpp)
 
 MAIN_ADD_GCH(stdafx.h ${INTERPRETER_SRC})
 # ----
@@ -73,10 +72,6 @@ if(BACKEND)
 else(BACKEND)
 	add_definitions(-DNEED_STUB_BACKEND)
 endif(BACKEND)
-
-add_executable(homework_stack_nl ${STACK_NL_SRC})
-add_dependencies(homework_stack_nl "${DEPS}")
-target_link_libraries(homework_stack_nl ${LIBRARIES})
 
 add_library(interpreterplatform ${INTERPRETER_SRC})
 add_dependencies(interpreterplatform "${DEPS}")
