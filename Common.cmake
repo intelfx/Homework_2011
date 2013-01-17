@@ -256,4 +256,14 @@ if ("${FX_COMPILER_ID}" STREQUAL "Clang")
 	add_definitions(-DCOMPILER_GNUC)
 endif ("${FX_COMPILER_ID}" STREQUAL "Clang")
 
+if (ARMEABI)
+	message(STATUS "Project configuration: architecture is ARM/EABI")
+	add_definitions(-DARMEABI)
+endif (ARMEABI)
+
+if (ARMEABI_V7A)
+	message(STATUS "Project configuration: architecture is ARM/EABI v7A")
+	add_definitions(-DARMEABI_V7A)
+endif (ARMEABI_V7A)
+
 # ----
