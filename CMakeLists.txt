@@ -68,14 +68,12 @@ if(BACKEND)
 
 	set(BACKEND_TARGET interpreter_${BACKEND_DIR})
 	list(APPEND LIBRARIES ${BACKEND_TARGET})
-	list(APPEND DEPS ${BACKEND_TARGET})
 else(BACKEND)
 	add_definitions(-DNEED_STUB_BACKEND)
 endif(BACKEND)
 
 add_library(interpreterplatform ${INTERPRETER_SRC})
-add_dependencies(interpreterplatform "${DEPS}")
 target_link_libraries(interpreterplatform ${LIBRARIES})
 # ----
 
-add_subdirectory(test_application)
+add_subdirectory(test_application EXCLUDE_FROM_ALL)
