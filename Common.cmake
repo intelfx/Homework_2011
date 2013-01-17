@@ -24,7 +24,7 @@ endmacro()
 
 # Adds a custom library directory
 macro(add_library_group _group)
-	if (EXISTS ${FX_PROJECT_BASE}/${_group})
+	if (${_group} AND EXISTS ${FX_PROJECT_BASE}/${_group})
 		# For find_*
 		list (APPEND CMAKE_INCLUDE_PATH ${FX_PROJECT_BASE}/${_group})
 		# For native path resolution
@@ -34,7 +34,7 @@ endmacro()
 
 # Adds a custom library (include) direcory rel. to project tree
 macro(add_fixed_library_group _group)
-	if (EXISTS ${CMAKE_SOURCE_DIR}/${_group})
+	if (${_group} AND EXISTS ${CMAKE_SOURCE_DIR}/${_group})
 		# For find_*
 		list (APPEND CMAKE_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/${_group})
 		# For native path resolution
@@ -44,7 +44,7 @@ endmacro()
 
 # Adds a custom SDK (include/lib) directory
 macro(add_external_sdk _sdkdir)
-	if (EXISTS ${FX_PROJECT_BASE}/SDK/${_sdkdir})
+	if (${_sdkdir} AND EXISTS ${FX_PROJECT_BASE}/SDK/${_sdkdir})
 		set (SDK_${_sdkdir} TRUE)
 
 		# For find_*
@@ -207,16 +207,16 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FX_DBG_ARGS}")
 SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${FX_OPT_ARGS}")
 
 SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FX_LD_FLAGS}")
-SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "${FX_LD_OPT_ARGS}")
-SET(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${FX_LD_OPT_ARGS}")
+SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${FX_LD_OPT_ARGS}")
+SET(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} ${FX_LD_OPT_ARGS}")
 
 SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${FX_LD_FLAGS}")
-SET(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${FX_LD_OPT_ARGS}")
-SET(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${FX_LD_OPT_ARGS}")
+SET(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} ${FX_LD_OPT_ARGS}")
+SET(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} ${FX_LD_OPT_ARGS}")
 
 SET(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${FX_LD_FLAGS}")
-SET(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${FX_LD_OPT_ARGS}")
-SET(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO "${FX_LD_OPT_ARGS}")
+SET(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} ${FX_LD_OPT_ARGS}")
+SET(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO} ${FX_LD_OPT_ARGS}")
 
 set_directory_properties (PROPERTIES COMPILE_DEFINITIONS_RELEASE NDEBUG)
 set_directory_properties (PROPERTIES COMPILE_DEFINITIONS_RELWITHDEBINFO NDEBUG)
@@ -236,6 +236,11 @@ if (WIN32)
 	add_definitions(-DTARGET_WINDOWS)
 endif (WIN32)
 
+if (ANDROID)
+	message(STATUS "Project configuration: system is Android")
+	add_definitions(-DTARGET_ANDROID)
+endif (ANDROID)
+
 if (MSVC)
 	message(STATUS "Project configuration: compiler is MSVC")
 	add_definitions(-DCOMPILER_MSVC)
@@ -251,9 +256,4 @@ if ("${FX_COMPILER_ID}" STREQUAL "Clang")
 	add_definitions(-DCOMPILER_GNUC)
 endif ("${FX_COMPILER_ID}" STREQUAL "Clang")
 
-# ----
-
-# Default build tree configuration
-# ----
-set_normal_devel_tree()
 # ----

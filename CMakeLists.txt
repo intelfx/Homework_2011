@@ -1,30 +1,45 @@
-cmake_minimum_required(VERSION 2.6)
-project(Homework)
 
 # Development tree selection
 # ----
-if(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
+if(NOT CMAKE_PROJECT_NAME)
+	project(Homework_2011)
+	cmake_minimum_required(VERSION 2.6)
 
-	# Development environment
-	message ("Using normal development environment")
-	INCLUDE(${PROJECT_SOURCE_DIR}/../../Common.cmake)
-	INCLUDE(${PROJECT_SOURCE_DIR}/../../Precompiled.cmake)
+	if(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
 
-else(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
+		# Development environment
+		INCLUDE(${PROJECT_SOURCE_DIR}/../../Common.cmake)
+		INCLUDE(${PROJECT_SOURCE_DIR}/../../Precompiled.cmake)
+		set_normal_devel_tree()
 
-	# Foreign environment
-	message ("Using local copies")
+		find_assert_library ("uXray" LIBRARIES)
+
+	else(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
+
+		# Foreign environment
+		message ("Using local copies")
+		INCLUDE(Common.cmake)
+		INCLUDE(Precompiled.cmake)
+		set_local_devel_tree (Libs)
+
+		find_assert_library ("uXray" LIBRARIES)
+
+	endif(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
+
+else(NOT CMAKE_PROJECT_NAME)
+
+	message ("Building for production")
 	INCLUDE(Common.cmake)
 	INCLUDE(Precompiled.cmake)
-	set_local_devel_tree (Libs)
 
-endif(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
+	add_subdirectory (Libs/uXray)
+	list (APPEND LIBRARIES uXray)
+
+endif(NOT CMAKE_PROJECT_NAME)
 # ----
 
 # Library selection
 # ----
-find_assert_library ("uXray" LIBRARIES)
-find_assert_library ("rt" LIBRARIES)
 # ----
 
 # Source specification
