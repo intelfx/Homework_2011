@@ -8,6 +8,7 @@ if(NOT CMAKE_PROJECT_NAME)
 	if(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
 
 		# Development environment
+		message ("Using normal development environment")
 		INCLUDE(${PROJECT_SOURCE_DIR}/../../Common.cmake)
 		INCLUDE(${PROJECT_SOURCE_DIR}/../../Precompiled.cmake)
 		set_normal_devel_tree()

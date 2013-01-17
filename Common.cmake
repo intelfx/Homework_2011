@@ -24,7 +24,7 @@ endmacro()
 
 # Adds a custom library directory
 macro(add_library_group _group)
-	if (${_group} AND EXISTS ${FX_PROJECT_BASE}/${_group})
+	if (EXISTS ${FX_PROJECT_BASE}/${_group})
 		# For find_*
 		list (APPEND CMAKE_INCLUDE_PATH ${FX_PROJECT_BASE}/${_group})
 		# For native path resolution
@@ -34,7 +34,7 @@ endmacro()
 
 # Adds a custom library (include) direcory rel. to project tree
 macro(add_fixed_library_group _group)
-	if (${_group} AND EXISTS ${CMAKE_SOURCE_DIR}/${_group})
+	if (EXISTS ${CMAKE_SOURCE_DIR}/${_group})
 		# For find_*
 		list (APPEND CMAKE_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/${_group})
 		# For native path resolution
@@ -44,7 +44,7 @@ endmacro()
 
 # Adds a custom SDK (include/lib) directory
 macro(add_external_sdk _sdkdir)
-	if (${_sdkdir} AND EXISTS ${FX_PROJECT_BASE}/SDK/${_sdkdir})
+	if (EXISTS ${FX_PROJECT_BASE}/SDK/${_sdkdir})
 		set (SDK_${_sdkdir} TRUE)
 
 		# For find_*
@@ -124,9 +124,9 @@ if ("${FX_COMPILER_ID}" STREQUAL "Clang" OR "${FX_COMPILER_ID}" STREQUAL "GNU")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wcast-align -Wwrite-strings -Wcast-qual")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Wredundant-decls -Winit-self -Wshadow -Wabi -Wstrict-aliasing")
 	SET(FX_WARNING_ARGS "${FX_WARNING_ARGS} -Winvalid-pch -pedantic -Wno-variadic-macros -Wno-format")
-	
+
 	SET(FX_TUNE_ARGS	"${FX_TUNE_ARGS} -fvisibility=hidden")
-	
+
 	SET(FX_LD_OPT_ARGS	"-Wl,-O1")
 
 endif ("${FX_COMPILER_ID}" STREQUAL "Clang" OR "${FX_COMPILER_ID}" STREQUAL "GNU")
