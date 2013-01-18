@@ -1,7 +1,17 @@
 
 # Development tree selection
 # ----
-if(NOT CMAKE_PROJECT_NAME)
+if(NOT PROJECT_CONFIGURATION)
+	if(CMAKE_PROJECT_NAME)
+		set(_PROJECT_CONFIGURATION "Production")
+	else(CMAKE_PROJECT_NAME)
+		set(_PROJECT_CONFIGURATION "Standalone")
+	endif(CMAKE_PROJECT_NAME)
+
+	set(PROJECT_CONFIGURATION "${_PROJECT_CONFIGURATION}" CACHE INTERNAL "Build output structure specification, Production or Standalone.")
+endif(NOT PROJECT_CONFIGURATION)
+
+if("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 	project(Homework_2011)
 	cmake_minimum_required(VERSION 2.6)
 
@@ -27,16 +37,16 @@ if(NOT CMAKE_PROJECT_NAME)
 
 	endif(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
 
-else(NOT CMAKE_PROJECT_NAME)
+else("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 
-	message ("Building for production")
+	message ("Building for production, parent list file: ${CMAKE_PARENT_LIST_FILE}")
 	INCLUDE(Common.cmake)
 	INCLUDE(Precompiled.cmake)
 
 	add_subdirectory (Libs/uXray)
 	list (APPEND LIBRARIES uXray)
 
-endif(NOT CMAKE_PROJECT_NAME)
+endif("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 # ----
 
 # Library selection
