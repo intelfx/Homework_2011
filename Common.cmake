@@ -22,24 +22,25 @@ macro(find_assert_library _libname _liblist)
 	SET(${_liblist} ${${_liblist}} ${${_libname}_LIBRARY})
 endmacro()
 
+macro(_add_include_directory _dir)
+	if (EXISTS ${_dir})
+		message(STATUS "Adding an include directory: ${_dir}")
+
+		# For find_*
+		list (APPEND CMAKE_INCLUDE_PATH ${_dir})
+		# For native path resolution
+		include_directories (${_dir})
+	endif()
+endmacro()
+
 # Adds a custom library directory
 macro(add_library_group _group)
-	if (EXISTS ${FX_PROJECT_BASE}/${_group})
-		# For find_*
-		list (APPEND CMAKE_INCLUDE_PATH ${FX_PROJECT_BASE}/${_group})
-		# For native path resolution
-		include_directories (${FX_PROJECT_BASE}/${_group})
-	endif()
+	_add_include_directory (${FX_PROJECT_BASE}/${_group})
 endmacro()
 
 # Adds a custom library (include) direcory rel. to project tree
 macro(add_fixed_library_group _group)
-	if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${_group})
-		# For find_*
-		list (APPEND CMAKE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/${_group})
-		# For native path resolution
-		include_directories (${CMAKE_CURRENT_SOURCE_DIR}/${_group})
-	endif()
+	_add_include_directory (${CMAKE_CURRENT_SOURCE_DIR}/${_group})
 endmacro()
 
 # Adds a custom SDK (include/lib) directory
@@ -84,20 +85,49 @@ macro (set_normal_devel_tree)
 	SET(FX_PROJECT_BASE ${PROJECT_SOURCE_DIR}/../..)
 	SET(FX_OUTPUT_BASE ${FX_PROJECT_BASE})
 
-	add_library_group (Common)
 	add_library_group (Libs)
 	reconfigure_devel_tree()
 endmacro()
 
 # Sets local development tree mode
-macro (set_local_devel_tree dirname)
+macro (set_local_devel_tree)
 	SET(FX_PROJECT_BASE ${PROJECT_SOURCE_DIR})
 	SET(FX_OUTPUT_BASE ${FX_PROJECT_BASE})
 
-	add_library_group (${dirname})
+	add_library_group (Libs)
 	reconfigure_devel_tree()
 endmacro()
 
+macro (set_production_devel_tree)
+	SET(FX_PROJECT_BASE ${CMAKE_CURRENT_SOURCE_DIR})
+
+	add_library_group (Libs)
+	include (CMakeConfigureProduction.cmake OPTIONAL) # This file shall contain calls to add_production_build_library[_notarget] for all used libs
+endmacro()
+
+# Add a library in $1 and recursively handle its dependencies.
+# Do not add any targets.
+macro (add_production_build_library_custom _lib)
+	# Recursively handle the subdir's dependencies.
+	_add_include_directory (${CMAKE_CURRENT_LIST_DIR}/${_lib}/Libs)
+	message(STATUS "Going to walk: ${CMAKE_CURRENT_LIST_DIR}/${_lib}/CMakeConfigureProduction.cmake")
+	include (${CMAKE_CURRENT_LIST_DIR}/${_lib}/CMakeConfigureProduction.cmake OPTIONAL) # This will change CMAKE_CURRENT_LIST_DIR
+
+	if (NOT IN_add_production_build_library)
+		message(STATUS "Going to add subdir: ${CMAKE_CURRENT_LIST_DIR}/${_lib}")
+		set (IN_add_production_build_library TRUE)
+		add_subdirectory (${CMAKE_CURRENT_LIST_DIR}/${_lib})
+		unset (IN_add_production_build_library)
+		message(STATUS "Completed adding subdir: ${CMAKE_CURRENT_LIST_DIR}/${_lib}")
+	endif (NOT IN_add_production_build_library)
+endmacro()
+
+# Wrapper: add a library in Libs/$1, recursively handle its dependencies
+# and add the target called $1 into current project's library list.
+macro (add_production_build_library _lib)
+	add_production_build_library_custom (Libs/${_lib})
+	list (APPEND LIBRARIES ${_lib})
+endmacro()
 # ----
 
 # Determine compiler and system

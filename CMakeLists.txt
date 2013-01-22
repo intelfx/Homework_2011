@@ -31,7 +31,7 @@ if("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 		message ("Using local copies")
 		INCLUDE(Common.cmake)
 		INCLUDE(Precompiled.cmake)
-		set_local_devel_tree (Libs)
+		set_local_devel_tree()
 
 		find_assert_library ("uXray" LIBRARIES)
 
@@ -39,13 +39,10 @@ if("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 
 else("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 
-	message ("Building for production, parent list file: ${CMAKE_PARENT_LIST_FILE}")
+	message ("Building for production")
 	INCLUDE(Common.cmake)
 	INCLUDE(Precompiled.cmake)
-
-	add_subdirectory (Libs/uXray)
-	add_fixed_library_group (Libs)
-	list (APPEND LIBRARIES uXray)
+	set_production_devel_tree()
 
 endif("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 # ----
