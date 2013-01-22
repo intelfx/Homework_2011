@@ -34,11 +34,11 @@ endmacro()
 
 # Adds a custom library (include) direcory rel. to project tree
 macro(add_fixed_library_group _group)
-	if (EXISTS ${CMAKE_SOURCE_DIR}/${_group})
+	if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${_group})
 		# For find_*
-		list (APPEND CMAKE_INCLUDE_PATH ${CMAKE_SOURCE_DIR}/${_group})
+		list (APPEND CMAKE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/${_group})
 		# For native path resolution
-		include_directories (${CMAKE_SOURCE_DIR}/${_group})
+		include_directories (${CMAKE_CURRENT_SOURCE_DIR}/${_group})
 	endif()
 endmacro()
 

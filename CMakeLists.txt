@@ -44,6 +44,7 @@ else("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 	INCLUDE(Precompiled.cmake)
 
 	add_subdirectory (Libs/uXray)
+	add_fixed_library_group (Libs)
 	list (APPEND LIBRARIES uXray)
 
 endif("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
