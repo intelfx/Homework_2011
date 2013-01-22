@@ -49,13 +49,8 @@ class IModuleBase;
 
 // Main processing types
 
-#if defined (TARGET_X64)
 typedef double fp_t; // main floating-point type
 typedef int64_t int_t; // main integer type
-#elif defined (TARGET_X86)
-typedef float fp_t;
-typedef int32_t int_t;
-#endif
 
 static_assert( sizeof( fp_t ) == sizeof( int_t ),
                "FP data type size does not equal integer data type size" );
@@ -70,22 +65,15 @@ static_assert( sizeof( fp_t ) == sizeof( int_t ),
  *  int_t -> int_abi_t -> abiret_t
  */
 
-#if defined (TARGET_X64)
-
-typedef double fp_abi_t; // ABI intermediate floating-point type
-typedef uint64_t int_abi_t; // ABI intermediate integer type
-
-typedef uint64_t abiret_t; // final ABI interaction type
-
-#elif defined (TARGET_X86)
-
-typedef float fp_abi_t; // ABI intermediate floating-point type
-typedef uint32_t int_abi_t; // ABI intermediate integer type
-
-typedef uint32_t abiret_t; // final ABI interaction type
-
+#if SIZEOF_PVOID == 8
+typedef double fp_abi_t;
+typedef int64_t int_abi_t;
+typedef uint64_t abiret_t;
+#elif (SIZEOF_PVOID == 4) || defined (IN_KDEVELOP_PARSER)
+typedef float fp_abi_t;
+typedef int32_t int_abi_t;
+typedef uint32_t abiret_t;
 #endif
-
 
 static_assert( sizeof( fp_abi_t ) == sizeof( abiret_t ),
                "ABI data type size does not equal FP intermediate data type size" );

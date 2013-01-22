@@ -274,4 +274,6 @@ if (ARMEABI_V7A)
 	add_definitions(-DARMEABI_V7A)
 endif (ARMEABI_V7A)
 
+add_definitions(-DSIZEOF_PVOID=${CMAKE_SIZEOF_VOID_P})
+
 # ----
