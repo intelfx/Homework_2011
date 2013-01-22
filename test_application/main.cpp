@@ -2,7 +2,6 @@
 
 #include "../API.h"
 
-#include <uXray/fxlog_console.h>
 #include <uXray/fxjitruntime.h>
 #include <uXray/time_ops.h>
 #include <uXray/fxmath.h>
@@ -749,8 +748,6 @@ public:
 		catch( NativeException& e ) {
 			e.Handle();
 			msg( E_CRITICAL, E_USER, "Native exception while executing kernel: %s", e.what() );
-			msg( E_CRITICAL, E_USER, "The backtrace follows" );
-			e.DumpBacktrace();
 		}
 
 		catch( std::exception& e ) {
@@ -795,7 +792,6 @@ public:
 		catch( NativeException& e ) {
 			e.Handle();
 			msg( E_CRITICAL, E_USER, "A native exception occurred in %zu-th test: %s", i, e.what() );
-			e.DumpBacktrace();
 		}
 
 		delete timer;
@@ -935,14 +931,6 @@ void usage( const char* name )
 
 int main( int argc, char** argv )
 {
-	Debug::System::Instance().SetTargetProperties( Debug::CreateTarget( "stderr",
-	                                                                    // FUCK MY BRAIN!!! @ 31.01.12 13:45, bug finding time was 01h,
-	                                                                    // used "&&" instead of "&".
-	                                                                    EVERYTHING & ~( MASK( Debug::E_OBJDESTRUCTION ) | MASK (Debug::E_OBJCREATION) ),
-	                                                                    EVERYTHING ),
-	                                               &FXConLog::Instance() );
-
-
 	if( argc < 2 ) {
 		usage( argv[0] );
 	}
@@ -1010,7 +998,5 @@ int main( int argc, char** argv )
 
 	pthread_attr_destroy( &global_detached_attrs );
 	pthread_mutex_destroy( &gui_init_mutex );
-
-	Debug::System::Instance.ForceDelete();
 }
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

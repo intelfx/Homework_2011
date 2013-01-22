@@ -19,7 +19,7 @@ namespace ProcessorImplementation
 {
 using namespace Processor;
 
-class INTERPRETER_API BytecodeHandler : virtual LogBase( BytecodeHandler ), public IReader, public IWriter
+class INTERPRETER_API BytecodeHandler : LogBase( BytecodeHandler ), public IReader, public IWriter
 {
 	struct FileHeader
 	{
