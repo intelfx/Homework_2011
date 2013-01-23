@@ -12,7 +12,7 @@
 // Description	Integer interpreter plugin implementation.
 // -------------------------------------------------------------------------------------
 
-DeclareDescriptor( IntegerExecutor, INTERPRETER_API, INTERPRETER_TE );
+DeclareDescriptor( IntegerExecutor, INTERPRETER_API, INTERPRETER_TE )
 
 namespace ProcessorImplementation
 {

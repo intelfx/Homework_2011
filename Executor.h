@@ -12,7 +12,7 @@
 // Description	Floating-point interpreter plugin implementation.
 // -------------------------------------------------------------------------------------
 
-DeclareDescriptor( FloatExecutor, INTERPRETER_API, INTERPRETER_TE );
+DeclareDescriptor( FloatExecutor, INTERPRETER_API, INTERPRETER_TE )
 
 namespace ProcessorImplementation
 {

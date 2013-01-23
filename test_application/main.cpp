@@ -8,14 +8,14 @@
 
 #include "ssb.h"
 
-DeclareDescriptor( ICA, , );
-ImplementDescriptor( ICA, "interpreter client", MOD_APPMODULE );
+DeclareDescriptor( ICA, , )
+ImplementDescriptor( ICA, "interpreter client", MOD_APPMODULE )
 
-DeclareDescriptor( SDLApplication, , );
-ImplementDescriptor( SDLApplication, "SDL-based UI", MOD_APPMODULE );
+DeclareDescriptor( SDLApplication, , )
+ImplementDescriptor( SDLApplication, "SDL-based UI", MOD_APPMODULE )
 
-DeclareDescriptor( Timer, , );
-ImplementDescriptor( Timer, "timer helper", MOD_APPMODULE );
+DeclareDescriptor( Timer, , )
+ImplementDescriptor( Timer, "timer helper", MOD_APPMODULE )
 
 using Processor::int_t;
 using Processor::fp_t;

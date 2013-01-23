@@ -13,7 +13,7 @@
 // Description	Assembly language plugin implementation.
 // -------------------------------------------------------------------------------------
 
-DeclareDescriptor( AsmHandler, INTERPRETER_API, INTERPRETER_TE );
+DeclareDescriptor( AsmHandler, INTERPRETER_API, INTERPRETER_TE )
 
 namespace ProcessorImplementation
 {

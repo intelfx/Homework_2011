@@ -8,7 +8,7 @@
 // Description	Integer interpreter plugin implementation.
 // -------------------------------------------------------------------------------------
 
-ImplementDescriptor( IntegerExecutor, "integer executor", MOD_APPMODULE );
+ImplementDescriptor( IntegerExecutor, "integer executor", MOD_APPMODULE )
 
 namespace ProcessorImplementation
 {

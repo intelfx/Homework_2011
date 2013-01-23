@@ -13,7 +13,7 @@
 // Description	Bytecode plugin implementation.
 // -------------------------------------------------------------------------------------
 
-DeclareDescriptor( BytecodeHandler, INTERPRETER_API, INTERPRETER_TE );
+DeclareDescriptor( BytecodeHandler, INTERPRETER_API, INTERPRETER_TE )
 
 namespace ProcessorImplementation
 {

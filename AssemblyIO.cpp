@@ -8,7 +8,7 @@
 // Description	Assembly language plugin implementation.
 // -------------------------------------------------------------------------------------
 
-ImplementDescriptor( AsmHandler, "assembly reader/writer", MOD_APPMODULE );
+ImplementDescriptor( AsmHandler, "assembly reader/writer", MOD_APPMODULE )
 
 namespace ProcessorImplementation
 {

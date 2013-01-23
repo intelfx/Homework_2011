@@ -314,15 +314,15 @@ Processor::IBackend* Processor::IBackend::BackendForCurrentProcessor()
 
 } // namespace Processor
 
-ImplementDescriptor( IReader, "reader module", MOD_APPMODULE );
-ImplementDescriptor( IWriter, "writer module", MOD_APPMODULE );
-ImplementDescriptor( ILinker, "linker module", MOD_APPMODULE );
-ImplementDescriptor( IMMU, "memory management unit", MOD_APPMODULE );
-ImplementDescriptor( IExecutor, "executor module", MOD_APPMODULE );
-ImplementDescriptor( ProcessorAPI, "processor API", MOD_APPMODULE );
-ImplementDescriptor( ICommandSet, "command set handler", MOD_APPMODULE );
-ImplementDescriptor( IBackend, "native compiler", MOD_APPMODULE );
-ImplementDescriptor( ILogic, "processor logic", MOD_APPMODULE );
-ImplementDescriptor( IModuleBase, "unspecified module", MOD_APPMODULE );
+ImplementDescriptor( IReader, "reader module", MOD_APPMODULE )
+ImplementDescriptor( IWriter, "writer module", MOD_APPMODULE )
+ImplementDescriptor( ILinker, "linker module", MOD_APPMODULE )
+ImplementDescriptor( IMMU, "memory management unit", MOD_APPMODULE )
+ImplementDescriptor( IExecutor, "executor module", MOD_APPMODULE )
+ImplementDescriptor( ProcessorAPI, "processor API", MOD_APPMODULE )
+ImplementDescriptor( ICommandSet, "command set handler", MOD_APPMODULE )
+ImplementDescriptor( IBackend, "native compiler", MOD_APPMODULE )
+ImplementDescriptor( ILogic, "processor logic", MOD_APPMODULE )
+ImplementDescriptor( IModuleBase, "unspecified module", MOD_APPMODULE )
 
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;

@@ -12,7 +12,7 @@
 // Description	Untyped interpreter plugin implementation.
 // -------------------------------------------------------------------------------------
 
-DeclareDescriptor( ServiceExecutor, INTERPRETER_API, INTERPRETER_TE );
+DeclareDescriptor( ServiceExecutor, INTERPRETER_API, INTERPRETER_TE )
 
 namespace ProcessorImplementation
 {

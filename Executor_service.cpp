@@ -10,7 +10,7 @@
 // Description	Untyped interpreter plugin implementation.
 // -------------------------------------------------------------------------------------
 
-ImplementDescriptor( ServiceExecutor, "service executor", MOD_APPMODULE );
+ImplementDescriptor( ServiceExecutor, "service executor", MOD_APPMODULE )
 
 namespace ProcessorImplementation
 {

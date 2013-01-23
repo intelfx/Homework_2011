@@ -8,7 +8,7 @@
 // Description	Bytecode plugin implementation.
 // -------------------------------------------------------------------------------------
 
-ImplementDescriptor( BytecodeHandler, "bytecode reader/writer", MOD_APPMODULE );
+ImplementDescriptor( BytecodeHandler, "bytecode reader/writer", MOD_APPMODULE )
 
 namespace {
 	const uint32_t file_signature = *reinterpret_cast<const uint32_t*>( "BCDE" );

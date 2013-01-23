@@ -12,16 +12,16 @@
 // Description	Plugin interface declarations.
 // -------------------------------------------------------------------------------------
 
-DeclareDescriptor( IModuleBase, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( ICommandSet, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( IReader, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( IWriter, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( IMMU, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( IExecutor, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( ILinker, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( ProcessorAPI, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( IBackend, INTERPRETER_API, INTERPRETER_TE );
-DeclareDescriptor( ILogic, INTERPRETER_API, INTERPRETER_TE );
+DeclareDescriptor( IModuleBase, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( ICommandSet, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( IReader, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( IWriter, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( IMMU, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( IExecutor, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( ILinker, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( ProcessorAPI, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( IBackend, INTERPRETER_API, INTERPRETER_TE )
+DeclareDescriptor( ILogic, INTERPRETER_API, INTERPRETER_TE )
 
 namespace Processor
 {

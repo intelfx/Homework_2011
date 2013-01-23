@@ -8,7 +8,7 @@
 // Description	Floating-point interpreter plugin implementation.
 // -------------------------------------------------------------------------------------
 
-ImplementDescriptor( FloatExecutor, "floating-point executor", MOD_APPMODULE );
+ImplementDescriptor( FloatExecutor, "floating-point executor", MOD_APPMODULE )
 
 namespace ProcessorImplementation
 {
