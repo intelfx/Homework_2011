@@ -118,15 +118,20 @@ struct ModRM
 	unsigned char reg : 3;
 	ModField mod : 2;
 
-	// SIB is not used when mod+r/m directly addresses 4-th register
 	bool UsingSIB() {
-		return ( mod != ModField::Direct ) && ( rm == _UseSIB );
+		// if mod == direct, r/m == 4 means 4-th register, not "use SIB".
+		if( mod == ModField::Direct ) {
+			return false;
+		}
+
+		return rm == _UseSIB;
 	}
 
-	// Displacement32 is implicitly used when mod == no shift and r/m == 5
 	ModField UsingDisplacement() {
+		// if mod == no shift, r/m == 5 implicitly uses displacement32.
 		if( ( mod == ModField::NoShift ) && ( rm == _UseDisplacement32 ) )
 			return ModField::Disp32;
+
 		return mod;
 	}
 
@@ -206,8 +211,9 @@ struct ModRMWrapper
 		operand_size( _DefaultMemoryLocationSize )
 	{
 		if( reg == Reg64E::R13 && shift == ModField::NoShift ) {
-			// Overlaps with IndirectNoShift::Displacement32 (as REX extension is not decoded),
-			// so use SIB with no index and disp8 of 0
+			// r/m == R13 with mod == no shift overlaps with
+			// IndirectNoShift::Displacement32 (as REX extension is not decoded),
+			// so use SIB with base = reg, no index and disp8 of 0
 			rm_noshift = IndirectNoShift::UseSIB;
 			need_extension = false;
 			mod = ModField::Disp8;
