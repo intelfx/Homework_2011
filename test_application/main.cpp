@@ -740,8 +740,10 @@ public:
 
 		try {
 			msg( E_INFO, E_USER, "Beginning kernel execution" );
-
 			StartTimer();
+
+			timeops t( "Kernel execution" );
+
 			exec_result = processor.Exec();
 		}
 
