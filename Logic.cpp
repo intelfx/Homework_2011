@@ -424,7 +424,8 @@ void Logic::Syscall( size_t index )
 		msg( E_INFO, E_VERBOSE, "Reading integer from command-line" );
 		char buffer[STATIC_LENGTH];
 		fgets( buffer, STATIC_LENGTH, stdin );
-		proc_->MMU()->ARegister( R_A ).Set( Value::V_INTEGER, atoi( buffer ), true );
+		proc_->MMU()->ARegister( R_A ).Write( Value::V_INTEGER, atoi( buffer ) );
+		break;
 	}
 
 	default:

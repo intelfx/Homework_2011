@@ -45,19 +45,14 @@ typedef struct Value
 		integer = src;
 	}
 
-	inline void Expect( Value::Type required_type, bool allow_uninitialised = 0 ) const;
-	inline Type GenType( Type required_type ) const
-	{
-		return ( required_type == V_MAX ) ? type : required_type;
-	}
+	inline Type Expect( Type required_type, bool allow_uninitialised = false ) const;
 
 	// Verify type equality and assign contents of another value object to this.
 	// Should not be used with registers, since they are untyped in JIT mode.
 	inline void Assign( const Value& that ) {
 		s_cassert( that.type != V_MAX, "Attempt to assign an uninitialised value" );
-		Expect( that.type );
 
-		switch( GenType( that.type ) ) {
+		switch( Expect( that.type ) ) {
 		case V_FLOAT:
 			fp = that.fp;
 			break;
@@ -78,11 +73,10 @@ typedef struct Value
 	// Verify type equality and assign the correct value to given reference.
 	// Pass "V_MAX" as type to disable type checking.
 	// API should use "allow_uninitialised" switch to read data from registers (since they are untyped in JIT mode).
-	template <typename T> void Get( Type required_type, T& dest, bool allow_uninitialised = 0 ) const
+	template <typename T>
+	void Get( Type required_type, T& dest, bool allow_uninitialised = false ) const
 	{
-		Expect( required_type, allow_uninitialised );
-
-		switch( GenType( required_type ) ) {
+		switch( Expect( required_type, allow_uninitialised ) ) {
 		case V_FLOAT:
 			dest = fp;
 			break;
@@ -150,11 +144,30 @@ typedef struct Value
 	// Verify type equality and set correct value from given object.
 	// Pass "V_MAX" as type to disable type checking.
 	// API should use "allow_uninitialised" switch to write data to registers (since they are untyped in JIT mode).
-	template <typename T> void Set( Type required_type, const T& src, bool allow_uninitialised = 0 )
+	template <typename T>
+	void Set( Type required_type, const T& src, bool allow_uninitialised = false )
 	{
-		Expect( required_type, allow_uninitialised );
+		switch( Expect( required_type, allow_uninitialised ) ) {
+		case V_FLOAT:
+			fp = src;
+			break;
 
-		switch( GenType( required_type ) ) {
+		case V_INTEGER:
+			integer = src;
+			break;
+
+		case V_MAX:
+		default:
+			s_casshole( "Switch error" );
+			break;
+		}
+	}
+	
+	// Write type and data to the value.
+	template <typename T>
+	void Write( Type required_type, const T& src )
+	{
+		switch( type = required_type ) {
 		case V_FLOAT:
 			fp = src;
 			break;
@@ -242,21 +255,28 @@ INTERPRETER_API std::string Print( Value::Type arg );
 
 } // namespace ProcDebug
 
-void Value::Expect( Value::Type required_type, bool allow_uninitialised ) const
+Value::Type Value::Expect( Value::Type required_type, bool allow_uninitialised ) const
 {
 	if( !allow_uninitialised )
 		s_cverify( type != V_MAX, "Cannot access uninitialised value" );
-
-	else {
-		s_cassert( required_type != V_MAX, "Type autodetermine requested while uninitialised values are allowed" );
-
-		if( type == V_MAX )
-			return;
-
-		s_cverify( type == required_type,
-		           "Cannot operate on non-matching types (expected \"%s\" instead of \"%s\")",
-		           ProcDebug::Print( required_type ).c_str(), ProcDebug::Print( type ).c_str() );
+	
+	else if( type == V_MAX ) {
+		s_cassert( required_type != V_MAX, "Cannot autodetermine type: value is uninitialised" );
+		return required_type;
 	}
+	
+	if( type == V_MAX ) {
+		return required_type;
+	}
+	
+	if( required_type == V_MAX ) {
+		return type;
+	}
+
+	s_cverify( type == required_type,
+				"Cannot operate on non-matching types (expected \"%s\" instead of \"%s\")",
+				ProcDebug::Print( required_type ).c_str(), ProcDebug::Print( type ).c_str() );
+	return type;
 }
 
 } // namespace Processor
