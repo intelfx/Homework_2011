@@ -542,9 +542,7 @@ class InterpreterClientApplication : LogBase( ICA )
 	Processor::ProcessorAPI processor;
 	StatisticsCollectorLogic* custom_logic;
 	bool is_running;
-	bool use_periodic_write;
-	bool use_jit;
-	const char* dump_filename;
+	ExecutionParameters* params;
 
 	static void delay_command( Processor::ProcessorAPI*, Processor::Command& command ) {
 		float ms = 0;
@@ -581,7 +579,7 @@ class InterpreterClientApplication : LogBase( ICA )
 			// Synchronously do preparation.
 			timer = new Timer;
 
-			if( use_periodic_write )
+			if( params->use_timer )
 				pthread_create( &timer_thread, nullptr, &timer_threadfunc, nullptr );
 		}
 	}
@@ -590,7 +588,7 @@ class InterpreterClientApplication : LogBase( ICA )
 		if( is_running ) {
 			is_running = false;
 
-			if( use_periodic_write ) {
+			if( params->use_timer ) {
 				pthread_cancel( timer_thread );
 				pthread_join( timer_thread, nullptr );
 			}
@@ -608,7 +606,7 @@ public:
 		processor.Attach( new ProcessorImplementation::IntegerExecutor );
 		processor.Attach( new ProcessorImplementation::ServiceExecutor );
 
-		if( use_jit ) {
+		if( params->use_jit ) {
 			processor.Attach( Processor::IBackend::BackendForCurrentProcessor() );
 		}
 	}
@@ -632,12 +630,10 @@ public:
 		processor.CommandSet()->AddCommandImplementation( "lcm", 0, Fcast<void*>( &lcm_c ) );
 	}
 
-	InterpreterClientApplication( bool periodic_write, bool jit, const char* dump_fn ) :
+	InterpreterClientApplication( ExecutionParameters* parameters ) :
 		custom_logic( nullptr ),
 		is_running( false ),
-		use_periodic_write( periodic_write ),
-		use_jit( jit ),
-		dump_filename( dump_fn )
+		params( parameters )
 	{
 		if( !processor.ExecutionManager().EHSelftest() )
 			msg( E_CRITICAL, E_USER, "Exception handling self-tests failed!" );
@@ -713,23 +709,23 @@ public:
 			final_context = files.front().context_assigned;
 		}
 
-		if( dump_filename ) {
+		if( params->dump_bytecode_to ) {
 			timeops t( "Kernel dumping" );
 
-			FILE* dump_file = fopen( dump_filename, "wb" );
-			cassert( dump_file, "Could not open file \"%s\" for dumping", dump_filename );
+			FILE* dump_file = fopen( params->dump_bytecode_to, "wb" );
+			cassert( dump_file, "Could not open file \"%s\" for dumping", params->dump_bytecode_to );
 
 			processor.Attach( bytecode_handler );
 			processor.Dump( final_context, dump_file );
 			processor.Detach( bytecode_handler );
 		}
 
-		processor.SelectContext( final_context );
-
 		delete asm_handler;
 		delete bytecode_handler;
 
-		if( use_jit ) {
+		processor.SelectContext( final_context );
+
+		if( params->use_jit ) {
 			timeops t( "Kernel JIT-compilation" );
 			processor.Compile();
 		}
@@ -840,7 +836,7 @@ void* interpreter_threadfunc( void* argument )
 
 	ExecutionParameters* params = reinterpret_cast<ExecutionParameters*>( argument );
 
-	application = new InterpreterClientApplication( params->use_timer, params->use_jit, params->dump_bytecode_to );
+	application = new InterpreterClientApplication( params );
 	application->LoadKernel( params->files );
 	application->ExecKernelOnce();
 
