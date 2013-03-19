@@ -36,6 +36,7 @@ struct ExecutionParameters
 	Debug::EventLevelIndex_ debug_level;
 	std::vector<InputFile> files;
 	const char* dump_bytecode_to;
+	bool no_exec;
 };
 
 struct Statistics {
@@ -838,7 +839,10 @@ void* interpreter_threadfunc( void* argument )
 
 	application = new InterpreterClientApplication( params );
 	application->LoadKernel( params->files );
-	application->ExecKernelOnce();
+	
+	if( !params->no_exec ) {
+		application->ExecKernelOnce();
+	}
 
 	pthread_cleanup_pop( true );
 	return nullptr;
@@ -921,7 +925,8 @@ void usage( const char* name )
 					   "* --quiet, --debug                 : manipulate log verbosity (NOTE: timer output is not visible with --quiet)\n"
 					   "* --asm <assembly files...>        : any number of input files in assembly\n"
 					   "* --bytecode <bytecode files...>   : any number of input files in binary form\n"
-					   "* --dump-to <target bytecode file> : dump the byte-code (after loading and combining) to a file\n",
+					   "* --dump-to <target bytecode file> : dump the byte-code (after loading and combining) to a file\n"
+					   "* --no-exec                        : do not execute code (only load and dump, if asked)\n",
 			 name );
 
 	exit( 1 );
@@ -938,6 +943,7 @@ int main( int argc, char** argv )
 	params.use_jit = false;
 	params.use_timer = false;
 	params.dump_bytecode_to = nullptr;
+	params.no_exec = false;
 
 	bool current_is_bytecode = false;
 	for( int i = 1; i < argc; ++i ) {
@@ -957,6 +963,8 @@ int main( int argc, char** argv )
 			current_is_bytecode = true;
 		} else if( !strcmp( parameter, "--dump-to" ) ) {
 			params.dump_bytecode_to = argv[++i];
+		} else if( !strcmp(parameter, "--no-exec") ) {
+			params.no_exec = true;
 		} else if( !strcmp( parameter, "--help" ) ) {
 			usage( argv[0] );
 		} else if( !strncmp( parameter, "--", 2 ) ) {
