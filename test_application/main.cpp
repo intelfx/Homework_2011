@@ -679,7 +679,7 @@ public:
 		{
 			timeops t( "Kernel loading" );
 			for( InputFile& input_file: files ) {
-				msg( E_INFO, E_VERBOSE, "Loading file \"%s\" (%s)", input_file.filename, input_file.is_bytecode ? "byte-code" : "assembly" );
+				msg( E_INFO, E_USER, "Loading file \"%s\" (%s)", input_file.filename, input_file.is_bytecode ? "byte-code" : "assembly" );
 				FILE* file = fopen( input_file.filename, "rt" );
 				cassert( file, "Could not open file \"%s\" for reading", input_file.filename );
 

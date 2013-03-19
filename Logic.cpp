@@ -416,12 +416,12 @@ void Logic::Syscall( size_t index )
 	case 0: {
 		calc_t input_data = proc_->MMU()->ARegister( R_F );
 		input_data.Expect( Value::V_INTEGER, true );
-		msg( E_INFO, E_USER, "Application output: \"%s\"", proc_->MMU()->ABytepool( input_data.integer ) );
+		printf( "%s", proc_->MMU()->ABytepool( input_data.integer ) );
 		break;
 	}
 
 	case 1: {
-		msg( E_INFO, E_USER, "Reading integer from command-line" );
+		msg( E_INFO, E_VERBOSE, "Reading integer from command-line" );
 		char buffer[STATIC_LENGTH];
 		fgets( buffer, STATIC_LENGTH, stdin );
 		proc_->MMU()->ARegister( R_A ).Set( Value::V_INTEGER, atoi( buffer ), true );
