@@ -244,9 +244,9 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 			break;
 
 		case Value::V_FLOAT:
-			// fsubrp
+			// fsubp
 			Insn()
-				.AddOpcode( 0xDE, 0xE1 )
+				.AddOpcode( 0xDE, 0xE9 )
 				.Emit( this );
 			break;
 
@@ -311,9 +311,9 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 			break;
 
 		case Value::V_FLOAT:
-			// fdivrp
+			// fdivp
 			Insn()
-				.AddOpcode( 0xDE, 0xF1 )
+				.AddOpcode( 0xDE, 0xF9 )
 				.Emit( this );
 			break;
 
@@ -423,6 +423,7 @@ bool x86Backend::CompileCommand_Arithmetic( Command& cmd )
 				.SetOpcodeExtension( 0x1 )
 				.AddRM( RegisterWrapper( Reg64::RAX ) )
 				.Emit( this );
+		break;
 
 		case Value::V_FLOAT:
 			// fld1
