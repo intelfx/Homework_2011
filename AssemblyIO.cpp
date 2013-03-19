@@ -170,7 +170,7 @@ Reference AsmHandler::ParseFullReference( char* arg )
 
 	Reference result; mem_init( result );
 
-	simplify( arg );
+	PrepReference( arg );
 	msg( E_INFO, E_DEBUG, "Parsing complete reference \"%s\"", arg );
 
 	char* second_component = nullptr;
@@ -358,9 +358,29 @@ void AsmHandler::ParseInsertString( char* arg )
 	decode_output.bytepool.assign( output_string.begin(), output_string.end() );
 }
 
+namespace {
+	bool helper_is_string( bool& is_in_string, char* symbol )
+	{
+		if( is_in_string ) {
+			if( *symbol == '"' && symbol[-1] != '\\' ) {
+				is_in_string = false;
+			}
+			return true;
+		}
+
+		if( *symbol == '"' ) {
+			is_in_string = true;
+			return true;
+		}
+		
+		return false;
+	}
+}
+
 char* AsmHandler::PrepLine( char* read_buffer )
 {
 	char* begin, *tmp = read_buffer, *last_non_whitespace;
+	bool in_string = false;
 
 	while( isspace( * ( begin = tmp++ ) ) );
 
@@ -372,6 +392,11 @@ char* AsmHandler::PrepLine( char* read_buffer )
 
 	/* drop unused parts of decoded string */
 	do {
+		if( helper_is_string( in_string, tmp ) ) {
+			last_non_whitespace = tmp;
+			continue;
+		}
+
 		if( *tmp == ';' )
 			*tmp = '\0';
 
@@ -390,6 +415,21 @@ char* AsmHandler::PrepLine( char* read_buffer )
 	*( last_non_whitespace + 1 ) = '\0'; // cut traling whitespace
 
 	return begin;
+}
+
+void AsmHandler::PrepReference( char* reference )
+{
+	char* dest = reference;
+	bool in_string = false;
+
+	while( *reference ) {
+		if( helper_is_string( in_string, reference ) || !isspace( *reference ) ) {
+			*dest++ = *reference;
+		}
+		++reference;
+	}
+
+	*dest++ = '\0';
 }
 
 void AsmHandler::ReadSingleDeclaration( const char* decl_data )

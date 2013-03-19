@@ -34,6 +34,7 @@ class INTERPRETER_API AsmHandler : LogBase( AsmHandler ), public IReader, public
 
 	void InternalWriteFile();
 	char* PrepLine( char* read_buffer );
+	void PrepReference( char* reference );
 	char* ParseLabel( char* current_position );
 
 	AddrType DecodeSectionType( char id );
