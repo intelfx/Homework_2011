@@ -214,7 +214,7 @@ void MMU::AppendSection( MemorySectionIdentifier section, const void* image, siz
 	}
 
 	case SEC_BYTEPOOL_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Adding raw data (bytes: %zu) -> buffer %zu",
+		msg( E_INFO, E_DEBUG, "Adding raw data (bytes: %zu) -> buffer %zu",
 		     count, CurrentContextBuffer() );
 
 		CurrentBuffer().bytepool.append( count, image );
@@ -293,7 +293,7 @@ void MMU::ModifySection( MemorySectionIdentifier section, size_t address,
 	}
 
 	case SEC_BYTEPOOL_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "%s raw data (bytes: %zu) -> buffer %zu at %zu",
+		msg( E_INFO, E_DEBUG, "%s raw data (bytes: %zu) -> buffer %zu at %zu",
 		     dbg_op, count, CurrentContextBuffer(), address );
 
 		if( insert ) {
@@ -351,7 +351,7 @@ llarray MMU::DumpSection( MemorySectionIdentifier section, size_t address, size_
 
 	switch( section.SectionType() ) {
 	case SEC_CODE_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Dumping text (buffer %zu) -> range %zu:%zu",
+		msg( E_INFO, E_DEBUG, "Dumping text (buffer %zu) -> range %zu:%zu",
 		     CurrentContextBuffer(), address, count );
 
 		cassert( address + count <= icb.commands.size(),
@@ -361,7 +361,7 @@ llarray MMU::DumpSection( MemorySectionIdentifier section, size_t address, size_
 	}
 
 	case SEC_DATA_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Dumping data (buffer %zu) -> range %zu:%zu",
+		msg( E_INFO, E_DEBUG, "Dumping data (buffer %zu) -> range %zu:%zu",
 		     CurrentContextBuffer(), address, count );
 
 		cassert( address + count <= icb.data.size(),
@@ -371,7 +371,7 @@ llarray MMU::DumpSection( MemorySectionIdentifier section, size_t address, size_
 	}
 
 	case SEC_BYTEPOOL_IMAGE: {
-		msg( E_INFO, E_VERBOSE, "Dumping bytepool (buffer %zu) -> range %zu:%zu",
+		msg( E_INFO, E_DEBUG, "Dumping bytepool (buffer %zu) -> range %zu:%zu",
 		     CurrentContextBuffer(), address, count );
 
 		cassert( address + count <= icb.bytepool.size(),
