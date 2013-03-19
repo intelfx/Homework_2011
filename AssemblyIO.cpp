@@ -524,13 +524,13 @@ void AsmHandler::ReadSingleCommand( const char* command,
 	// Parse arguments
 	if( !argument ) { /* no argument */
 		cverify( desc->arg_type == A_NONE,
-		         "No argument required for command \"%s\" while given argument \"%s\"",
-		         command, argument );
+		         "Argument needed for command \"%s\"", command );
 	}
 
 	else { /* have argument */
 		cverify( desc->arg_type != A_NONE,
-		         "Argument needed for command \"%s\"", command );
+		         "No argument required for command \"%s\" while given argument \"%s\"",
+		         command, argument );
 
 		switch( desc->arg_type ) {
 		case A_REFERENCE:
