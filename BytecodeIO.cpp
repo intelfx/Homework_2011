@@ -65,11 +65,12 @@ void BytecodeHandler::ReadSectionInfo()
 	cassert( current_section_.section_type < SEC_MAX,
 	         "Invalid section type #: %u",
 	         current_section_.section_type );
-	msg( E_INFO, E_DEBUG, "New section: %u bytes, %u entries",
-		 current_section_.size_bytes, current_section_.size_entries );
+	msg( E_INFO, E_VERBOSE, "Reading section: %s (bytes: %zu entities: %zu)",
+		 ProcDebug::Print( current_section_.section_type ).c_str(),
+		 static_cast<size_t>( current_section_.size_bytes ),
+		 static_cast<size_t>( current_section_.size_entries ) );
 	++count_sections_read_;
 }
-
 
 FileType BytecodeHandler::RdSetup( FILE* file )
 {
@@ -201,6 +202,9 @@ void BytecodeHandler::PutSection( MemorySectionType type, const llarray& data, s
 	hdr.size_entries = entities_count;
 	fwrite( &hdr, sizeof( hdr ), 1, writing_file_ );
 	fwrite( data, 1, data.size(), writing_file_ );
+	
+	msg( E_INFO, E_VERBOSE, "Written section: %s (bytes: %zu entities: %zu)",
+		 ProcDebug::Print( type ).c_str(), data.size(), entities_count );
 }
 
 void BytecodeHandler::WriteSymbols( const symbol_map& symbols )
