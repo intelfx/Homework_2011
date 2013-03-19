@@ -144,20 +144,31 @@ void BytecodeHandler::InternalWriteFile()
 
 	FileHeader hdr;
 	hdr.signature = file_signature;
-	hdr.section_count = writing_section_count;
+	hdr.section_count = -1;
 	fwrite( &hdr, sizeof( hdr ), 1, writing_file_ );
 
+	size_t sections_actually_written = 0;
 	Offsets limits = proc_->MMU()->QuerySectionLimits();
 
 	for( size_t i = 0; i < writing_section_count; ++i ) {
 		if( writing_sections[i] == SEC_SYMBOL_MAP ) {
 			WriteSymbols( proc_->MMU()->DumpSymbolImage() );
+			++sections_actually_written;
 		} else {
 			MemorySectionIdentifier id( writing_sections[i] );
-			llarray section_data = proc_->MMU()->DumpSection( id, 0, limits.at( id ) );
-			PutSection( id.SectionType(), section_data, limits.at( id ) );
+			if( size_t limit = limits.at( id ) ) {
+				llarray section_data = proc_->MMU()->DumpSection( id, 0, limit );
+				PutSection( id.SectionType(), section_data, limit );
+				++sections_actually_written;
+			}
 		}
 	}
+	
+	// Update header
+	fseek( writing_file_, 0, SEEK_SET );
+	hdr.section_count = sections_actually_written;
+	fwrite( &hdr, sizeof( hdr ), 1, writing_file_ );
+	fseek( writing_file_, 0, SEEK_END );
 }
 
 std::pair< MemorySectionIdentifier, size_t > BytecodeHandler::NextSection()
