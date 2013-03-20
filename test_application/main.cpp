@@ -1,12 +1,10 @@
-#include <stdio.h>
+#undef __STRICT_ANSI__
 
 #include "../API.h"
 
 #include <uXray/fxjitruntime.h>
 #include <uXray/time_ops.h>
 #include <uXray/fxmath.h>
-
-#include "ssb.h"
 
 DeclareDescriptor( ICA, , )
 ImplementDescriptor( ICA, "interpreter client", MOD_APPMODULE )
@@ -66,17 +64,6 @@ InterpreterClientApplication* application = nullptr;
 void* interpreter_threadfunc( void* argument );
 void interpreter_cancellation( void* );
 
-// ---- GUI thread
-class SDLApplication;
-
-pthread_t gui_thread;
-pthread_mutex_t gui_init_mutex;
-SDLApplication* gui = nullptr;
-bool gui_thread_need_to_join = false;
-
-void* gui_threadfunc( void* );
-void gui_cancellation( void* );
-
 // ---- Timer thread
 class Timer;
 
@@ -86,126 +73,6 @@ Timer* timer = nullptr;
 void* timer_threadfunc( void* );
 void timer_cancellation( void* );
 // ----
-
-
-class SDLApplication : LogBase( SDLApplication )
-{
-	static const size_t size_x = 800, size_y = 600;
-	SDL_Surface* video_buffer;
-
-	int center_x, center_y;
-	double scale_x, scale_y;
-	int last_mouse_x, last_mouse_y;
-
-	long main_color, aux_color, current_color;
-
-public:
-	SDLApplication() {
-		ssb_init();
-		video_buffer = ssb_video_init( size_x, size_y, 0 );
-
-		center_x = size_x / 2;
-		center_y = size_y / 2;
-
-		scale_x = 1;
-		scale_y = 1;
-
-		last_mouse_x = 0;
-		last_mouse_y = 0;
-
-
-		main_color = 0x66FF6680;
-		aux_color = 0x666666FF;
-
-		current_color = main_color;
-	}
-
-	~SDLApplication() {
-		// Close window
-		ssb_video_deinit( video_buffer );
-		ssb_deinit();
-	}
-
-	void EventLoop() {
-		SDL_Event* event;
-		bool running = true;
-
-		while( running ) {
-			event = ssb_get_event();
-
-			if( !event )
-				continue;
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			switch( event->type ) {
-			case SDL_QUIT:
-				smsg( E_INFO, E_USER, "GUI has been closed - exiting event loop" );
-				running = false;
-				break;
-
-			case SDL_MOUSEMOTION:
-// 					smsg (E_INFO, E_DEBUG, "Mouse motion: %d:%d", event->motion.x, event->motion.y);
-				last_mouse_x = event->motion.x;
-				last_mouse_y = event->motion.y;
-				break;
-
-			default:
-				break;
-			}
-
-			pthread_mutex_unlock( &gui_init_mutex );
-		}
-	}
-
-	SDL_Surface* Screen() {
-		return video_buffer;
-	}
-
-	void SetLimits( double lim_x, double lim_y ) {
-		scale_x = ( size_x / 2 ) / lim_x;
-		scale_y = ( size_y / 2 ) / lim_y;
-	}
-
-	void GetLimits( double* lim_x, double* lim_y ) {
-		*lim_x = ( ( size_x / 2 ) / scale_x );
-		*lim_y = ( ( size_y / 2 ) / scale_y );
-	}
-
-	void GetSteps( double* sx, double* sy ) {
-		*sx = ( 1 / scale_x );
-		*sy = ( 1 / scale_y );
-	}
-
-	long GetPixels( double x, double y ) {
-		unsigned px = x * scale_x + center_x, py = y * scale_y + center_y;
-		return PACKWORD( py, px );
-	}
-
-	void MouseCoords( double* x, double* y ) {
-		*x = ( ( last_mouse_x - center_x ) / scale_x );
-		*y = ( ( last_mouse_y - center_y ) / scale_y );
-	}
-
-	void SetAuxColor() {
-		current_color = ssb_map_rgb_inner( video_buffer, aux_color );
-	}
-
-	void SetMainColor() {
-		current_color = main_color;
-	}
-
-	void SetUserColor( float r, float g, float b ) {
-		current_color = ssb_map_rgb( video_buffer,
-		                             r * 0xFF,
-		                             g * 0xFF,
-		                             b * 0xFF );
-	}
-
-	long CurrentColor() {
-		return current_color;
-	}
-};
 
 class Timer : LogBase( Timer )
 {
@@ -229,13 +96,6 @@ class StatisticsCollectorLogic : public ProcessorImplementation::Logic
 {
 	mutable pthread_mutex_t statistics_mutex;
 	Statistics statistics;
-
-	virtual void CheckGUI() {
-		if( !gui ) {
-			pthread_mutex_unlock( &gui_init_mutex );
-			casshole( "GUI is not initialised" );
-		}
-	}
 
 public:
 	void ResetStatistics() {
@@ -265,259 +125,7 @@ public:
 		++statistics.syscall_count;
 		pthread_mutex_unlock( &statistics_mutex );
 
-		switch( index ) {
-		case 10: {
-			msg( E_INFO, E_DEBUG, "Starting GUI system/thread" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			gui = new SDLApplication;
-			gui_thread_need_to_join = true;
-			pthread_create( &gui_thread, nullptr, &gui_threadfunc, nullptr );
-
-			double sx, sy;
-
-			gui->GetLimits( &sx, &sy );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-
-			proc_->MMU()->ARegister( Processor::R_A ).Set( Processor::Value::V_FLOAT, sx, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Set( Processor::Value::V_FLOAT, sy, 1 );
-			break;
-		}
-
-		case 11:
-			msg( E_INFO, E_DEBUG, "Stopping GUI system/thread" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-			pthread_cancel( gui_thread );
-
-			if( gui_thread_need_to_join ) {
-				pthread_mutex_unlock( &gui_init_mutex );
-				pthread_join( gui_thread, nullptr );
-			}
-
-			else
-				pthread_mutex_unlock( &gui_init_mutex );
-
-			break;
-
-		case 12: {
-			msg( E_INFO, E_DEBUG, "GUI scale set request" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			double sx, sy;
-
-			proc_->MMU()->ARegister( Processor::R_A ).Get( Processor::Value::V_FLOAT, sx, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Get( Processor::Value::V_FLOAT, sy, 1 );
-
-			gui->SetLimits( sx, sy );
-			gui->GetSteps( &sx, &sy );
-
-			proc_->MMU()->ARegister( Processor::R_A ).Set( Processor::Value::V_FLOAT, sx, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Set( Processor::Value::V_FLOAT, sy, 1 );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-
-			break;
-		}
-
-		case 13: {
-			msg( E_INFO, E_DEBUG, "GUI screen redraw request" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			ssb_flip( gui->Screen() );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		case 14: {
-			msg( E_INFO, E_DEBUG, "GUI mouse coordinates request" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			double mx, my;
-
-			gui->MouseCoords( &mx, &my );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-
-			proc_->MMU()->ARegister( Processor::R_A ).Set( Processor::Value::V_FLOAT, mx, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Set( Processor::Value::V_FLOAT, my, 1 );
-
-			break;
-		}
-
-		case 15: {
-			msg( E_INFO, E_DEBUG, "GUI main color selection" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			gui->SetMainColor();
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		case 16: {
-			msg( E_INFO, E_DEBUG, "GUI auxiliary color selection" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			gui->SetAuxColor();
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		case 17: {
-			msg( E_INFO, E_DEBUG, "GUI screen clear request" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			ssb_clear( gui->Screen() );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		case 18: {
-			msg( E_INFO, E_DEBUG, "GUI user color set request" );
-
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			float r, g, b;
-
-			proc_->MMU()->ARegister( Processor::R_A ).Get( Processor::Value::V_FLOAT, r, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Get( Processor::Value::V_FLOAT, g, 1 );
-			proc_->MMU()->ARegister( Processor::R_C ).Get( Processor::Value::V_FLOAT, b, 1 );
-
-			msg( E_INFO, E_DEBUG, "GUI set user color: %f:%f:%f", r, g, b );
-			gui->SetUserColor( r, g, b );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		case 20: {
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			double px, py;
-
-			proc_->MMU()->ARegister( Processor::R_A ).Get( Processor::Value::V_FLOAT, px, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Get( Processor::Value::V_FLOAT, py, 1 );
-
-			long coords = gui->GetPixels( px, py );
-
-			msg( E_INFO, E_DEBUG, "GUI plot: %lf:%lf = %ld:%ld", px, py, GETX( coords ), GETY( coords ) );
-
-			ssb_pixel( gui->Screen(), coords, gui->CurrentColor() );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		case 21: {
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			double p1x, p1y, p2x, p2y;
-
-			proc_->MMU()->ARegister( Processor::R_A ).Get( Processor::Value::V_FLOAT, p1x, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Get( Processor::Value::V_FLOAT, p1y, 1 );
-			proc_->MMU()->ARegister( Processor::R_C ).Get( Processor::Value::V_FLOAT, p2x, 1 );
-			proc_->MMU()->ARegister( Processor::R_D ).Get( Processor::Value::V_FLOAT, p2y, 1 );
-
-			long c1 = gui->GetPixels( p1x, p1y );
-			long c2 = gui->GetPixels( p2x, p2y );
-
-
-			msg( E_INFO, E_DEBUG, "GUI line: %lf:%lf-> %lf:%lf = %ld:%ld-> %ld:%ld",
-			     p1x, p1y, p2x, p2y, GETX( c1 ), GETY( c1 ), GETX( c2 ), GETY( c2 ) );
-
-			ssb_line( gui->Screen(), c1, c2, gui->CurrentColor() );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		case 22: {
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			double px, py;
-			double r;
-
-			proc_->MMU()->ARegister( Processor::R_A ).Get( Processor::Value::V_FLOAT, px, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Get( Processor::Value::V_FLOAT, py, 1 );
-			proc_->MMU()->ARegister( Processor::R_C ).Get( Processor::Value::V_FLOAT, r, 1 );
-
-			long coords = gui->GetPixels( px, py );
-			long radius = gui->GetPixels( r, r );
-
-
-			msg( E_INFO, E_DEBUG, "GUI circle: %lf:%lf = %ld:%ld | radius %lf = %ld:%ld",
-			     px, py, GETX( coords ), GETY( coords ), r, GETX( radius ), GETY( radius ) );
-
-			ssb_ellipse( gui->Screen(), coords, radius, gui->CurrentColor() );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		case 23: {
-			pthread_mutex_lock( &gui_init_mutex );
-
-			CheckGUI();
-
-			double px, py;
-			double rx, ry;
-
-			proc_->MMU()->ARegister( Processor::R_A ).Get( Processor::Value::V_FLOAT, px, 1 );
-			proc_->MMU()->ARegister( Processor::R_B ).Get( Processor::Value::V_FLOAT, py, 1 );
-			proc_->MMU()->ARegister( Processor::R_C ).Get( Processor::Value::V_FLOAT, rx, 1 );
-			proc_->MMU()->ARegister( Processor::R_D ).Get( Processor::Value::V_FLOAT, ry, 1 );
-
-			long coords = gui->GetPixels( px, py );
-			long radius = gui->GetPixels( rx, ry );
-
-
-			msg( E_INFO, E_DEBUG, "GUI ellipse: %lf:%lf = %ld:%ld | radius %lf:%lf = %ld:%ld",
-			     px, py, GETX( coords ), GETY( coords ), rx, ry, GETX( radius ), GETY( radius ) );
-
-			ssb_ellipse( gui->Screen(), coords, radius, gui->CurrentColor() );
-
-			pthread_mutex_unlock( &gui_init_mutex );
-			break;
-		}
-
-		default:
-			Logic::Syscall( index );
-			break;
-		}
+		Logic::Syscall( index );
 	}
 
 	virtual void ExecuteSingleCommand( Processor::Command& command ) {
@@ -551,7 +159,7 @@ class InterpreterClientApplication : LogBase( ICA )
 
 		smsg( E_INFO, E_DEBUG, "Delaying execution for %g milliseconds", ms );
 
-		usleep( ms * 1000 );
+		timeops::sleep( ms );
 
 		smsg( E_INFO, E_DEBUG, "Continuing execution" );
 	}
@@ -800,28 +408,6 @@ public:
 	}
 };
 
-void gui_cancellation( void* )
-{
-	pthread_mutex_lock( &gui_init_mutex );
-	delete gui; gui = nullptr;
-	pthread_mutex_unlock( &gui_init_mutex );
-}
-
-void* gui_threadfunc( void* )
-{
-	pthread_cleanup_push( &gui_cancellation, nullptr );
-
-	gui->EventLoop();
-
-	// Stop interpreter only if we are stopping on our own (exited the loop)
-	pthread_cancel( interpreter_thread );
-	pthread_join( interpreter_thread, nullptr );
-
-	pthread_cleanup_pop( true );
-
-	return nullptr;
-}
-
 void interpreter_cancellation( void* )
 {
 	delete application; application = nullptr;
@@ -831,9 +417,9 @@ void* interpreter_threadfunc( void* argument )
 {
 	pthread_cleanup_push( &interpreter_cancellation, nullptr );
 
-	clockid_t clockid;
-	pthread_getcpuclockid( interpreter_thread, &clockid );
-	timeops::calibrate_platform( clockid );
+// 	clockid_t clockid;
+// 	pthread_getcpuclockid( interpreter_thread, &clockid );
+	timeops::calibrate( timeops::CLOCK_PERTHREAD );
 
 	ExecutionParameters* params = reinterpret_cast<ExecutionParameters*>( argument );
 
@@ -980,7 +566,6 @@ int main( int argc, char** argv )
 
 	Debug::API::SetDefaultVerbosity( params.debug_level );
 
-	pthread_mutex_init( &gui_init_mutex, nullptr );
 	pthread_attr_init( &global_detached_attrs );
 	pthread_attr_setdetachstate( &global_detached_attrs, PTHREAD_CREATE_DETACHED );
 
@@ -989,20 +574,8 @@ int main( int argc, char** argv )
 
 	pthread_join( interpreter_thread, nullptr );
 
-	pthread_mutex_lock( &gui_init_mutex );
-
-	if( gui_thread_need_to_join ) {
-		pthread_mutex_unlock( &gui_init_mutex );
-		pthread_join( gui_thread, nullptr );
-	}
-
-	else
-		pthread_mutex_unlock( &gui_init_mutex );
-
-
 	smsg( E_INFO, E_DEBUG, "Thread execution finished" );
 
 	pthread_attr_destroy( &global_detached_attrs );
-	pthread_mutex_destroy( &gui_init_mutex );
 }
 // kate: indent-mode cstyle; indent-width 4; replace-tabs off; tab-width 4;
