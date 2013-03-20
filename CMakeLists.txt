@@ -23,7 +23,7 @@ if("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 		INCLUDE(${PROJECT_SOURCE_DIR}/../../Precompiled.cmake)
 		set_normal_devel_tree()
 
-		find_assert_library ("uXray" LIBRARIES)
+		LIST(APPEND LIBRARIES "uXray")
 
 	else(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
 
@@ -33,7 +33,7 @@ if("${PROJECT_CONFIGURATION}" STREQUAL "Standalone")
 		INCLUDE(Precompiled.cmake)
 		set_local_devel_tree()
 
-		find_assert_library ("uXray" LIBRARIES)
+		LIST(APPEND LIBRARIES "uXray")
 
 	endif(EXISTS ${PROJECT_SOURCE_DIR}/../../Common.cmake)
 
