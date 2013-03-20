@@ -51,7 +51,7 @@ bool BytecodeHandler::_Verify() const
 void BytecodeHandler::ReadFileInfo()
 {
 	fread( &current_file_, sizeof( current_file_ ), 1, reading_file_ );
-	cassert( current_file_.signature == file_signature, "Invalid file signature: %08x", current_file_.signature );
+	cassert( current_file_.signature == file_signature, "Invalid file signature: %08x (%4s)", current_file_.signature, &current_file_.signature );
 	msg( E_INFO, E_DEBUG, "%hhu sections in file", current_file_.section_count );
 	count_sections_read_ = 0;
 }
@@ -60,8 +60,8 @@ void BytecodeHandler::ReadSectionInfo()
 {
 	fread( &current_section_, sizeof( current_section_ ), 1, reading_file_ );
 	cassert( current_section_.signature == section_signature,
-	         "Invalid section signature: %08x",
-	         current_section_.signature );
+	         "Invalid section signature: %08x (%4s)",
+	         current_section_.signature, &current_section_.signature );
 	cassert( current_section_.section_type < SEC_MAX,
 	         "Invalid section type #: %u",
 	         current_section_.section_type );
