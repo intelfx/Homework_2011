@@ -2,6 +2,8 @@
 
 #include "Insn.h"
 
+#define USE_OBJDUMP
+
 // -------------------------------------------------------------------------------------
 // Library:		Homework
 // File:		Backend.cpp
@@ -536,11 +538,24 @@ void DumpEmitted( const llarray& data )
 {
 	static const size_t oneline = 10;
 
-	smsg( E_WARNING, E_DEBUG, "Code emission completed. Emitted %zu bytes", data.size() );
+	smsg( E_WARNING, E_VERBOSE, "Code emission completed. Emitted %zu bytes", data.size() );
+	
+#if defined(TARGET_POSIX) && defined(USE_OBJDUMP)
+	FILE* dump_dest = tmpfile();
+	fwrite( data, 1, data.size(), dump_dest );
+	fflush( dump_dest );
+
+	char* objdump_string = nullptr;
+	fx_asprintf( &objdump_string, "objdump -Db binary -m i386 -M x86-64,intel-mnemonic /proc/self/fd/%d", fileno( dump_dest ) );
+	system( objdump_string );
+	free( objdump_string );
+	
+	fclose( dump_dest );
+#else
 	char* buffer = reinterpret_cast<char*>( malloc( 5 * oneline + 1 ) );
 	char* dest = buffer;
-
 	size_t count = 1;
+
 	for( auto byte: data ) {
 		dest += sprintf( dest, "0x%02hhx ", byte );
 		if( count >= oneline ) {
@@ -556,6 +571,7 @@ void DumpEmitted( const llarray& data )
 	}
 
 	free( buffer );
+#endif // defined(TARGET_POSIX) && defined(USE_OBJDUMP)
 }
 
 void x86Backend::CompileBuffer( size_t chk )
@@ -585,7 +601,11 @@ void x86Backend::CompileBuffer( size_t chk )
 	RecordNextInsnOffset();
 
 	msg( E_INFO, E_VERBOSE, "Native code emission completed" );
-	DumpEmitted( Target() );
+	
+	if( Debug::MinimalEngine::verbosity >= Debug::E_VERBOSE ) {
+		DumpEmitted( Target() );
+	}
+	
 	Finalize();
 }
 
