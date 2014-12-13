@@ -376,7 +376,7 @@ void Logic::SetCurrentContextBuffer( ctx_t id )
 
 	Context& ctx = proc_->CurrentContext();
 	proc_->MMU()->SelectContextBuffer( id );
-	ctx.__buffer_rw = id;
+	ctx.buffer = id;
 	ctx.depth = 0;
 }
 

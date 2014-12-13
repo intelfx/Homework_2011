@@ -256,14 +256,7 @@ struct Context
 {
 	mask_t flags;
 	size_t ip;
-	union
-	{
-		// the r/w is positioned before r/o to make the union (hence the struct) have the
-		// default assignment operator/ctor.
-		// TODO: make this really work and eliminate the assignment op below.
-		ctx_t __buffer_rw;
-		const ctx_t buffer;
-	};
+	ctx_t buffer;
 	size_t depth;
 	size_t frame;
 
@@ -271,7 +264,7 @@ struct Context
 	{
 		flags = rhs.flags;
 		ip = rhs.ip;
-		__buffer_rw = rhs.buffer;
+		buffer = rhs.buffer;
 		depth = rhs.depth;
 		frame = rhs.frame;
 		return *this;
